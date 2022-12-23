@@ -1,0 +1,307 @@
+<html>
+
+<head>
+    <title>Test</title>
+    <style>
+        form {
+            width: 50%;
+            margin: auto;
+            border: 2px solid #ccc;
+            border-radius: 4px;
+            padding: 20px
+        }
+
+        label {
+            font-weight: bold
+        }
+
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box
+        }
+
+        input[type="submit"] {
+            width: 100%;
+            background-color: #4CAF50;
+            color: white;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+            top: -1.1em;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;<label class="switch" style="display: inline-block;">
+            -webkit-transition: .4s;
+            transition: .4s
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            border-radius: 34px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s
+        }
+
+        input:checked+.slider {
+            background-color: #2196F3
+        }
+
+        input:focus+.slider {
+            box-shadow: 0 0 1px #2196F3
+        }
+
+        input:checked+.slider:before {
+            -webkit-transform: translateX(26px);
+            -ms-transform: translateX(26px);
+            transform: translateX(26px)
+        }
+
+        .slider.round {
+            border-radius: 34px
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Center aligned h1 -->
+    <h1 style="text-align: center;">IoT Protocol Suggestion Engine</h1>
+    <hr>
+    <p style="text-align: center;">
+        This is a simple form that will suggest IoT protocols based on the IoT application requirements.<br>
+        Please select the appropriate options as per the requirements of your IoT application.
+    </p>
+    <form>
+        <label class="data-throughput">Minimum Data Throughput:</label><br>
+        <select class="data-throughput" name="data-throughput">
+            <option value="0.3-50 kbps">0.3-50 kbps</option>
+            <option value="9.6-100 kbps">9.6-100 kbps</option>
+            <option value="250 kbps">250 kbps</option>
+            <option value="24 Mbps">24 Mbps</option>
+            <option value="150 Mbps - 1 Gbps">150 Mbps - 1 Gbps</option>
+            <option value="Multi-Gigabit per sec">Multi- Gigabit per sec</option>
+        </select><br>
+        <label class="medium">Preferred Mode:</label><br>
+        <select class="medium" name="medium">
+            <option value="Wired">Wired</option>
+            <option value="Wireless">Wireless</option>
+        </select>
+        <br>
+        <label class="range">Minimum required Range:</label><br>
+        <select class="range" name="range">
+            <option value="10m">10m</option>
+            <option value="100m">100m</option>
+            <option value="15km">15km</option>
+        </select><br>
+        <label class="frequency">Radio Frequency requirements:</label><br>
+        <select class="frequency" name="frequency">
+            <option value="Sub-gigahertz (470MHz - 928MHz)">Sub-gigahertz (470MHz - 928MHz)</option>
+            <option value="Sub-gigahertz (868.40MHz - 921.40MHz)">Sub-gigahertz (868.40MHz - 921.40MHz)</option>
+            <option value="2.4 GHz">2.4 GHz</option>
+            <option value="5 GHz">5 GHz</option>
+        </select><br>
+        <label class="power-consumption">Power Consumption requirements:</label><br>
+        <select class="power-consumption" name="power-consumption">
+            <option value="low">Low</option>
+            <option value="high">High</option>
+        </select><br>
+        <label class="cost">Cost requirements:</label><br>
+        <select class="cost" name="cost">
+            <option value="low">Low</option>
+            <option value="moderate">Moderate</option>
+            <option value="high">High</option>
+        </select><br>
+        <label class="mesh-network">Mesh Network Required?:</label>
+        <label class="switch">
+            <input type="checkbox" class="mesh-network" name="mesh-network">
+            <span class="slider round"></span>
+        </label><br><br>
+        <div id="matching-protocols"></div>
+    </form>
+    <script>
+        const DEBUG = false;
+        const form = document.querySelector('form');
+
+        const mediumField = form.elements['medium'];
+        const dataThroughputField = form.elements['data-throughput'];
+        dataThroughputField.addEventListener('change', (event) => {
+            if (event.target.value.toLowerCase() === 'multi-gigabit per sec') {
+                mediumField.options[1].disabled = true;
+            } else {
+                mediumField.options[1].disabled = false;
+            }
+        });
+        const otherFields = [...form.children].filter((element) => element.className !== 'medium' && element.className !== 'data-throughput' && (element.tagName.toLocaleLowerCase() === "label" || element.tagName.toLocaleLowerCase() === "select" || element.tagName.toLocaleLowerCase() === "input"));
+        otherFields.forEach((field) => {
+            field.style.display = 'none';
+        });
+        mediumField.addEventListener('change', (event) => {
+            if (event.target.value.toLowerCase() === 'wireless') {
+                otherFields.forEach((field) => {
+                    if (field.className == 'switch' || field.className == 'mesh-network') {
+                        field.style.display = 'inline-block';
+                    }
+                    else{
+                        field.style.display = 'block';
+                    }
+                });
+            } else {
+                otherFields.forEach((field) => {
+                    field.style.display = 'none';
+                });
+            }
+        });
+
+        form.addEventListener('change', (event) => {
+            form.dispatchEvent(new Event('submit'));
+        });
+
+        form.addEventListener('submit', (event) => {
+            event.preventDefault(); // prevent the form from actually submitting
+
+            const range = form.elements['range'].value.toLowerCase();
+            const powerConsumption = form.elements['power-consumption'].value.toLowerCase();
+            const cost = form.elements['cost'].value.toLowerCase();
+            const meshNetwork = form.elements['mesh-network'].checked;
+            const dataThroughput = form.elements['data-throughput'].value.toLowerCase();
+            const medium = form.elements['medium'].value.toLowerCase();
+            const frequency = form.elements['frequency'].value.toLowerCase();
+
+            let matchingProtocols = ['Z-Wave', 'Zigbee', 'Bluetooth', 'WiFi', 'LoRaWAN'];
+
+            if (medium === 'wired') {
+                matchingProtocols = ['Ethernet'];
+            }
+            else {
+                if (dataThroughput === '9.6-100 kbps') {
+                    // eliminate LoRaWAN
+                    matchingProtocols = matchingProtocols.filter((protocol) => protocol !== 'LoRaWAN');
+                }
+                else if (dataThroughput === '250 kbps') {
+                    // eliminate LoRaWAN, Z-Wave
+                    matchingProtocols = matchingProtocols.filter((protocol) => protocol !== 'LoRaWAN' && protocol !== 'Z-Wave');
+                } else if (dataThroughput === '24 mbps') {
+                    // eliminate LoRaWAN, Z-Wave, Zigbee
+                    matchingProtocols = matchingProtocols.filter((protocol) => protocol !== 'LoRaWAN' && protocol !== 'Z-Wave' && protocol !== 'Zigbee');
+                } else if (dataThroughput === '150 mbps - 1 gbps') {
+                    // eliminate LoRaWAN, Z-Wave, Zigbee, Bluetooth
+                    matchingProtocols = matchingProtocols.filter((protocol) => protocol !== 'LoRaWAN' && protocol !== 'Z-Wave' && protocol !== 'Zigbee' && protocol !== 'Bluetooth');
+                } else if (dataThroughput === '0.3-50 kbps') {
+                    // do not eliminate any
+                } else if (dataThroughput === 'multi-gigabit per sec') {
+                    // eliminate all except
+                    matchingProtocols = [];
+                }
+
+                if (range === '10m') {
+                    // do not eliminate any
+                } else if (range === '100m') {
+                    // eliminate Bluetooth
+                    matchingProtocols = matchingProtocols.filter((protocol) => protocol !== 'Bluetooth');
+                } else if (range === '15km') {
+                    // eliminate Bluetooth, Zigbee, Z-Wave, WiFi
+                    matchingProtocols = ['LoRaWAN']
+                }
+
+                if (powerConsumption === 'high') {
+                    // do not eliminate any
+                } else if (powerConsumption === 'low') {
+                    // eliminate WiFi, Bluetooth
+                    matchingProtocols = matchingProtocols.filter((protocol) => protocol !== 'WiFi' && protocol !== 'Bluetooth');
+                }
+
+                if (cost === 'low') {
+                    // eliminate WiFi, Bluetooth
+                    matchingProtocols = matchingProtocols.filter((protocol) => protocol !== 'WiFi' && protocol !== 'Bluetooth');
+                } else if (cost === 'moderate') {
+                    // eliminate WiFi
+                    matchingProtocols = matchingProtocols.filter((protocol) => protocol !== 'WiFi');
+                } else if (cost === 'high') {
+                    // do not eliminate any
+                }
+
+                if (meshNetwork) {
+                    // eliminate WiFi, Bluetooth
+                    matchingProtocols = matchingProtocols.filter((protocol) => protocol !== 'WiFi' && protocol !== 'Bluetooth');
+                }
+                else {
+                    // eliminate all except WiFi, Bluetooth
+                    matchingProtocols = matchingProtocols.filter((protocol) => protocol === 'WiFi' || protocol === 'Bluetooth');
+                }
+
+                if (frequency === '2.4 ghz') {
+                    // eliminate LoRaWAN, Z-Wave
+                    matchingProtocols = matchingProtocols.filter((protocol) => protocol !== 'LoRaWAN' && protocol !== 'Z-Wave');
+                } else if (frequency === '5 ghz') {
+                    // eliminate all except WiFi
+                    matchingProtocols = matchingProtocols.filter((protocol) => protocol == 'WiFi');
+                } else if  (frequency === 'sub-gigahertz (470mhz - 928mhz)') {
+                    // eliminate all except LoRaWAN
+                    matchingProtocols = matchingProtocols.filter((protocol) => protocol == 'LoRaWAN');
+                } else if (frequency === 'sub-gigahertz (868.40mhz - 921.40mhz)') {
+                    // eliminate all except Z-Wave
+                    matchingProtocols = matchingProtocols.filter((protocol) => protocol == 'Z-Wave');
+                }
+            }
+
+            let protocolsList = '';
+            // Unique protocols
+            matchingProtocols = matchingProtocols.filter((protocol, index) => matchingProtocols.indexOf(protocol) === index);
+            if (matchingProtocols.length > 0) {
+                protocolsList = `<p>Matching protocols:</p><ul><li>${matchingProtocols.join('</li><li>')}</li></ul>`;
+            } else {
+                // criteria for no matching protocols
+                
+                let criteria = [...form.elements].filter((element) => element.type !== 'submit').map((element) => {
+                    if (element.type === 'checkbox') {
+                        if (element.className === 'mesh-network') {
+                            return `${element.parentElement.previousSibling.previousSibling.textContent.slice(0,-1)}: ${element.checked}`;
+                        }
+                        return `${element.previousElementSibling.previousSibling.textContent.slice(0,-1)}: ${element.checked}`;
+                    }
+                    return `${element.previousElementSibling.previousSibling.textContent.slice(0,-1)}: ${element.value}`;
+                }).join('<br> ');
+                criteria += ":";
+                if (!DEBUG) {
+                    criteria = "";
+                }
+                protocolsList = "<p>No matching protocols are found for the given criteria<br>" + criteria + "</p>";
+            }
+
+            document.querySelector('#matching-protocols').innerHTML = protocolsList;
+        });
+
+    </script>
+</body>
+
+</html>

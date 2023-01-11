@@ -121,13 +121,28 @@
   text-rendering: auto;
   font-family: "Font Awesome 5 Brands";
   font-weight: 400;
-  margin: 8px 10px;
   display: inline-block;
   font-size: 18px;
   line-height: 30px;
-  padding: 4px 14px;
+  padding: 10px;
+  margin-right: 10px;
   transition: 0.3s;
   border-radius: 3px;
+}
+
+.avi:hover {
+  color: rgb(116, 116, 116);
+  background: #fff;
+}
+
+.avi.mini {
+  margin: 0;
+  padding: 0;
+}
+
+.avi.mini:hover {
+  color: #fff;
+  background: transparent;
 }
 
 /**

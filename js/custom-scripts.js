@@ -7,6 +7,7 @@
   
       /* Loader Code Start */
       $(window).on("load", function() { 
+          document.getElementsByTagName('currentYear')[0].innerHTML = new Date().getFullYear();
           $(".section-loader").fadeOut("slow");
           
           var $container = $('.portfolioContainer');

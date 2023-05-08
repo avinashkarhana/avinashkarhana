@@ -4130,7 +4130,7 @@ img {
   background-color: #1d1d1b;
   text-align: center;
   font-family: 'ESL Legend', sans-serif;
-  font-size: 25px;
+  font-size: 22px;
   color: #FFF;
 
   -webkit-border-radius: 50%;
@@ -4226,7 +4226,10 @@ img {
   left: 0;
 }
 .ag-timeline-card_img {
-  width: 100%;
+  margin-left: 30px;
+  margin-right: 30px;
+  position: relative;
+  max-width: 80%;
 }
 .ag-timeline-card_info {
   padding: 20px 30px;
@@ -4243,6 +4246,7 @@ img {
   padding-top: 1.5em;
   font-size: 16px;
   color: #FFF;
+  text-align: left;
 }
 
 

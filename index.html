@@ -1071,11 +1071,11 @@
                 if (j == 0) {
                     // set it to invisible character
                     textElement.innerHTML = "\u200B";
-                    document.title = "Avinash Karhana | " + "\u200B";
+                    //document.title = "Avinash Karhana | " + "\u200B";
                 } else {
                     // remove one character
                     textElement.innerHTML = words[i].substring(0, j);
-                    document.title = "Avinash Karhana | " + words[i].substring(0, j);
+                    //document.title = "Avinash Karhana | " + words[i].substring(0, j);
                 }
                 j--;
                 setTimeout(erase, 50);

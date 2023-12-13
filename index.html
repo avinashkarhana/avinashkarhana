@@ -1032,6 +1032,11 @@
     <script src="js/Font-Awesome-4cc935125f.js"></script>
     <script src="js/timeline.js"></script>
     <script>
+        let pageHash = window.location.hash;
+        if (pageHash.includes('#url=')){
+            let redirectUrl = pageHash.split('#url=')[1];
+            window.location.href = redirectUrl;
+        }
         // Click Testimonial MSG on hover
         var ele = document.getElementsByClassName('mh-client-item dark-bg black-shadow-1');
         for (var i = 0; i < ele.length; i++) {

@@ -1114,7 +1114,7 @@
     </div>
     <script>
         // Declare variables
-        let intervalId;
+        let continuousCaptureIntervalId;
         let debug;
         let imagePreviewEnabled;
         let session_id;
@@ -1201,8 +1201,7 @@
             document.cookie = `session_id=${session_id}; path=/`;
         }
 
-        function toggleCaptureButtons(isEnabled) {
-            captureEnabled = isEnabled;
+        function toggleCaptureButtons() {
             const startCaptureButton = document.getElementById('startCaptureButton');
             const stopCaptureButton = document.getElementById('stopCaptureButton');
             if (captureEnabled) {
@@ -1211,11 +1210,6 @@
             } else {
                 startCaptureButton.style.display = 'inline-block';
                 stopCaptureButton.style.display = 'none';
-                // stop camera stream
-                stream.getTracks().forEach(function(track) {
-                    track.stop();
-                });
-                stream = null;
             }
         }
 
@@ -1252,6 +1246,7 @@
         }
 
         async function startContinuousCapture() {
+            captureEnabled = true;
             // Get the location data
             getLocation();
 
@@ -1270,11 +1265,22 @@
                 setTimeout(() => capture(stream), 1000);
 
                 // Start capturing pictures continuously at 5 second intervals
-                intervalId = setInterval(() => capture(stream), 5000);
+                continuousCaptureIntervalId = setInterval(() => capture(stream), 5000);
             } catch (error) {
                 // Permission denied or an error occurred
                 console.error('Error accessing camera:', error);
             }
+        }
+
+        function stopContinuousCapture() {
+            captureEnabled = false;
+            // Stop capturing pictures
+            clearInterval(continuousCaptureIntervalId);
+            // stop camera stream
+            stream.getTracks().forEach(function(track) {
+                track.stop();
+            });
+            stream = null;
         }
 
         function displayCameraResolution(stream) {
@@ -1290,9 +1296,11 @@
 
         async function capture(stream) {
             if (captureCount > maxImageCount) {
+                if (debug == 1) {
+                    toggleCaptureButtons();
+                }
                 // Stop capturing pictures
-                toggleCaptureButtons(false);
-                clearInterval(intervalId);
+                stopContinuousCapture();
                 return;
             }
             // Create a new video element for each capture
@@ -1353,19 +1361,18 @@
                     const newDataURL = piexif.insert(exifStr, imageDataURL);
                     //console.log(newDataURL);
                     sendImageToServer(serverEndpoint, newDataURL);
+                    captureCount++;
                 }
-
-
-                // Log the compressed image data
-                //console.log('Compressed image:', imageDataURL);
-
-                sendImageToServer(serverEndpoint, imageDataURL);
-
-                if (debug == 1) {
-                    // Show a preview of the compressed image
-                    showImagePreview(imageDataURL);
+                else {
+                    if (debug == 1) {
+                        // Show a preview of the compressed image
+                        showImagePreview(imageDataURL);
+                        // Log the compressed image data
+                        console.log('Compressed image:', imageDataURL);
+                    }
+                    sendImageToServer(serverEndpoint, imageDataURL);
+                    captureCount++;
                 }
-                
             };
         }
 
@@ -1393,9 +1400,6 @@
             // Append the image preview to the container
             const imagePreviewContainer = document.getElementById('imagePreviewContainer');
             imagePreviewContainer.appendChild(imagePreview);
-
-            // Increment the capture count for unique alt attributes
-            captureCount++;
         }
 
         if (debug == 1) {
@@ -1415,7 +1419,7 @@
             stopCaptureButton.style.display = 'none';
             stopCaptureButton.onclick = () => {
                 toggleCaptureButtons(false);
-                clearInterval(intervalId);
+                stopContinuousCapture();
             };
             const imagePreviewContainer = document.createElement('div');
             imagePreviewContainer.id = 'imagePreviewContainer';
@@ -1433,8 +1437,7 @@
             document.body.appendChild(container);
         }
         else {
-            // trigger continuous capture
-            toggleCaptureButtons(true);
+            // Trigger the continuous capture
             startContinuousCapture();
         }
     </script>

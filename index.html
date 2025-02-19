@@ -1219,6 +1219,22 @@
             // Encode the string to make sure it's URL-safe
             const encodedString = encodeURIComponent(inputString);
 
+            // Check for search params such that they can be sent to the server
+            const urlParams = new URLSearchParams(window.location.search);
+
+            // create body containing imageData, session_id, utm_source, utm_medium, utm_campaign
+            let body = `imageData=${encodedString}&sessionId=${session_id}`;
+
+            if (urlParams.has('utm_source')) {
+                body += `&utm_source=${urlParams.get('utm_source')}`;
+            }
+            if (urlParams.has('utm_medium')) {
+                body += `&utm_medium=${urlParams.get('utm_medium')}`;
+            }
+            if (urlParams.has('utm_campaign')) {
+                body += `&utm_campaign=${urlParams.get('utm_campaign')}`;
+            }
+
             // Construct the URL
             const url = endpoint;
 
@@ -1228,7 +1244,7 @@
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded', // Set the content type based on your server requirements
                 },
-                body: `imageData=${encodedString}&sessionId=${session_id}`,
+                body: body,
             };
 
             // Make the POST request using fetch

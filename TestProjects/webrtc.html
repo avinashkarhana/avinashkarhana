@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global WebRTC Dialer</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg: #000000;
+            --card: #1c1c1e;
+            --primary: #34c759;
+            --danger: #ff3b30;
+            --blue: #007aff;
+            --text: #ffffff;
+            --gray: #3a3a3c;
+        }
+
+        * { box-sizing: border-box; font-family: -apple-system, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+
+        /* Top Share Bar */
+        .share-bar { width: 100%; max-width: 400px; background: #222; padding: 12px; font-size: 12px; text-align: center; border-radius: 0 0 15px 15px; border: 1px solid #333; margin-bottom: 10px; }
+        .url-text { color: var(--blue); word-break: break-all; cursor: pointer; text-decoration: underline; }
+
+        /* Mobile Shell */
+        .phone-shell {
+            width: 100%;
+            max-width: 400px;
+            height: 85vh;
+            background: var(--card);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-radius: 40px;
+            border: 6px solid #333;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .view { display: none; flex-direction: column; height: 100%; padding: 25px; }
+        .view.active { display: flex; }
+
+        /* Dialer UI */
+        .header { text-align: center; margin-top: 20px; }
+        .my-id-label { color: #888; font-size: 12px; letter-spacing: 1px; }
+        .my-id-number { font-size: 40px; font-weight: bold; color: var(--primary); margin: 5px 0; }
+        
+        .dial-screen { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
+        input { background: transparent; border: none; color: white; font-size: 45px; text-align: center; outline: none; width: 100%; }
+        input::placeholder { color: #2c2c2e; }
+
+        /* Call UI */
+        .video-grid { flex-grow: 1; position: relative; background: #000; border-radius: 20px; overflow: hidden; }
+        #remote-video { width: 100%; height: 100%; object-fit: cover; }
+        #local-video { position: absolute; top: 15px; right: 15px; width: 90px; height: 130px; border-radius: 10px; border: 2px solid #444; object-fit: cover; z-index: 10; background: #222; }
+
+        /* Buttons */
+        .controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 20px 0; }
+        .btn { border: none; border-radius: 50%; width: 55px; height: 55px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 20px; color: white; background: var(--gray); transition: 0.2s; }
+        .btn.call { background: var(--primary); width: 70px; height: 70px; grid-column: span 4; margin: 0 auto; border-radius: 50%; font-size: 30px; }
+        .btn.hangup { background: var(--danger); }
+        .btn.active { background: white; color: black; }
+        .btn.screen { background: var(--blue); }
+
+        /* Incoming Overlay */
+        .incoming-ui { position: absolute; inset: 0; background: rgba(0,0,0,0.95); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; }
+
+        @media (max-width: 480px) {
+            .phone-shell { height: 100vh; border-radius: 0; border: none; }
+            .share-bar { border-radius: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Dynamic URL Share Bar -->
+    <div class="share-bar">
+        Invite others: <span class="url-text" id="share-url" onclick="copyLink()">loading...</span>
+    </div>
+
+    <div class="phone-shell">
+        
+        <!-- DIALER -->
+        <div id="view-dialer" class="view active">
+            <div class="header">
+                <div class="my-id-label">YOUR MOBILE NUMBER</div>
+                <div class="my-id-number" id="my-num-display">....</div>
+            </div>
+            
+            <div class="dial-screen">
+                <input type="number" id="target-id" placeholder="0000">
+                <p style="text-align:center; color: #555;">Enter recipient number</p>
+            </div>
+
+            <button class="btn call" id="btn-start-call">📞</button>
+        </div>
+
+        <!-- ACTIVE CALL -->
+        <div id="view-call" class="view">
+            <div class="video-grid">
+                <video id="remote-video" autoplay playsinline></video>
+                <video id="local-video" autoplay playsinline muted></video>
+            </div>
+            <div class="controls">
+                <button class="btn active" id="toggle-audio">🎤</button>
+                <button class="btn active" id="toggle-video">📷</button>
+                <button class="btn screen" id="toggle-screen">📺</button>
+                <button class="btn hangup" onclick="location.reload()">📵</button>
+            </div>
+        </div>
+
+        <!-- INCOMING ALERT -->
+        <div id="incoming-overlay" class="incoming-ui">
+            <h1 id="caller-name">Incoming Call</h1>
+            <div style="display:flex; gap: 40px; margin-top: 30px;">
+                <button class="btn hangup" onclick="location.reload()">✕</button>
+                <button class="btn call" onclick="answerCall()" style="width:70px; height:70px;">✔</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. Generate Random Mobile Number (1-1000)
+        const myId = Math.floor(Math.random() * 1000) + 1;
+        const formattedId = myId.toString().padStart(4, '0');
+        document.getElementById('my-num-display').innerText = formattedId;
+
+        // 2. Display Dynamic URL
+        const currentUrl = window.location.href.split('?')[0];
+        document.getElementById('share-url').innerText = currentUrl;
+
+        function copyLink() {
+            navigator.clipboard.writeText(currentUrl);
+            alert("URL copied! Send it to a friend.");
+        }
+
+        // 3. Initialize PeerJS with Public Google STUN
+        const peer = new Peer('MOBILE-' + formattedId, {
+            config: {
+                'iceServers': [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            }
+        });
+
+        let localStream;
+        let currentCall;
+
+        // 4. Handle Incoming Call
+        peer.on('call', (call) => {
+            currentCall = call;
+            document.getElementById('caller-name').innerText = "From: " + call.peer.replace('MOBILE-', '');
+            document.getElementById('incoming-overlay').style.display = 'flex';
+        });
+
+        async function answerCall() {
+            document.getElementById('incoming-overlay').style.display = 'none';
+            switchView('view-call');
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            document.getElementById('local-video').srcObject = localStream;
+            currentCall.answer(localStream);
+            handleStream(currentCall);
+        }
+
+        // 5. Handle Outgoing Call
+        document.getElementById('btn-start-call').onclick = async () => {
+            const target = document.getElementById('target-id').value;
+            if (!target) return alert("Enter a number to call");
+
+            switchView('view-call');
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            document.getElementById('local-video').srcObject = localStream;
+
+            const call = peer.call('MOBILE-' + target.padStart(4, '0'), localStream);
+            handleStream(call);
+        };
+
+        function handleStream(call) {
+            currentCall = call;
+            call.on('stream', (remoteStream) => {
+                document.getElementById('remote-video').srcObject = remoteStream;
+            });
+            call.on('close', () => location.reload());
+        }
+
+        // 6. Call Features (Audio / Video / Screen Share)
+        document.getElementById('toggle-audio').onclick = (e) => {
+            const enabled = localStream.getAudioTracks()[0].enabled;
+            localStream.getAudioTracks()[0].enabled = !enabled;
+            e.currentTarget.classList.toggle('active', !enabled);
+        };
+
+        document.getElementById('toggle-video').onclick = (e) => {
+            const enabled = localStream.getVideoTracks()[0].enabled;
+            localStream.getVideoTracks()[0].enabled = !enabled;
+            e.currentTarget.classList.toggle('active', !enabled);
+        };
+
+        document.getElementById('toggle-screen').onclick = async () => {
+            try {
+                const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                const screenTrack = screenStream.getVideoTracks()[0];
+                const sender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
+                
+                sender.replaceTrack(screenTrack);
+                document.getElementById('local-video').srcObject = screenStream;
+
+                screenTrack.onended = () => {
+                    sender.replaceTrack(localStream.getVideoTracks()[0]);
+                    document.getElementById('local-video').srcObject = localStream;
+                };
+            } catch (err) { console.error(err); }
+        };
+
+        function switchView(id) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+    </script>
+</body>
+</html>

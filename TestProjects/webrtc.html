@@ -20,13 +20,17 @@
         .header { padding: calc(10px + env(safe-area-inset-top)) 15px 10px; text-align: center; border-bottom: 1px solid #222; flex-shrink: 0; }
         .app-name { font-size: 22px; font-weight: 800; color: var(--primary); letter-spacing: -1px; }
         #user-name-input { background: none; border: none; color: #888; font-size: 13px; text-align: center; width: 100%; outline: none; margin-top: 5px; border-bottom: 1px dashed #333; }
-        .id-pill { background: var(--gray); padding: 5px 15px; border-radius: 20px; font-size: 11px; cursor: pointer; display: inline-block; margin-top: 8px; color: var(--blue); }
+        
+        .identity-controls { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 10px; }
+        .id-pill { background: var(--gray); padding: 6px 15px; border-radius: 20px; font-size: 11px; cursor: pointer; color: var(--blue); border: 1px solid transparent; }
+        .reset-btn { background: var(--gray); border: none; color: #888; padding: 6px 10px; border-radius: 12px; font-size: 12px; cursor: pointer; }
+        .reset-btn:active { background: #333; color: #fff; }
 
         /* Dialer Layout */
-        .dial-display-container { flex-shrink: 0; padding: 20px 0 10px; text-align: center; }
+        .dial-display-container { flex-shrink: 0; padding: 15px 0 5px; text-align: center; }
         #dial-display { font-size: 48px; font-weight: 200; letter-spacing: 5px; height: 60px; color: #fff; }
 
-        /* Scrollable Content */
+        /* Scrollable Logs */
         .scrollable-content { flex-grow: 1; overflow-y: auto; padding: 0 15px; -webkit-mask-image: linear-gradient(to bottom, transparent, black 5%, black 95%, transparent); }
         .logs-label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; position: sticky; top: 0; background: var(--bg); padding: 5px 0; z-index: 5; }
         
@@ -39,7 +43,7 @@
         .info-icon { padding: 15px; cursor: pointer; color: var(--blue); border-left: 1px solid rgba(255,255,255,0.05); font-size: 18px; }
 
         /* Pinned Keypad */
-        .keypad { flex-shrink: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; justify-items: center; padding: 15px 20px calc(20px + env(safe-area-inset-bottom)); border-top: 1px solid #111; background: var(--bg); }
+        .keypad { flex-shrink: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; justify-items: center; padding: 15px 20px calc(15px + env(safe-area-inset-bottom)); border-top: 1px solid #111; background: var(--bg); }
         .key { width: 68px; height: 68px; background: var(--gray); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 26px; font-weight: bold; }
         .key:active { background: #333; }
         .key.call-btn { background: var(--primary); grid-column: 2; }
@@ -56,7 +60,7 @@
         .btn-round.active { background: #fff; color: #000; }
         .btn-round.hangup { background: var(--danger); font-size: 22px; }
 
-        /* Forensics Modal */
+        /* Forensic Modal */
         .modal { position: absolute; inset: 0; background: #000; z-index: 1000; display: none; flex-direction: column; padding: 20px; padding-top: env(safe-area-inset-top); overflow-y: auto; }
         .timeline-item { border-left: 2px solid var(--gray); padding: 0 0 20px 15px; position: relative; }
         .timeline-item::before { content: ''; width: 10px; height: 10px; background: var(--blue); border-radius: 50%; position: absolute; left: -6px; top: 2px; }
@@ -70,18 +74,27 @@
 <body>
 
     <div class="app-shell">
+        <!-- DIALER VIEW -->
         <div class="view active" id="view-dialer">
             <div class="header">
                 <div class="app-name">AKalls</div>
                 <input type="text" id="user-name-input" placeholder="Set your name">
-                <div id="net-state" style="font-size: 9px; color: #ffc107; margin-top:5px;">CONNECTING...</div>
-                <div class="id-pill" onclick="copyInvite()">My Number: <b id="my-num">....</b> 🔗</div>
+                
+                <div class="identity-controls">
+                    <div class="id-pill" onclick="copyInvite()"># <b id="my-num">....</b> 🔗</div>
+                    <button class="reset-btn" title="Change Number Only" onclick="changeNumber()">↻</button>
+                    <button class="reset-btn" title="Full Identity Reset" onclick="fullReset()">🗑️</button>
+                </div>
+                <div id="net-state" style="font-size: 9px; color: #ffc107; margin-top:8px;">CONNECTING...</div>
             </div>
+
             <div class="dial-display-container"><div id="dial-display"></div></div>
+
             <div class="scrollable-content">
                 <div class="logs-label">Recent Activity (Tap to redial)</div>
                 <div id="log-list"></div>
             </div>
+
             <div class="keypad">
                 <div class="key" onclick="press('1')">1</div><div class="key" onclick="press('2')">2</div><div class="key" onclick="press('3')">3</div>
                 <div class="key" onclick="press('4')">4</div><div class="key" onclick="press('5')">5</div><div class="key" onclick="press('6')">6</div>
@@ -92,6 +105,7 @@
             </div>
         </div>
 
+        <!-- CALL VIEW -->
         <div id="view-call" class="view">
             <div class="video-container">
                 <video id="remote-video" autoplay playsinline autopictureinpicture></video>
@@ -119,7 +133,8 @@
         </div>
 
         <div id="incoming-ui" class="overlay">
-            <h1 id="caller-name-ui" style="font-size: 42px; margin-bottom: 40px;">0000</h1>
+            <h1 id="caller-name-ui" style="font-size: 42px; margin-bottom: 10px;">0000</h1>
+            <div id="caller-sub-ui" style="color:#888; margin-bottom:40px;">Incoming Call...</div>
             <div style="display:flex; gap: 40px;">
                 <button class="btn-round hangup" style="width:75px; height:75px;" onclick="location.reload()">✕</button>
                 <button class="btn-round" style="background:var(--primary); width:75px; height:75px;" onclick="answerCall()">✔</button>
@@ -128,15 +143,18 @@
     </div>
 
     <script>
-        const STORAGE = { ID: 'akalls_id', NAME: 'akalls_name', LOGS: 'akalls_history' };
-        let myId = localStorage.getItem(STORAGE.ID) || Math.floor(1000 + Math.random() * 9000).toString();
-        localStorage.setItem(STORAGE.ID, myId);
+        // --- 1. PERSISTENT IDENTITY (Stable Keys) ---
+        const KEYS = { ID: 'akalls_id', NAME: 'akalls_name', LOGS: 'akalls_history' };
+        
+        let myId = localStorage.getItem(KEYS.ID) || Math.floor(1000 + Math.random() * 9000).toString();
+        localStorage.setItem(KEYS.ID, myId);
         document.getElementById('my-num').innerText = myId;
 
         const nameInput = document.getElementById('user-name-input');
-        nameInput.value = localStorage.getItem(STORAGE.NAME) || "";
-        nameInput.oninput = () => localStorage.setItem(STORAGE.NAME, nameInput.value);
+        nameInput.value = localStorage.getItem(KEYS.NAME) || "";
+        nameInput.oninput = () => localStorage.setItem(KEYS.NAME, nameInput.value);
 
+        // --- 2. PEERJS CONFIG ---
         const peer = new Peer('P-' + myId, {
             config: { iceServers: [
                 { urls: "stun:stun.relay.metered.ca:80" },
@@ -148,42 +166,48 @@
         let localStream, currentCall, dataConn, audioCtx, analyser, events = [], startTime = 0;
         const remoteVid = document.getElementById('remote-video');
 
-        // --- 1. SYNCED LOGGING ENGINE ---
+        // --- 3. IDENTITY MGMT FUNCTIONS ---
+        function changeNumber() {
+            if(confirm("Generate a new number? Logs and Name will be saved.")) {
+                localStorage.removeItem(KEYS.ID);
+                location.reload();
+            }
+        }
+
+        function fullReset() {
+            if(confirm("WIPE EVERYTHING? All history, name, and ID will be deleted.")) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        // --- 4. SIGNALING & SYNC FORENSICS ---
         function logEvent(msg, broadcast = true) {
             const elapsed = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
-            const entry = { 
-                time: `${Math.floor(elapsed/60)}:${(elapsed%60).toString().padStart(2,'0')}`, 
-                msg: msg,
-                isRemote: !broadcast // If we are not broadcasting, it was received from remote
-            };
+            const entry = { time: `${Math.floor(elapsed/60)}:${(elapsed%60).toString().padStart(2,'0')}`, msg, isRemote: !broadcast };
             events.push(entry);
-            
-            // Broadcast to Peer
-            if (broadcast && dataConn && dataConn.open) {
-                dataConn.send({ type: 'EVENT', msg: msg });
-            }
+            if (broadcast && dataConn && dataConn.open) dataConn.send({ type: 'EVENT', msg });
         }
 
         function setupDataChannel(conn) {
             dataConn = conn;
             conn.on('data', d => {
                 if (d === 'BYE') endCall("Remote hung up");
-                if (d === 'PING') { conn.send('PONG'); }
-                if (d.type === 'EVENT') {
-                    logEvent("Remote: " + d.msg, false); // Log without broadcasting back
-                }
+                if (d === 'PING') conn.send('PONG');
+                if (d.type === 'EVENT') logEvent("Remote: " + d.msg, false);
             });
         }
 
-        // --- 2. PEER EVENTS ---
         peer.on('open', () => { document.getElementById('net-state').innerText = "ONLINE"; renderLogs(); });
         peer.on('connection', conn => setupDataChannel(conn));
         peer.on('call', call => { 
             currentCall = call; 
-            document.getElementById('caller-name-ui').innerText = (call.metadata && call.metadata.name) || call.peer.replace('P-',''); 
+            document.getElementById('caller-name-ui').innerText = (call.metadata && call.metadata.name) || "Anonymous"; 
+            document.getElementById('caller-sub-ui').innerText = "Num: " + call.peer.replace('P-','');
             document.getElementById('incoming-ui').style.display = 'flex'; 
         });
 
+        // --- 5. CALL ACTIONS ---
         async function startCall(directNum = null) {
             const num = directNum || document.getElementById('dial-display').innerText;
             if(!num) return;
@@ -191,21 +215,18 @@
             localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
             document.getElementById('local-video').srcObject = localStream;
             startTime = Date.now(); events = []; logEvent("Call started");
-            
             dataConn = peer.connect('P-' + num);
             setupDataChannel(dataConn);
-            
             currentCall = peer.call('P-' + num, localStream, { metadata: { name: nameInput.value } });
             setupStream();
         }
 
         async function answerCall() {
-            document.getElementById('incoming-overlay').style.display = 'none';
+            document.getElementById('incoming-ui').style.display = 'none';
             switchView('view-call');
             localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
             document.getElementById('local-video').srcObject = localStream;
             startTime = Date.now(); events = []; logEvent("Call answered");
-            
             currentCall.answer(localStream);
             dataConn = peer.connect(currentCall.peer);
             setupDataChannel(dataConn);
@@ -218,9 +239,10 @@
         }
 
         function endCall(reason) {
+            if (document.pictureInPictureElement) document.exitPictureInPicture();
             logEvent(reason || "Call ended");
             const duration = Math.floor((Date.now() - startTime) / 1000);
-            const history = JSON.parse(localStorage.getItem(STORAGE.LOGS) || '[]');
+            const history = JSON.parse(localStorage.getItem(KEYS.LOGS) || '[]');
             history.unshift({ 
                 num: currentCall ? currentCall.peer.replace('P-','') : '?', 
                 type: currentCall && currentCall.metadata && currentCall.metadata.name ? 'IN' : 'OUT', 
@@ -228,14 +250,14 @@
                 timeline: [...events], 
                 date: new Date().toLocaleString() 
             });
-            localStorage.setItem(STORAGE.LOGS, JSON.stringify(history.slice(0, 20)));
+            localStorage.setItem(KEYS.LOGS, JSON.stringify(history.slice(0, 20)));
             if(localStream) localStream.getTracks().forEach(t => t.stop());
             switchView('view-dialer'); renderLogs(); analyser = null;
         }
 
-        // --- 3. UI & FEATURES ---
+        // --- 6. UI UTILS ---
         function renderLogs() {
-            const history = JSON.parse(localStorage.getItem(STORAGE.LOGS) || '[]');
+            const history = JSON.parse(localStorage.getItem(KEYS.LOGS) || '[]');
             document.getElementById('log-list').innerHTML = history.map((h, i) => `
                 <div class="log-item">
                     <div class="log-body" onclick="redial('${h.num}')">
@@ -247,7 +269,7 @@
         }
 
         function openForensics(idx) {
-            const h = JSON.parse(localStorage.getItem(STORAGE.LOGS))[idx];
+            const h = JSON.parse(localStorage.getItem(KEYS.LOGS))[idx];
             document.getElementById('timeline-box').innerHTML = h.timeline.map(e => `
                 <div class="timeline-item ${e.isRemote ? 'timeline-remote' : ''}">
                     <div class="timeline-time">${e.time}</div>
@@ -259,15 +281,15 @@
         function toggleMic() { 
             const active = localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled;
             document.getElementById('mic-btn').classList.toggle('active');
-            logEvent(active ? "Unmuted microphone" : "Muted microphone");
+            logEvent(active ? "Unmuted mic" : "Muted mic");
         }
         function toggleCam() { 
             const active = localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled;
             document.getElementById('cam-btn').classList.toggle('active');
-            logEvent(active ? "Started camera" : "Stopped camera");
+            logEvent(active ? "Camera on" : "Camera off");
         }
         async function flipCamera() { 
-            logEvent("Flipping camera");
+            logEvent("Switching camera");
             const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:true});
             currentCall.peerConnection.getSenders().find(x=>x.track.kind==='video').replaceTrack(s.getVideoTracks()[0]);
             document.getElementById('local-video').srcObject = s;
@@ -275,20 +297,19 @@
         async function toggleScreen() { 
             try { 
                 const s = await navigator.mediaDevices.getDisplayMedia({video:true}); 
-                logEvent("Started screen share");
+                logEvent("Screen share started");
                 currentCall.peerConnection.getSenders().find(x=>x.track.kind==='video').replaceTrack(s.getVideoTracks()[0]);
             } catch(e){} 
         }
 
-        // --- 4. UTILS ---
         function closeModal() { document.getElementById('modal-forensic').style.display = 'none'; }
         function redial(n) { document.getElementById('dial-display').innerText = n; startCall(n); }
         function press(k) { if(navigator.vibrate) navigator.vibrate(15); const d = document.getElementById('dial-display'); if(d.innerText.length < 4) d.innerText += k; }
         function backspace() { const d = document.getElementById('dial-display'); d.innerText = d.innerText.slice(0,-1); }
         function switchView(v) { document.querySelectorAll('.view').forEach(e => e.classList.remove('active')); document.getElementById(v).classList.add('active'); }
-        function hangup(sig) { if(sig && dataConn) dataConn.send('BYE'); endCall("Hung up"); }
+        function hangup(sig) { if(sig && dataConn) dataConn.send('BYE'); endCall("Disconnected"); }
         function togglePiP() { if (document.pictureInPictureElement) document.exitPictureInPicture(); else remoteVid.requestPictureInPicture(); }
-        function copyInvite() { navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?dial=${myId}`); alert("Link Copied!"); }
+        function copyInvite() { navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?dial=${myId}`); alert("Invite Link Copied!"); }
         function initVis(s) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)(); analyser = audioCtx.createAnalyser();
             audioCtx.createMediaStreamSource(s).connect(analyser);

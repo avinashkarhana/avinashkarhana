@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>WebCall Pro V16</title>
+    <title>AKalls</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --bg: #000; --card: #1c1c1e; --primary: #34c759; --danger: #ff3b30; --blue: #007aff; --text: #fff; --gray: rgba(255,255,255,0.12); }
@@ -16,85 +16,79 @@
         .view { display: none; flex-direction: column; height: 100%; width: 100%; overflow: hidden; position: relative; }
         .view.active { display: flex; }
 
-        /* Header & Profile */
+        /* Header */
         .header { padding: calc(10px + env(safe-area-inset-top)) 15px 10px; text-align: center; border-bottom: 1px solid #222; z-index: 50; }
-        #net-state { font-size: 10px; color: #ffc107; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
+        .app-name { font-size: 20px; font-weight: 800; color: var(--primary); letter-spacing: -1px; margin-bottom: 5px; }
+        #user-name-input { background: none; border: none; color: #aaa; font-size: 13px; text-align: center; width: 100%; outline: none; margin-bottom: 8px; border-bottom: 1px dashed #333; }
+
+        /* Dialer & Logs */
+        .dial-wrap { flex-grow: 1; display: flex; flex-direction: column; padding: 15px; overflow-y: auto; }
+        #dial-display { font-size: 48px; text-align: center; margin-bottom: 15px; letter-spacing: 5px; height: 60px; font-weight: 200; }
         
-        .profile-area { margin-bottom: 5px; }
-        #user-name-input { background: none; border: none; color: var(--primary); font-size: 16px; font-weight: bold; text-align: center; width: 100%; outline: none; padding: 5px; border-bottom: 1px dashed #444; }
-        .id-pill { background: var(--gray); padding: 6px 15px; border-radius: 20px; font-size: 12px; cursor: pointer; display: inline-block; margin-top: 5px; }
+        .log-item { display: flex; justify-content: space-between; align-items: center; background: var(--gray); padding: 12px; border-radius: 12px; margin-bottom: 8px; cursor: pointer; }
+        .log-info b { font-size: 15px; display: block; }
+        .log-info span { font-size: 11px; color: #777; }
+        .log-type-tag { font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-right: 8px; text-transform: uppercase; }
 
-        /* Dialer Screen */
-        .dial-wrap { flex-grow: 1; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; }
-        #dial-display { font-size: 50px; text-align: center; margin-bottom: 15px; letter-spacing: 5px; height: 65px; font-weight: 200; color: #fff; }
-        
-        .logs-title { font-size: 11px; color: #666; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
-        .log-item { display: flex; justify-content: space-between; align-items: center; background: var(--gray); padding: 12px 15px; border-radius: 12px; margin-bottom: 8px; font-size: 13px; cursor: pointer; }
-        .log-type { font-size: 9px; font-weight: bold; padding: 2px 5px; border-radius: 4px; margin-right: 8px; }
-        .type-in { background: var(--primary); color: #000; }
-        .type-out { background: var(--blue); color: #fff; }
+        /* Keypad */
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; justify-items: center; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+        .key { width: 70px; height: 70px; background: var(--gray); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 26px; font-weight: bold; }
+        .key.call-btn { background: var(--primary); grid-column: 2; }
 
-        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; justify-items: center; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
-        .key { width: 72px; height: 72px; background: var(--gray); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 28px; font-weight: bold; }
-        .key:active { background: #444; }
-        .key.call-btn { background: var(--primary); grid-column: 2; font-size: 32px; }
-
-        /* Video Area */
-        .video-main { flex-grow: 1; background: #000; position: relative; overflow: hidden; }
+        /* Call Screen */
+        .video-main { flex-grow: 1; background: #000; position: relative; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        #local-video-container { position: absolute; top: 15px; right: 15px; width: 95px; height: 140px; border-radius: 12px; border: 1px solid #444; z-index: 20; overflow: hidden; background: #111; }
-        .mic-meter { position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: rgba(0,0,0,0.5); }
-        #mic-bar { height: 100%; width: 0%; background: var(--primary); transition: width 0.1s; }
+        #local-video-container { position: absolute; top: 15px; right: 15px; width: 90px; height: 130px; border-radius: 12px; border: 1px solid #444; overflow: hidden; z-index: 10; }
+        .mic-meter { position: absolute; bottom: 0; width: 100%; height: 4px; background: rgba(0,0,0,0.5); }
+        #mic-bar { height: 100%; width: 0%; background: var(--primary); }
 
-        /* Controls */
         .controls { 
             padding: 15px 5px calc(25px + env(safe-area-inset-bottom)); 
-            background: linear-gradient(transparent, rgba(0,0,0,0.95) 40%);
             display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px;
-            position: absolute; bottom: 0; width: 100%; z-index: 30; justify-items: center;
+            position: absolute; bottom: 0; width: 100%; background: linear-gradient(transparent, #000); justify-items: center;
         }
-        .btn-ctl { width: 46px; height: 46px; border-radius: 50%; border: none; background: var(--gray); color: #fff; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(10px); }
+        .btn-ctl { width: 45px; height: 45px; border-radius: 50%; border: none; background: var(--gray); color: #fff; font-size: 18px; cursor: pointer; }
         .btn-ctl.active { background: #fff; color: #000; }
-        .btn-ctl.hangup { background: var(--danger); font-size: 22px; }
+        .btn-ctl.hangup { background: var(--danger); }
 
-        /* Incoming Alert Overlay */
-        .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.95); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; }
-        #caller-name { font-size: 36px; margin-bottom: 10px; color: var(--text); }
-        #caller-id-sub { font-size: 14px; color: #888; margin-bottom: 40px; }
-        
-        @media (max-width: 500px) { .app-shell { border: none; } }
+        /* Details Modal */
+        .modal { position: absolute; inset: 0; background: #000; z-index: 200; display: none; flex-direction: column; padding: 20px; padding-top: env(safe-area-inset-top); overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #222; padding-bottom: 10px; }
+        .timeline-item { border-left: 2px solid var(--gray); padding-left: 15px; margin-bottom: 15px; position: relative; }
+        .timeline-item::before { content: ''; width: 10px; height: 10px; background: var(--blue); border-radius: 50%; position: absolute; left: -6px; top: 3px; }
+        .timeline-time { font-size: 10px; color: #666; font-family: monospace; }
+        .timeline-desc { font-size: 13px; color: #eee; }
+
+        .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.95); z-index: 150; display: none; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
     <div class="app-shell">
-        <!-- DIALER VIEW -->
         <div class="view active" id="view-dialer">
             <div class="header">
-                <div id="net-state">INITIALIZING...</div>
-                <div class="profile-area">
-                    <input type="text" id="user-name-input" placeholder="Set your name..." maxlength="15">
-                </div>
-                <div class="id-pill" onclick="copyLink()">Num: <b id="my-num-display">....</b> 🔗 SHARE</div>
+                <div class="app-name">AKalls</div>
+                <input type="text" id="user-name-input" placeholder="Enter your name">
+                <div id="net-state" style="font-size: 10px; color: #ffc107;">CONNECTING...</div>
+                <div class="id-pill" onclick="copyLink()">My ID: <b id="my-num-display">....</b> 🔗</div>
             </div>
             
             <div class="dial-wrap">
                 <div id="dial-display"></div>
-                <div class="logs-title">Recent Calls</div>
+                <div style="font-size: 11px; color: #555; margin-bottom: 10px;">RECENT ACTIVITY</div>
                 <div id="call-logs"></div>
 
                 <div class="keypad">
                     <div class="key" onclick="press('1')">1</div><div class="key" onclick="press('2')">2</div><div class="key" onclick="press('3')">3</div>
                     <div class="key" onclick="press('4')">4</div><div class="key" onclick="press('5')">5</div><div class="key" onclick="press('6')">6</div>
                     <div class="key" onclick="press('7')">7</div><div class="key" onclick="press('8')">8</div><div class="key" onclick="press('9')">9</div>
-                    <div class="key" style="background:transparent; font-size: 18px; color: #666;" onclick="backspace()">⌫</div>
+                    <div class="key" style="background:transparent; font-size: 18px; color: #444;" onclick="backspace()">⌫</div>
                     <div class="key" onclick="press('0')">0</div>
                     <div class="key call-btn" onclick="startCall()">📞</div>
                 </div>
             </div>
         </div>
 
-        <!-- CALL VIEW -->
         <div id="view-call" class="view">
             <div class="video-main">
                 <video id="remote-video" autoplay playsinline></video>
@@ -113,36 +107,38 @@
             </div>
         </div>
 
-        <!-- INCOMING CALL OVERLAY -->
+        <!-- DETAILS MODAL -->
+        <div id="details-modal" class="modal">
+            <div class="modal-header">
+                <h2 style="margin:0; font-size:18px;">Call Timeline</h2>
+                <button onclick="closeModal()" style="background:var(--gray); border:none; color:white; padding:5px 12px; border-radius:8px;">Close</button>
+            </div>
+            <div id="modal-summary" style="margin-bottom:20px; color:var(--primary); font-weight:bold;"></div>
+            <div id="timeline-content"></div>
+        </div>
+
         <div id="incoming-overlay" class="overlay">
-            <div style="font-size: 11px; color: var(--primary); letter-spacing: 2px; margin-bottom: 5px;">INCOMING CALL</div>
-            <h1 id="caller-name">Unknown</h1>
-            <div id="caller-id-sub">Number: ....</div>
+            <h1 id="caller-name" style="font-size: 40px; margin-bottom: 40px;">0000</h1>
             <div style="display:flex; gap: 40px;">
-                <button class="btn-ctl hangup" style="width:75px; height:75px;" onclick="rejectCall()">✕</button>
-                <button class="btn-ctl" style="background:var(--primary); width:75px; height:75px;" onclick="answerCall()">✔</button>
+                <button class="btn-ctl hangup" style="width:70px; height:70px;" onclick="location.reload()">✕</button>
+                <button class="btn-ctl" style="background:var(--primary); width:70px; height:70px;" onclick="answerCall()">✔</button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- 1. PERSISTENT IDENTITY & NAME ---
+        // --- 1. PERSISTENT STORAGE (Stable Keys) ---
+        const STORAGE = { ID: 'akalls_id', NAME: 'akalls_name', LOGS: 'akalls_history' };
+        
+        let myNum = localStorage.getItem(STORAGE.ID) || Math.floor(1000 + Math.random() * 9000).toString();
+        localStorage.setItem(STORAGE.ID, myNum);
+        document.getElementById('my-num-display').innerText = myNum;
+
         const nameInput = document.getElementById('user-name-input');
-        const myIdElement = document.getElementById('my-num-display');
-        
-        let myNum = localStorage.getItem('webcall_v16_id') || Math.floor(1000 + Math.random() * 9000).toString();
-        let myName = localStorage.getItem('webcall_v16_name') || "";
-        
-        localStorage.setItem('webcall_v16_id', myNum);
-        myIdElement.innerText = myNum;
-        nameInput.value = myName;
+        nameInput.value = localStorage.getItem(STORAGE.NAME) || "";
+        nameInput.oninput = () => localStorage.setItem(STORAGE.NAME, nameInput.value);
 
-        nameInput.oninput = () => {
-            myName = nameInput.value;
-            localStorage.setItem('webcall_v16_name', myName);
-        };
-
-        // --- 2. PEERJS CONFIGURATION ---
+        // --- 2. PEERJS ---
         const peer = new Peer('P-' + myNum, {
             config: { iceServers: [
                 { urls: "stun:stun.relay.metered.ca:80" },
@@ -152,43 +148,30 @@
         });
 
         let localStream, currentCall, dataConn, audioCtx, analyser, heartbeatTimer;
-        let lastActive = 0, facingMode = 'user';
+        let callEvents = [], callStartTime = 0;
 
-        peer.on('open', () => { 
-            document.getElementById('net-state').innerText = "ONLINE"; 
-            document.getElementById('net-state').style.color = "var(--primary)";
-            renderLogs(); 
-            checkDeepLink();
-        });
+        peer.on('open', () => { document.getElementById('net-state').innerText = "ONLINE"; renderLogs(); });
 
-        // --- 3. DATA CHANNEL & HEARTBEAT ---
-        peer.on('connection', conn => {
-            dataConn = conn;
-            setupDataChannel(conn);
-        });
-
-        function setupDataChannel(conn) {
-            conn.on('data', data => {
-                if (data === 'BYE') terminateCall();
-                if (data === 'PING') { lastActive = Date.now(); conn.send('PONG'); }
-                if (data === 'PONG') { lastActive = Date.now(); }
-            });
-            lastActive = Date.now();
-            clearInterval(heartbeatTimer);
-            heartbeatTimer = setInterval(() => {
-                if (currentCall && conn.open) {
-                    conn.send('PING');
-                    if (Date.now() - lastActive > 8000) terminateCall();
-                }
-            }, 2000);
+        // --- 3. EVENT RECORDER ---
+        function recordEvent(desc) {
+            const elapsed = callStartTime ? Math.floor((Date.now() - callStartTime) / 1000) : 0;
+            const m = Math.floor(elapsed / 60);
+            const s = elapsed % 60;
+            const timestamp = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            callEvents.push({ time: timestamp, desc });
         }
 
-        // --- 4. CALL HANDLING (Caller ID Logic) ---
+        // --- 4. CALL HANDLING ---
+        peer.on('connection', conn => {
+            dataConn = conn;
+            conn.on('data', data => {
+                if (data === 'BYE') terminateCall("Peer ended call");
+            });
+        });
+
         peer.on('call', call => {
             currentCall = call;
-            const callerInfo = call.metadata || {};
-            document.getElementById('caller-name').innerText = callerInfo.name || "Unknown";
-            document.getElementById('caller-id-sub').innerText = "Number: " + call.peer.replace('P-', '');
+            document.getElementById('caller-name').innerText = (call.metadata && call.metadata.name) || call.peer.replace('P-', '');
             document.getElementById('incoming-overlay').style.display = 'flex';
         });
 
@@ -196,121 +179,151 @@
             const num = document.getElementById('dial-display').innerText;
             if(!num) return;
             switchView('view-call');
-            
             localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
             document.getElementById('local-video').srcObject = localStream;
-            initVisualizer(localStream);
+            
+            callStartTime = Date.now();
+            callEvents = [];
+            recordEvent("Call started (Outgoing)");
             
             const target = 'P-' + num.padStart(4, '0');
             dataConn = peer.connect(target);
-            setupDataChannel(dataConn);
-            
-            // Send metadata (Caller ID) with the call
-            const call = peer.call(target, localStream, { 
-                metadata: { name: myName } 
-            });
-            
-            handleStreamEvents(call, num);
-            saveLog(num, 'OUT', 'Calling...');
+            const call = peer.call(target, localStream, { metadata: { name: nameInput.value } });
+            setupStream(call, num, 'OUT');
         }
 
         async function answerCall() {
-            const num = document.getElementById('caller-id-sub').innerText.replace('Number: ', '');
-            const name = document.getElementById('caller-name').innerText;
-            saveLog(num, 'IN', name);
-            
             document.getElementById('incoming-overlay').style.display = 'none';
             switchView('view-call');
             localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
             document.getElementById('local-video').srcObject = localStream;
-            initVisualizer(localStream);
             
+            callStartTime = Date.now();
+            callEvents = [];
+            recordEvent("Call answered (Incoming)");
+
             currentCall.answer(localStream);
             dataConn = peer.connect(currentCall.peer);
-            setupDataChannel(dataConn);
-            handleStreamEvents(currentCall);
+            setupStream(currentCall, currentCall.peer.replace('P-',''), 'IN');
         }
 
-        function handleStreamEvents(call) {
+        function setupStream(call, num, type) {
             currentCall = call;
-            call.on('stream', rem => { document.getElementById('remote-video').srcObject = rem; });
-            call.peerConnection.oniceconnectionstatechange = () => {
-                if (call.peerConnection.iceConnectionState === 'failed') terminateCall();
-            };
+            call.on('stream', rem => {
+                document.getElementById('remote-video').srcObject = rem;
+                recordEvent("Remote video stream received");
+            });
+            initVisualizer(localStream);
         }
 
-        // --- 5. UTILS ---
-        function saveLog(num, type, name) {
-            let logs = JSON.parse(localStorage.getItem('call_logs_v16') || '[]');
-            logs.unshift({ num, type, name, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) });
-            localStorage.setItem('call_logs_v16', JSON.stringify(logs.slice(0, 10)));
-            renderLogs();
-        }
+        function terminateCall(reason) {
+            recordEvent(reason || "Call ended");
+            const duration = Math.floor((Date.now() - callStartTime) / 1000);
+            
+            // Save Log
+            const logs = JSON.parse(localStorage.getItem(STORAGE.LOGS) || '[]');
+            const num = currentCall ? currentCall.peer.replace('P-','') : 'Unknown';
+            logs.unshift({
+                num,
+                duration: `${Math.floor(duration/60)}m ${duration%60}s`,
+                events: [...callEvents],
+                time: new Date().toLocaleString(),
+                type: currentCall ? (currentCall.metadata ? 'IN' : 'OUT') : '?'
+            });
+            localStorage.setItem(STORAGE.LOGS, JSON.stringify(logs.slice(0, 15)));
 
-        function renderLogs() {
-            const logs = JSON.parse(localStorage.getItem('call_logs_v16') || '[]');
-            document.getElementById('call-logs').innerHTML = logs.map(l => `
-                <div class="log-item" onclick="autoDial('${l.num}')">
-                    <span>
-                        <span class="log-type ${l.type === 'IN' ? 'type-in' : 'type-out'}">${l.type}</span> 
-                        <b>${l.name && l.name !== 'Unknown' ? l.name : l.num}</b>
-                    </span>
-                    <span style="color:#666; font-size:10px;">${l.time}</span>
-                </div>`).join('');
-        }
-
-        function terminateCall() {
-            clearInterval(heartbeatTimer);
             if (localStream) localStream.getTracks().forEach(t => t.stop());
-            if (currentCall) currentCall.close();
-            if (dataConn) dataConn.close();
-            document.getElementById('remote-video').srcObject = null;
-            document.getElementById('local-video').srcObject = null;
             switchView('view-dialer');
+            renderLogs();
+            analyser = null;
         }
 
-        function hangup(signal) { 
-            if(signal && dataConn && dataConn.open) dataConn.send('BYE');
-            setTimeout(terminateCall, 200);
+        // --- 5. LOGS & MODAL ---
+        function renderLogs() {
+            const logs = JSON.parse(localStorage.getItem(STORAGE.LOGS) || '[]');
+            document.getElementById('call-logs').innerHTML = logs.map((l, i) => `
+                <div class="log-item" onclick="viewDetails(${i})">
+                    <div class="log-info">
+                        <b>${l.num}</b>
+                        <span>${l.time} • ${l.duration}</span>
+                    </div>
+                    <span class="log-type-tag ${l.type === 'IN' ? 'type-in' : 'type-out'}" style="background:${l.type==='IN'?'#34c759':'#007aff'}">
+                        ${l.type}
+                    </span>
+                </div>
+            `).join('');
         }
 
-        function press(k) { if(navigator.vibrate) navigator.vibrate(15); const d = document.getElementById('dial-display'); if(d.innerText.length < 4) d.innerText += k; }
-        function backspace() { const d = document.getElementById('dial-display'); d.innerText = d.innerText.slice(0, -1); }
-        function autoDial(n) { document.getElementById('dial-display').innerText = n; startCall(); }
-        function copyLink() { navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?dial=${myNum}`); alert("Link copied!"); }
-        function checkDeepLink() { const p = new URLSearchParams(window.location.search).get('dial'); if(p) autoDial(p); }
-        function switchView(id) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-        function rejectCall() { document.getElementById('incoming-overlay').style.display = 'none'; if(currentCall) currentCall.close(); }
-        
-        // Media Controls
-        function toggleMic() { localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled; document.getElementById('mic-btn').classList.toggle('active'); }
-        function toggleCam() { localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled; document.getElementById('cam-btn').classList.toggle('active'); }
+        function viewDetails(index) {
+            const log = JSON.parse(localStorage.getItem(STORAGE.LOGS))[index];
+            document.getElementById('modal-summary').innerText = `Call with ${log.num} (${log.duration})`;
+            document.getElementById('timeline-content').innerHTML = log.events.map(e => `
+                <div class="timeline-item">
+                    <div class="timeline-time">${e.time}</div>
+                    <div class="timeline-desc">${e.desc}</div>
+                </div>
+            `).join('');
+            document.getElementById('details-modal').style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('details-modal').style.display = 'none'; }
+
+        // --- 6. CONTROLS ---
+        function toggleMic() {
+            const track = localStream.getAudioTracks()[0];
+            track.enabled = !track.enabled;
+            recordEvent(track.enabled ? "Microphone Unmuted" : "Microphone Muted");
+            document.getElementById('mic-btn').classList.toggle('active');
+        }
+
+        function toggleCam() {
+            const track = localStream.getVideoTracks()[0];
+            track.enabled = !track.enabled;
+            recordEvent(track.enabled ? "Camera Turned On" : "Camera Turned Off");
+            document.getElementById('cam-btn').classList.toggle('active');
+        }
+
         async function flipCamera() {
-            facingMode = (facingMode === 'user') ? 'environment' : 'user';
-            const s = await navigator.mediaDevices.getUserMedia({video:{facingMode}, audio:true});
+            recordEvent("Switching Camera...");
+            const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:true});
             currentCall.peerConnection.getSenders().find(x=>x.track.kind==='video').replaceTrack(s.getVideoTracks()[0]);
             document.getElementById('local-video').srcObject = s;
+            recordEvent("Camera flipped to back");
         }
+
         async function toggleScreen() {
-            const s = await navigator.mediaDevices.getDisplayMedia({video:true});
-            currentCall.peerConnection.getSenders().find(x=>x.track.kind==='video').replaceTrack(s.getVideoTracks()[0]);
+            try {
+                const s = await navigator.mediaDevices.getDisplayMedia({video:true});
+                recordEvent("Started Screen Sharing");
+                currentCall.peerConnection.getSenders().find(x=>x.track.kind==='video').replaceTrack(s.getVideoTracks()[0]);
+                s.getVideoTracks()[0].onended = () => recordEvent("Screen share ended");
+            } catch(e) {}
         }
-        function togglePiP() { document.getElementById('remote-video').requestPictureInPicture(); }
-        
+
+        function hangup(sig) {
+            if(sig && dataConn) dataConn.send('BYE');
+            terminateCall("You hung up");
+        }
+
+        // --- 7. UTILS ---
+        function press(k) { if(navigator.vibrate) navigator.vibrate(15); const d = document.getElementById('dial-display'); if(d.innerText.length < 4) d.innerText += k; }
+        function backspace() { const d = document.getElementById('dial-display'); d.innerText = d.innerText.slice(0, -1); }
+        function switchView(id) { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById(id).classList.add('active'); }
         function initVisualizer(stream) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioCtx.createAnalyser();
             audioCtx.createMediaStreamSource(stream).connect(analyser);
             const draw = () => {
                 if(!analyser) return;
-                requestAnimationFrame(draw);
                 const data = new Uint8Array(analyser.frequencyBinCount);
                 analyser.getByteFrequencyData(data);
                 let sum = data.reduce((a,b)=>a+b,0);
                 document.getElementById('mic-bar').style.width = Math.min(100, (sum/data.length)*2.5) + "%";
+                requestAnimationFrame(draw);
             };
             draw();
         }
+        function copyLink() { navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?dial=${myNum}`); alert("Invite Link Copied!"); }
     </script>
 </body>
 </html>

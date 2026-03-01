@@ -3,44 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global WebRTC Mobile</title>
+    <title>Web Dialer Pro</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --bg: #000; --card: #1c1c1e; --primary: #34c759; --danger: #ff3b30; --blue: #007aff; --text: #fff; --gray: #2c2c2e; }
-        * { box-sizing: border-box; font-family: -apple-system, sans-serif; }
+        * { box-sizing: border-box; font-family: -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
         body { background-color: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
 
-        /* Top Bar */
-        .top-info { width: 100%; max-width: 400px; background: #222; padding: 10px; border-radius: 0 0 15px 15px; border: 1px solid #333; text-align: center; }
-        #status-bar { font-size: 10px; color: #ffc107; text-transform: uppercase; letter-spacing: 1px; }
-        .url-link { color: var(--blue); font-size: 12px; text-decoration: underline; cursor: pointer; display: block; margin-top: 5px; }
+        /* Top Info Bar */
+        .top-info { width: 100%; max-width: 400px; background: #111; padding: 12px; border-radius: 0 0 20px 20px; text-align: center; border: 1px solid #333; }
+        #status-bar { font-size: 10px; color: #ffc107; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .url-copy { color: var(--blue); font-size: 12px; cursor: pointer; text-decoration: underline; }
 
-        /* Phone Shell */
-        .phone-shell { width: 100%; max-width: 400px; height: 82vh; background: var(--card); margin-top: 10px; position: relative; display: flex; flex-direction: column; border-radius: 40px; border: 6px solid #333; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        /* Phone Container */
+        .phone-shell { width: 100%; max-width: 400px; height: 85vh; background: var(--bg); margin-top: 10px; position: relative; display: flex; flex-direction: column; border-radius: 40px; border: 6px solid #333; overflow: hidden; }
         
-        .view { display: none; flex-direction: column; height: 100%; padding: 30px; }
+        .view { display: none; flex-direction: column; height: 100%; padding: 20px; }
         .view.active { display: flex; }
 
-        /* Dialer Screen */
-        .number-container { text-align: center; margin: 30px 0; position: relative; }
-        .my-num { font-size: 45px; font-weight: bold; color: var(--primary); display: block; }
-        .refresh-btn { background: none; border: none; color: #555; cursor: pointer; font-size: 12px; text-decoration: underline; }
+        /* --- DIALER VIEW --- */
+        .my-number-box { text-align: center; margin-top: 10px; }
+        .my-number-box span { font-size: 12px; color: #888; }
+        .my-number-box h1 { font-size: 32px; color: var(--primary); margin: 5px 0; }
+
+        #dial-display { font-size: 45px; height: 60px; text-align: center; margin: 20px 0; color: white; font-weight: 300; }
         
-        .dial-pad { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
-        input { background: transparent; border: none; color: white; font-size: 50px; text-align: center; outline: none; width: 100%; }
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; justify-items: center; padding: 10px; }
+        .key { width: 75px; height: 75px; background: var(--gray); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
+        .key:active { background: #555; }
+        .key b { font-size: 24px; }
+        .key span { font-size: 10px; color: #888; }
 
-        /* Call Screen */
-        .video-box { flex-grow: 1; position: relative; background: #000; border-radius: 20px; overflow: hidden; }
+        .key.call-btn { background: var(--primary); grid-column: 2; margin-top: 10px; }
+        .key.backspace { background: transparent; font-size: 18px; color: #888; }
+
+        /* --- CALL VIEW --- */
+        .video-box { flex-grow: 1; position: relative; background: #111; border-radius: 20px; overflow: hidden; }
         #remote-video { width: 100%; height: 100%; object-fit: cover; }
-        #local-video { position: absolute; top: 15px; right: 15px; width: 90px; height: 130px; border-radius: 12px; border: 1px solid #444; object-fit: cover; z-index: 10; background: #222; }
+        #local-video { position: absolute; top: 15px; right: 15px; width: 90px; height: 135px; border-radius: 12px; border: 1px solid #444; object-fit: cover; z-index: 10; background: #222; }
 
-        /* Controls */
-        .controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 25px 0; }
-        .btn { border: none; border-radius: 50%; width: 55px; height: 55px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 20px; color: white; background: var(--gray); }
-        .btn.call { background: var(--primary); width: 75px; height: 75px; grid-column: span 4; margin: 0 auto; border-radius: 50%; font-size: 35px; }
-        .btn.hangup { background: var(--danger); }
-        .btn.active { background: white; color: black; }
+        .call-controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 25px 0; }
+        .btn-round { border: none; border-radius: 50%; width: 55px; height: 55px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 22px; color: white; background: var(--gray); }
+        .btn-round.active { background: white; color: black; }
+        .btn-round.hangup { background: var(--danger); }
 
+        /* Incoming Alert */
         .incoming-ui { position: absolute; inset: 0; background: rgba(0,0,0,0.95); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; }
 
         @media (max-width: 480px) { .phone-shell { height: 100vh; border: none; border-radius: 0; margin: 0; } }
@@ -49,106 +56,146 @@
 <body>
 
     <div class="top-info">
-        <div id="status-bar">System Initializing...</div>
-        <span class="url-link" onclick="copyUrl()">Click to Copy Invite Link</span>
+        <div id="status-bar">Connecting to Network...</div>
+        <div class="url-copy" onclick="copyUrl()">Copy Invite Link</div>
     </div>
 
     <div class="phone-shell">
-        <!-- DIALER VIEW -->
+        <!-- DIALER SCREEN -->
         <div id="view-dialer" class="view active">
-            <div style="font-size: 12px; color: #888; text-align: center;">YOUR NUMBER</div>
-            <div class="number-container">
-                <div class="my-num" id="my-num-display">....</div>
-                <button class="refresh-btn" onclick="resetNumber()">↻ Change Number</button>
+            <div class="my-number-box">
+                <span>YOUR MOBILE NUMBER</span>
+                <h1 id="my-num-display">....</h1>
+                <button onclick="resetNumber()" style="background:none; border:none; color:#555; cursor:pointer; font-size:10px;">↻ RESET NUMBER</button>
             </div>
-            
-            <div class="dial-pad">
-                <input type="number" id="target-id" placeholder="0000">
-                <p style="text-align: center; color: #555;">Enter recipient number</p>
+
+            <div id="dial-display"></div>
+
+            <div class="keypad">
+                <div class="key" onclick="press('1')"><b>1</b><span>&nbsp;</span></div>
+                <div class="key" onclick="press('2')"><b>2</b><span>ABC</span></div>
+                <div class="key" onclick="press('3')"><b>3</b><span>DEF</span></div>
+                <div class="key" onclick="press('4')"><b>4</b><span>GHI</span></div>
+                <div class="key" onclick="press('5')"><b>5</b><span>JKL</span></div>
+                <div class="key" onclick="press('6')"><b>6</b><span>MNO</span></div>
+                <div class="key" onclick="press('7')"><b>7</b><span>PQRS</span></div>
+                <div class="key" onclick="press('8')"><b>8</b><span>TUV</span></div>
+                <div class="key" onclick="press('9')"><b>9</b><span>WXYZ</span></div>
+                <div class="key" onclick="press('*')"><b>*</b></div>
+                <div class="key" onclick="press('0')"><b>0</b><span>+</span></div>
+                <div class="key" onclick="press('#')"><b>#</b></div>
+                
+                <div class="key backspace" onclick="backspace()">⌫</div>
+                <div class="key call-btn" id="start-call-btn">📞</div>
             </div>
-            <button class="btn call" id="btn-call">📞</button>
         </div>
 
-        <!-- CALL VIEW -->
+        <!-- CALL SCREEN -->
         <div id="view-call" class="view">
             <div class="video-box">
                 <video id="remote-video" autoplay playsinline></video>
                 <video id="local-video" autoplay playsinline muted></video>
             </div>
-            <div class="controls">
-                <button class="btn active" id="toggle-mic">🎤</button>
-                <button class="btn active" id="toggle-cam">📷</button>
-                <button class="btn" style="background:var(--blue)" id="toggle-screen">📺</button>
-                <button class="btn hangup" id="btn-hangup">📵</button>
+            <div class="call-controls">
+                <button class="btn-round active" id="toggle-mic">🎤</button>
+                <button class="btn-round active" id="toggle-cam">📷</button>
+                <button class="btn-round" style="background:var(--blue)" id="toggle-screen">📺</button>
+                <button class="btn-round hangup" onclick="location.reload()">📵</button>
             </div>
         </div>
 
-        <!-- INCOMING OVERLAY -->
+        <!-- INCOMING ALERT -->
         <div id="incoming-overlay" class="incoming-ui">
-            <h2 id="caller-name">Incoming Call...</h2>
+            <h2 id="caller-name">Incoming...</h2>
             <div style="display:flex; gap: 40px; margin-top: 30px;">
-                <button class="btn hangup" onclick="location.reload()">✕</button>
-                <button class="btn active" style="background:var(--primary); width:70px; height:70px;" onclick="answerCall()">✔</button>
+                <button class="btn-round hangup" onclick="location.reload()">✕</button>
+                <button class="btn-round active" style="background:var(--primary); width:75px; height:75px;" onclick="answerCall()">✔</button>
             </div>
         </div>
     </div>
 
     <script>
-        // 1. Persistent Number Logic
-        let formattedId = localStorage.getItem('webRTC_Number');
-
-        if (!formattedId) {
-            const myId = Math.floor(Math.random() * 1000) + 1;
-            formattedId = myId.toString().padStart(4, '0');
-            localStorage.setItem('webRTC_Number', formattedId);
+        // 1. Persistent Number Setup
+        let myNum = localStorage.getItem('web_dialer_num');
+        if (!myNum) {
+            myNum = (Math.floor(Math.random() * 1000) + 1).toString().padStart(4, '0');
+            localStorage.setItem('web_dialer_num', myNum);
         }
-
-        document.getElementById('my-num-display').innerText = formattedId;
+        document.getElementById('my-num-display').innerText = myNum;
 
         function resetNumber() {
-            if(confirm("Change your mobile number?")) {
-                localStorage.removeItem('webRTC_Number');
+            if(confirm("Generate new number?")) {
+                localStorage.removeItem('web_dialer_num');
                 location.reload();
             }
         }
 
-        function copyUrl() {
-            navigator.clipboard.writeText(window.location.href);
-            alert("URL Copied!");
+        // 2. Dialer Keypad Logic
+        let dialString = "";
+        const dialDisplay = document.getElementById('dial-display');
+        function press(key) {
+            if(dialString.length < 4) {
+                dialString += key;
+                dialDisplay.innerText = dialString;
+            }
+        }
+        function backspace() {
+            dialString = dialString.slice(0, -1);
+            dialDisplay.innerText = dialString;
         }
 
-        const status = document.getElementById('status-bar');
+        function copyUrl() {
+            navigator.clipboard.writeText(window.location.href);
+            alert("Invite link copied!");
+        }
 
-        // 2. PeerJS with STUN + TURN (Open Relay)
-        const peer = new Peer('MB-' + formattedId, {
+        // 3. PeerJS - Strategy: Prefer STUN, Fallback to TURN
+        const status = document.getElementById('status-bar');
+        const peer = new Peer('CALL-' + myNum, {
             config: {
                 'iceServers': [
+                    // STUN (Free, Direct, Low Latency - Browser Tries This First)
                     { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:openrelay.metered.ca:80' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    // TURN (Relay - Fallback if STUN fails)
                     {
-                    	url: 'turn:192.158.29.39:3478?transport=udp',
-                    	credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
-                    	username: '28224511:1379330808'
+                        urls: "stun:stun.relay.metered.ca:80",
                     },
                     {
-                    	url: 'turn:192.158.29.39:3478?transport=tcp',
-                    	credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
-                    	username: '28224511:1379330808'
+                        urls: "turn:global.relay.metered.ca:80",
+                        username: "c198465a34d3f8e5ae248d9e",
+                        credential: "5BRzxWFSps2G0yOR",
+                    },
+                    {
+                        urls: "turn:global.relay.metered.ca:80?transport=tcp",
+                        username: "c198465a34d3f8e5ae248d9e",
+                        credential: "5BRzxWFSps2G0yOR",
+                    },
+                    {
+                        urls: "turn:global.relay.metered.ca:443",
+                        username: "c198465a34d3f8e5ae248d9e",
+                        credential: "5BRzxWFSps2G0yOR",
+                    },
+                    {
+                        urls: "turns:global.relay.metered.ca:443?transport=tcp",
+                        username: "c198465a34d3f8e5ae248d9e",
+                        credential: "5BRzxWFSps2G0yOR",
                     }
-                ]
+                ],
+                'iceTransportPolicy': 'all' // Allows both STUN and TURN
             }
         });
 
         let localStream;
         let currentCall;
 
-        peer.on('open', () => status.innerText = "Online & Ready");
+        peer.on('open', () => status.innerText = "Network: Ready");
         peer.on('error', (err) => status.innerText = "Network Error: " + err.type);
 
-        // 3. Handle Incoming
+        // 4. Handle Incoming
         peer.on('call', (call) => {
             currentCall = call;
-            document.getElementById('caller-name').innerText = "Call from " + call.peer.replace('MB-', '');
+            document.getElementById('caller-name').innerText = "Call from " + call.peer.replace('CALL-', '');
             document.getElementById('incoming-overlay').style.display = 'flex';
         });
 
@@ -158,45 +205,40 @@
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             document.getElementById('local-video').srcObject = localStream;
             currentCall.answer(localStream);
-            bindCallEvents(currentCall);
+            bindEvents(currentCall);
         }
 
-        // 4. Handle Outgoing
-        document.getElementById('btn-call').onclick = async () => {
-            const target = document.getElementById('target-id').value;
-            if (!target) return alert("Enter number");
+        // 5. Handle Outgoing
+        document.getElementById('start-call-btn').onclick = async () => {
+            if (dialString.length < 1) return alert("Dial a number");
             switchView('view-call');
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             document.getElementById('local-video').srcObject = localStream;
-            const call = peer.call('MB-' + target.padStart(4, '0'), localStream);
-            bindCallEvents(call);
+            const call = peer.call('CALL-' + dialString.padStart(4, '0'), localStream);
+            bindEvents(call);
         };
 
-        function bindCallEvents(call) {
+        function bindEvents(call) {
             currentCall = call;
-            status.innerText = "Connecting...";
-
-            call.on('stream', (remStream) => {
-                status.innerText = "Call Active";
-                document.getElementById('remote-video').srcObject = remStream;
+            status.innerText = "Status: Connecting...";
+            call.on('stream', (rem) => {
+                status.innerText = "Status: Call Active";
+                document.getElementById('remote-video').srcObject = rem;
             });
-
             call.peerConnection.oniceconnectionstatechange = () => {
-                status.innerText = "ICE: " + call.peerConnection.iceConnectionState;
+                status.innerText = "Network: " + call.peerConnection.iceConnectionState;
             };
         }
 
-        // 5. Toggles
+        // 6. Control Functions
         document.getElementById('toggle-mic').onclick = (e) => {
-            const track = localStream.getAudioTracks()[0];
-            track.enabled = !track.enabled;
-            e.currentTarget.classList.toggle('active', track.enabled);
+            localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled;
+            e.currentTarget.classList.toggle('active');
         };
 
         document.getElementById('toggle-cam').onclick = (e) => {
-            const track = localStream.getVideoTracks()[0];
-            track.enabled = !track.enabled;
-            e.currentTarget.classList.toggle('active', track.enabled);
+            localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled;
+            e.currentTarget.classList.toggle('active');
         };
 
         document.getElementById('toggle-screen').onclick = async () => {
@@ -206,16 +248,11 @@
                 const sender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
                 sender.replaceTrack(screenTrack);
                 document.getElementById('local-video').srcObject = screenStream;
-
                 screenTrack.onended = () => {
                     sender.replaceTrack(localStream.getVideoTracks()[0]);
                     document.getElementById('local-video').srcObject = localStream;
                 };
-            } catch (e) { console.error(e); }
-        };
-
-        document.getElementById('btn-hangup').onclick = () => {
-            location.reload(); // Number is saved in localStorage, so it won't change
+            } catch (e) {}
         };
 
         function switchView(id) {

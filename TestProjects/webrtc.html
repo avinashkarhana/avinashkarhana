@@ -3,161 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Dialer Pro</title>
+    <title>WebRTC Pro Dialer</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --bg: #000; --card: #1c1c1e; --primary: #34c759; --danger: #ff3b30; --blue: #007aff; --text: #fff; --gray: #2c2c2e; }
         * { box-sizing: border-box; font-family: -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        body { background-color: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow: hidden; }
 
-        /* Top Info Bar */
-        .top-info { width: 100%; max-width: 400px; background: #111; padding: 12px; border-radius: 0 0 20px 20px; text-align: center; border: 1px solid #333; }
-        #status-bar { font-size: 10px; color: #ffc107; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
-        .url-copy { color: var(--blue); font-size: 12px; cursor: pointer; text-decoration: underline; }
+        .top-info { width: 100%; max-width: 400px; background: #111; padding: 10px; text-align: center; border-bottom: 1px solid #333; }
+        #status-bar { font-size: 10px; color: #ffc107; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* Phone Container */
-        .phone-shell { width: 100%; max-width: 400px; height: 85vh; background: var(--bg); margin-top: 10px; position: relative; display: flex; flex-direction: column; border-radius: 40px; border: 6px solid #333; overflow: hidden; }
-        
+        .phone-shell { width: 100%; max-width: 400px; height: 85vh; background: var(--bg); position: relative; display: flex; flex-direction: column; overflow: hidden; border: 4px solid #333; border-radius: 40px; margin-top: 10px; }
         .view { display: none; flex-direction: column; height: 100%; padding: 20px; }
         .view.active { display: flex; }
 
-        /* --- DIALER VIEW --- */
-        .my-number-box { text-align: center; margin-top: 10px; }
-        .my-number-box span { font-size: 12px; color: #888; }
-        .my-number-box h1 { font-size: 32px; color: var(--primary); margin: 5px 0; }
-
-        #dial-display { font-size: 45px; height: 60px; text-align: center; margin: 20px 0; color: white; font-weight: 300; }
-        
-        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; justify-items: center; padding: 10px; }
-        .key { width: 75px; height: 75px; background: var(--gray); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
-        .key:active { background: #555; }
+        /* Dialer UI */
+        #dial-display { font-size: 45px; height: 60px; text-align: center; margin: 30px 0; font-weight: 300; }
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; justify-items: center; }
+        .key { width: 70px; height: 70px; background: var(--gray); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; }
+        .key:active { background: #444; }
         .key b { font-size: 24px; }
-        .key span { font-size: 10px; color: #888; }
+        .key.call-btn { background: var(--primary); grid-column: 2; }
 
-        .key.call-btn { background: var(--primary); grid-column: 2; margin-top: 10px; }
-        .key.backspace { background: transparent; font-size: 18px; color: #888; }
-
-        /* --- CALL VIEW --- */
+        /* Call UI */
         .video-box { flex-grow: 1; position: relative; background: #111; border-radius: 20px; overflow: hidden; }
         #remote-video { width: 100%; height: 100%; object-fit: cover; }
-        #local-video { position: absolute; top: 15px; right: 15px; width: 90px; height: 135px; border-radius: 12px; border: 1px solid #444; object-fit: cover; z-index: 10; background: #222; }
+        #local-video { position: absolute; top: 10px; right: 10px; width: 80px; height: 120px; border-radius: 10px; object-fit: cover; border: 1px solid #444; z-index: 5; }
+        
+        .call-controls { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 20px 0; }
+        .btn-ctl { border: none; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: var(--gray); color: white; font-size: 18px; }
+        .btn-ctl.active { background: white; color: black; }
+        .btn-ctl.hangup { background: var(--danger); }
+        .btn-ctl.low-data { font-size: 10px; font-weight: bold; }
 
-        .call-controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 25px 0; }
-        .btn-round { border: none; border-radius: 50%; width: 55px; height: 55px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 22px; color: white; background: var(--gray); }
-        .btn-round.active { background: white; color: black; }
-        .btn-round.hangup { background: var(--danger); }
-
-        /* Incoming Alert */
-        .incoming-ui { position: absolute; inset: 0; background: rgba(0,0,0,0.95); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; }
-
-        @media (max-width: 480px) { .phone-shell { height: 100vh; border: none; border-radius: 0; margin: 0; } }
+        .incoming-ui { position: absolute; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
     <div class="top-info">
-        <div id="status-bar">Connecting to Network...</div>
-        <div class="url-copy" onclick="copyUrl()">Copy Invite Link</div>
+        <div id="status-bar">Connecting...</div>
+        <div style="font-size: 12px; color: var(--primary); font-weight: bold;">ID: <span id="my-id-val">....</span></div>
     </div>
 
     <div class="phone-shell">
-        <!-- DIALER SCREEN -->
+        <!-- DIALER -->
         <div id="view-dialer" class="view active">
-            <div class="my-number-box">
-                <span>YOUR MOBILE NUMBER</span>
-                <h1 id="my-num-display">....</h1>
-                <button onclick="resetNumber()" style="background:none; border:none; color:#555; cursor:pointer; font-size:10px;">↻ RESET NUMBER</button>
-            </div>
-
             <div id="dial-display"></div>
-
-            <div class="keypad">
-                <div class="key" onclick="press('1')"><b>1</b><span>&nbsp;</span></div>
-                <div class="key" onclick="press('2')"><b>2</b><span>ABC</span></div>
-                <div class="key" onclick="press('3')"><b>3</b><span>DEF</span></div>
-                <div class="key" onclick="press('4')"><b>4</b><span>GHI</span></div>
-                <div class="key" onclick="press('5')"><b>5</b><span>JKL</span></div>
-                <div class="key" onclick="press('6')"><b>6</b><span>MNO</span></div>
-                <div class="key" onclick="press('7')"><b>7</b><span>PQRS</span></div>
-                <div class="key" onclick="press('8')"><b>8</b><span>TUV</span></div>
-                <div class="key" onclick="press('9')"><b>9</b><span>WXYZ</span></div>
-                <div class="key" onclick="press('*')"><b>*</b></div>
-                <div class="key" onclick="press('0')"><b>0</b><span>+</span></div>
-                <div class="key" onclick="press('#')"><b>#</b></div>
-                
-                <div class="key backspace" onclick="backspace()">⌫</div>
-                <div class="key call-btn" id="start-call-btn">📞</div>
-            </div>
+            <div class="keypad" id="keypad-grid"></div>
         </div>
 
-        <!-- CALL SCREEN -->
+        <!-- CALL -->
         <div id="view-call" class="view">
             <div class="video-box">
                 <video id="remote-video" autoplay playsinline></video>
                 <video id="local-video" autoplay playsinline muted></video>
             </div>
             <div class="call-controls">
-                <button class="btn-round active" id="toggle-mic">🎤</button>
-                <button class="btn-round active" id="toggle-cam">📷</button>
-                <button class="btn-round" style="background:var(--blue)" id="toggle-screen">📺</button>
-                <button class="btn-round hangup" onclick="location.reload()">📵</button>
+                <button class="btn-ctl active" id="mic-toggle">🎤</button>
+                <button class="btn-ctl active" id="cam-toggle">📷</button>
+                <button class="btn-ctl" id="screen-toggle" style="background:var(--blue)">📺</button>
+                <button class="btn-ctl low-data" id="data-toggle" title="Prioritize Audio">LOW<br>DATA</button>
+                <button class="btn-ctl hangup" id="hangup-btn">📵</button>
             </div>
         </div>
 
-        <!-- INCOMING ALERT -->
+        <!-- INCOMING -->
         <div id="incoming-overlay" class="incoming-ui">
-            <h2 id="caller-name">Incoming...</h2>
-            <div style="display:flex; gap: 40px; margin-top: 30px;">
-                <button class="btn-round hangup" onclick="location.reload()">✕</button>
-                <button class="btn-round active" style="background:var(--primary); width:75px; height:75px;" onclick="answerCall()">✔</button>
+            <h2 id="caller-id">Incoming...</h2>
+            <div style="display:flex; gap: 30px; margin-top: 20px;">
+                <button class="btn-ctl hangup" onclick="endCall()">✕</button>
+                <button class="btn-ctl" style="background:var(--primary); width:70px; height:70px;" onclick="answerCall()">✔</button>
             </div>
         </div>
     </div>
 
     <script>
-        // 1. Persistent Number Setup
-        let myNum = localStorage.getItem('web_dialer_num');
-        if (!myNum) {
-            myNum = (Math.floor(Math.random() * 1000) + 1).toString().padStart(4, '0');
-            localStorage.setItem('web_dialer_num', myNum);
-        }
-        document.getElementById('my-num-display').innerText = myNum;
+        // 1. Setup Persistent ID
+        let myNum = localStorage.getItem('pro_dialer_id') || (Math.floor(Math.random()*1000)+1).toString().padStart(4, '0');
+        localStorage.setItem('pro_dialer_id', myNum);
+        document.getElementById('my-id-val').innerText = myNum;
 
-        function resetNumber() {
-            if(confirm("Generate new number?")) {
-                localStorage.removeItem('web_dialer_num');
-                location.reload();
-            }
-        }
-
-        // 2. Dialer Keypad Logic
-        let dialString = "";
-        const dialDisplay = document.getElementById('dial-display');
-        function press(key) {
-            if(dialString.length < 4) {
-                dialString += key;
-                dialDisplay.innerText = dialString;
-            }
-        }
-        function backspace() {
-            dialString = dialString.slice(0, -1);
-            dialDisplay.innerText = dialString;
-        }
-
-        function copyUrl() {
-            navigator.clipboard.writeText(window.location.href);
-            alert("Invite link copied!");
-        }
-
-        // 3. PeerJS - Strategy: Prefer STUN, Fallback to TURN
-        const status = document.getElementById('status-bar');
-        const peer = new Peer('CALL-' + myNum, {
+        // 2. PeerJS with STUN/TURN fallback
+        const peer = new Peer('P-' + myNum, {
             config: {
-                'iceServers': [
-                    // STUN (Free, Direct, Low Latency - Browser Tries This First)
+                iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' },
-                    // TURN (Relay - Fallback if STUN fails)
                     {
                         urls: "stun:stun.relay.metered.ca:80",
                     },
@@ -181,21 +112,38 @@
                         username: "c198465a34d3f8e5ae248d9e",
                         credential: "5BRzxWFSps2G0yOR",
                     }
-                ],
-                'iceTransportPolicy': 'all' // Allows both STUN and TURN
+                ]
             }
         });
 
-        let localStream;
-        let currentCall;
+        let localStream, currentCall, dataConn, lowDataMode = false;
+        const status = document.getElementById('status-bar');
 
-        peer.on('open', () => status.innerText = "Network: Ready");
-        peer.on('error', (err) => status.innerText = "Network Error: " + err.type);
+        // 3. Dialer Keypad Generation
+        const keypad = document.getElementById('keypad-grid');
+        const keys = ['1','2','3','4','5','6','7','8','9','*','0','#'];
+        keys.forEach(k => {
+            const div = document.createElement('div');
+            div.className = 'key';
+            div.innerHTML = `<b>${k}</b>`;
+            div.onclick = () => { document.getElementById('dial-display').innerText += k; };
+            keypad.appendChild(div);
+        });
+        const callBtn = document.createElement('div');
+        callBtn.className = 'key call-btn';
+        callBtn.innerHTML = `<b>📞</b>`;
+        callBtn.onclick = startCall;
+        keypad.appendChild(callBtn);
 
         // 4. Handle Incoming
-        peer.on('call', (call) => {
+        peer.on('connection', conn => { // Listen for Data Signals (like Hangup)
+            dataConn = conn;
+            conn.on('data', data => { if(data === 'HANGUP') endCall(false); });
+        });
+
+        peer.on('call', call => {
             currentCall = call;
-            document.getElementById('caller-name').innerText = "Call from " + call.peer.replace('CALL-', '');
+            document.getElementById('caller-id').innerText = "From: " + call.peer.replace('P-','');
             document.getElementById('incoming-overlay').style.display = 'flex';
         });
 
@@ -205,60 +153,101 @@
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             document.getElementById('local-video').srcObject = localStream;
             currentCall.answer(localStream);
-            bindEvents(currentCall);
+            setupCall(currentCall);
+            dataConn = peer.connect(currentCall.peer); // Ensure data link is open
         }
 
-        // 5. Handle Outgoing
-        document.getElementById('start-call-btn').onclick = async () => {
-            if (dialString.length < 1) return alert("Dial a number");
+        // 5. Outgoing Call
+        async function startCall() {
+            const target = document.getElementById('dial-display').innerText;
+            if(!target) return;
             switchView('view-call');
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             document.getElementById('local-video').srcObject = localStream;
-            const call = peer.call('CALL-' + dialString.padStart(4, '0'), localStream);
-            bindEvents(call);
-        };
+            
+            const targetID = 'P-' + target.padStart(4, '0');
+            dataConn = peer.connect(targetID); // Signaling link
+            currentCall = peer.call(targetID, localStream);
+            setupCall(currentCall);
+        }
 
-        function bindEvents(call) {
-            currentCall = call;
-            status.innerText = "Status: Connecting...";
-            call.on('stream', (rem) => {
-                status.innerText = "Status: Call Active";
+        function setupCall(call) {
+            status.innerText = "Connecting...";
+            call.on('stream', rem => {
+                status.innerText = "Active";
                 document.getElementById('remote-video').srcObject = rem;
             });
+            call.on('close', () => endCall(false));
             call.peerConnection.oniceconnectionstatechange = () => {
-                status.innerText = "Network: " + call.peerConnection.iceConnectionState;
+                status.innerText = "ICE: " + call.peerConnection.iceConnectionState;
             };
         }
 
-        // 6. Control Functions
-        document.getElementById('toggle-mic').onclick = (e) => {
-            localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled;
-            e.currentTarget.classList.toggle('active');
+        // 6. Audio Priority (Low Data Mode)
+        document.getElementById('data-toggle').onclick = async (e) => {
+            lowDataMode = !lowDataMode;
+            e.currentTarget.classList.toggle('active', lowDataMode);
+            
+            if (currentCall && currentCall.peerConnection) {
+                const senders = currentCall.peerConnection.getSenders();
+                const videoSender = senders.find(s => s.track.kind === 'video');
+                if (videoSender) {
+                    const params = videoSender.getParameters();
+                    if (!params.encodings) params.encodings = [{}];
+                    // On low data, limit video to 50kbps to give audio all the bandwidth
+                    params.encodings[0].maxBitrate = lowDataMode ? 50000 : 2500000; 
+                    await videoSender.setParameters(params);
+                    status.innerText = lowDataMode ? "Low Data Active" : "Standard Quality";
+                }
+            }
         };
 
-        document.getElementById('toggle-cam').onclick = (e) => {
-            localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled;
-            e.currentTarget.classList.toggle('active');
-        };
-
-        document.getElementById('toggle-screen').onclick = async () => {
+        // 7. Screen Share (Mobile Fixes)
+        document.getElementById('screen-toggle').onclick = async () => {
             try {
+                // Check if browser supports screen share (iOS Safari 13+ or Android Chrome)
+                if(!navigator.mediaDevices.getDisplayMedia) {
+                    return alert("Screen sharing not supported on this mobile browser.");
+                }
                 const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
                 const screenTrack = screenStream.getVideoTracks()[0];
                 const sender = currentCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
                 sender.replaceTrack(screenTrack);
                 document.getElementById('local-video').srcObject = screenStream;
-                screenTrack.onended = () => {
-                    sender.replaceTrack(localStream.getVideoTracks()[0]);
-                    document.getElementById('local-video').srcObject = localStream;
+                screenTrack.onended = () => { 
+                    sender.replaceTrack(localStream.getVideoTracks()[0]); 
+                    document.getElementById('local-video').srcObject = localStream; 
                 };
-            } catch (e) {}
+            } catch (e) { console.error("Screen share failed", e); }
         };
+
+        // 8. Proper Disconnect (Signal Remote First)
+        document.getElementById('hangup-btn').onclick = () => endCall(true);
+
+        function endCall(sendSignal) {
+            if (sendSignal && dataConn) {
+                dataConn.send('HANGUP'); // Tell remote we are hanging up
+            }
+            // Small delay to let signal send before teardown
+            setTimeout(() => {
+                location.reload(); 
+            }, 300);
+        }
 
         function switchView(id) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(id).classList.add('active');
         }
+
+        // Toggles
+        document.getElementById('mic-toggle').onclick = e => {
+            localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled;
+            e.currentTarget.classList.toggle('active');
+        };
+        document.getElementById('cam-toggle').onclick = e => {
+            localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled;
+            e.currentTarget.classList.toggle('active');
+        };
     </script>
 </body>
 </html>

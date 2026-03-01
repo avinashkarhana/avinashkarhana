@@ -19,7 +19,7 @@
         /* Header */
         .header { padding: calc(10px + env(safe-area-inset-top)) 15px 10px; text-align: center; border-bottom: 1px solid #222; flex-shrink: 0; }
         .app-name { font-size: 22px; font-weight: 800; color: var(--primary); letter-spacing: -1px; }
-        #user-name-input { background: none; border: none; color: #888; font-size: 13px; text-align: center; width: 100%; outline: none; margin-top: 5px; }
+        #user-name-input { background: none; border: none; color: #888; font-size: 13px; text-align: center; width: 100%; outline: none; margin-top: 5px; border-bottom: 1px dashed #333; }
         .id-pill { background: var(--gray); padding: 5px 15px; border-radius: 20px; font-size: 11px; cursor: pointer; display: inline-block; margin-top: 8px; color: var(--blue); }
 
         /* Dialer Layout */
@@ -44,9 +44,8 @@
         .key:active { background: #333; }
         .key.call-btn { background: var(--primary); grid-column: 2; }
 
-        /* Video / Call Screen */
+        /* Video Area */
         .video-container { flex-grow: 1; position: relative; background: #000; }
-        /* Remote Video with Auto-PiP support */
         #remote-video { width: 100%; height: 100%; object-fit: cover; }
         #local-preview { position: absolute; top: 20px; right: 20px; width: 90px; height: 130px; border-radius: 12px; border: 1px solid #444; z-index: 10; overflow: hidden; }
         .vol-bar-bg { position: absolute; bottom: 0; width: 100%; height: 4px; background: rgba(0,0,0,0.5); }
@@ -57,9 +56,13 @@
         .btn-round.active { background: #fff; color: #000; }
         .btn-round.hangup { background: var(--danger); font-size: 22px; }
 
+        /* Forensics Modal */
         .modal { position: absolute; inset: 0; background: #000; z-index: 1000; display: none; flex-direction: column; padding: 20px; padding-top: env(safe-area-inset-top); overflow-y: auto; }
         .timeline-item { border-left: 2px solid var(--gray); padding: 0 0 20px 15px; position: relative; }
         .timeline-item::before { content: ''; width: 10px; height: 10px; background: var(--blue); border-radius: 50%; position: absolute; left: -6px; top: 2px; }
+        .timeline-remote::before { background: var(--primary); }
+        .timeline-msg { font-size: 14px; color: #eee; }
+        .timeline-time { font-size: 10px; color: #666; font-family: monospace; }
 
         .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.95); z-index: 500; display: none; flex-direction: column; align-items: center; justify-content: center; }
     </style>
@@ -91,7 +94,6 @@
 
         <div id="view-call" class="view">
             <div class="video-container">
-                <!-- Added autopictureinpicture attribute -->
                 <video id="remote-video" autoplay playsinline autopictureinpicture></video>
                 <div id="local-preview">
                     <video id="local-video" autoplay playsinline muted></video>
@@ -146,73 +148,92 @@
         let localStream, currentCall, dataConn, audioCtx, analyser, events = [], startTime = 0;
         const remoteVid = document.getElementById('remote-video');
 
-        // --- 1. THE AUTO-PIP ENGINE ---
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'hidden' && currentCall) {
-                // If call is active and user switches apps, request PiP
-                if (remoteVid.readyState >= 2 && !document.pictureInPictureElement) {
-                    remoteVid.requestPictureInPicture().catch(e => console.log("Auto-PiP blocked or failed"));
-                }
-            }
-        });
-
-        peer.on('open', () => { document.getElementById('net-state').innerText = "ONLINE"; renderLogs(); });
-        peer.on('connection', conn => { dataConn = conn; conn.on('data', d => d === 'BYE' && endCall("Remote hung up")); });
-        peer.on('call', call => { currentCall = call; document.getElementById('caller-name-ui').innerText = (call.metadata && call.metadata.name) || call.peer.replace('P-',''); document.getElementById('incoming-ui').style.display = 'flex'; });
-
-        function logEvent(msg) {
+        // --- 1. SYNCED LOGGING ENGINE ---
+        function logEvent(msg, broadcast = true) {
             const elapsed = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
-            events.push({ time: `${Math.floor(elapsed/60)}:${(elapsed%60).toString().padStart(2,'0')}`, msg });
+            const entry = { 
+                time: `${Math.floor(elapsed/60)}:${(elapsed%60).toString().padStart(2,'0')}`, 
+                msg: msg,
+                isRemote: !broadcast // If we are not broadcasting, it was received from remote
+            };
+            events.push(entry);
+            
+            // Broadcast to Peer
+            if (broadcast && dataConn && dataConn.open) {
+                dataConn.send({ type: 'EVENT', msg: msg });
+            }
         }
+
+        function setupDataChannel(conn) {
+            dataConn = conn;
+            conn.on('data', d => {
+                if (d === 'BYE') endCall("Remote hung up");
+                if (d === 'PING') { conn.send('PONG'); }
+                if (d.type === 'EVENT') {
+                    logEvent("Remote: " + d.msg, false); // Log without broadcasting back
+                }
+            });
+        }
+
+        // --- 2. PEER EVENTS ---
+        peer.on('open', () => { document.getElementById('net-state').innerText = "ONLINE"; renderLogs(); });
+        peer.on('connection', conn => setupDataChannel(conn));
+        peer.on('call', call => { 
+            currentCall = call; 
+            document.getElementById('caller-name-ui').innerText = (call.metadata && call.metadata.name) || call.peer.replace('P-',''); 
+            document.getElementById('incoming-ui').style.display = 'flex'; 
+        });
 
         async function startCall(directNum = null) {
             const num = directNum || document.getElementById('dial-display').innerText;
             if(!num) return;
             switchView('view-call');
-            // User gesture (click) allows us to play video
-            remoteVid.play(); 
             localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
             document.getElementById('local-video').srcObject = localStream;
-            startTime = Date.now(); events = []; logEvent("Initiated outgoing call");
+            startTime = Date.now(); events = []; logEvent("Call started");
+            
             dataConn = peer.connect('P-' + num);
+            setupDataChannel(dataConn);
+            
             currentCall = peer.call('P-' + num, localStream, { metadata: { name: nameInput.value } });
             setupStream();
         }
 
         async function answerCall() {
-            document.getElementById('incoming-ui').style.display = 'none';
+            document.getElementById('incoming-overlay').style.display = 'none';
             switchView('view-call');
-            remoteVid.play(); 
             localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
             document.getElementById('local-video').srcObject = localStream;
-            startTime = Date.now(); events = []; logEvent("Answered incoming call");
+            startTime = Date.now(); events = []; logEvent("Call answered");
+            
             currentCall.answer(localStream);
             dataConn = peer.connect(currentCall.peer);
+            setupDataChannel(dataConn);
             setupStream();
         }
 
         function setupStream() {
-            currentCall.on('stream', rem => { 
-                remoteVid.srcObject = rem; 
-                remoteVid.play(); // Explicitly call play
-                logEvent("Video stream established"); 
-            });
+            currentCall.on('stream', rem => { remoteVid.srcObject = rem; logEvent("Video connected"); });
             initVis(localStream);
         }
 
         function endCall(reason) {
-            if (document.pictureInPictureElement) document.exitPictureInPicture();
             logEvent(reason || "Call ended");
             const duration = Math.floor((Date.now() - startTime) / 1000);
             const history = JSON.parse(localStorage.getItem(STORAGE.LOGS) || '[]');
-            history.unshift({ num: currentCall ? currentCall.peer.replace('P-','') : '?', type: currentCall && currentCall.metadata && currentCall.metadata.name ? 'IN' : 'OUT', duration: `${Math.floor(duration/60)}m ${duration%60}s`, timeline: [...events], date: new Date().toLocaleString() });
+            history.unshift({ 
+                num: currentCall ? currentCall.peer.replace('P-','') : '?', 
+                type: currentCall && currentCall.metadata && currentCall.metadata.name ? 'IN' : 'OUT', 
+                duration: `${Math.floor(duration/60)}m ${duration%60}s`, 
+                timeline: [...events], 
+                date: new Date().toLocaleString() 
+            });
             localStorage.setItem(STORAGE.LOGS, JSON.stringify(history.slice(0, 20)));
             if(localStream) localStream.getTracks().forEach(t => t.stop());
             switchView('view-dialer'); renderLogs(); analyser = null;
-            currentCall = null;
         }
 
-        // Standard Utility Functions
+        // --- 3. UI & FEATURES ---
         function renderLogs() {
             const history = JSON.parse(localStorage.getItem(STORAGE.LOGS) || '[]');
             document.getElementById('log-list').innerHTML = history.map((h, i) => `
@@ -227,20 +248,45 @@
 
         function openForensics(idx) {
             const h = JSON.parse(localStorage.getItem(STORAGE.LOGS))[idx];
-            document.getElementById('timeline-box').innerHTML = h.timeline.map(e => `<div class="timeline-item"><div style="font-size:10px; color:#555;">${e.time}</div><div>${e.msg}</div></div>`).join('');
+            document.getElementById('timeline-box').innerHTML = h.timeline.map(e => `
+                <div class="timeline-item ${e.isRemote ? 'timeline-remote' : ''}">
+                    <div class="timeline-time">${e.time}</div>
+                    <div class="timeline-msg">${e.msg}</div>
+                </div>`).join('');
             document.getElementById('modal-forensic').style.display = 'flex';
         }
 
+        function toggleMic() { 
+            const active = localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled;
+            document.getElementById('mic-btn').classList.toggle('active');
+            logEvent(active ? "Unmuted microphone" : "Muted microphone");
+        }
+        function toggleCam() { 
+            const active = localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled;
+            document.getElementById('cam-btn').classList.toggle('active');
+            logEvent(active ? "Started camera" : "Stopped camera");
+        }
+        async function flipCamera() { 
+            logEvent("Flipping camera");
+            const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:true});
+            currentCall.peerConnection.getSenders().find(x=>x.track.kind==='video').replaceTrack(s.getVideoTracks()[0]);
+            document.getElementById('local-video').srcObject = s;
+        }
+        async function toggleScreen() { 
+            try { 
+                const s = await navigator.mediaDevices.getDisplayMedia({video:true}); 
+                logEvent("Started screen share");
+                currentCall.peerConnection.getSenders().find(x=>x.track.kind==='video').replaceTrack(s.getVideoTracks()[0]);
+            } catch(e){} 
+        }
+
+        // --- 4. UTILS ---
         function closeModal() { document.getElementById('modal-forensic').style.display = 'none'; }
         function redial(n) { document.getElementById('dial-display').innerText = n; startCall(n); }
         function press(k) { if(navigator.vibrate) navigator.vibrate(15); const d = document.getElementById('dial-display'); if(d.innerText.length < 4) d.innerText += k; }
         function backspace() { const d = document.getElementById('dial-display'); d.innerText = d.innerText.slice(0,-1); }
         function switchView(v) { document.querySelectorAll('.view').forEach(e => e.classList.remove('active')); document.getElementById(v).classList.add('active'); }
-        function hangup(sig) { if(sig && dataConn) dataConn.send('BYE'); endCall("You disconnected"); }
-        function toggleMic() { localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled; document.getElementById('mic-btn').classList.toggle('active'); logEvent("Microphone toggled"); }
-        function toggleCam() { localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled; document.getElementById('cam-btn').classList.toggle('active'); logEvent("Camera toggled"); }
-        async function flipCamera() { logEvent("Flipping camera..."); const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:true}); currentCall.peerConnection.getSenders().find(x=>x.track.kind==='video').replaceTrack(s.getVideoTracks()[0]); document.getElementById('local-video').srcObject = s; }
-        async function toggleScreen() { try { const s = await navigator.mediaDevices.getDisplayMedia({video:true}); logEvent("Screen shared"); currentCall.peerConnection.getSenders().find(x=>x.track.kind==='video').replaceTrack(s.getVideoTracks()[0]); } catch(e){} }
+        function hangup(sig) { if(sig && dataConn) dataConn.send('BYE'); endCall("Hung up"); }
         function togglePiP() { if (document.pictureInPictureElement) document.exitPictureInPicture(); else remoteVid.requestPictureInPicture(); }
         function copyInvite() { navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?dial=${myId}`); alert("Link Copied!"); }
         function initVis(s) {

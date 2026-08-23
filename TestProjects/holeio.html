@@ -3,276 +3,302 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Hole.io - Advanced Physics</title>
+    <title>Pro Hole.io Clone</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #87ceeb; font-family: 'Segoe UI', sans-serif; }
-        
-        /* UI Elements */
-        #ui {
-            position: absolute; top: 20px; left: 20px; color: white;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5); pointer-events: none;
+        body { margin: 0; overflow: hidden; background: #222; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #ui-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
+            padding: 20px; box-sizing: border-box; color: white;
         }
-        #score-val { font-size: 32px; font-weight: bold; }
-
-        /* Settings Menu */
-        #settings-btn {
-            position: absolute; top: 20px; right: 20px;
-            padding: 10px 20px; background: rgba(0,0,0,0.6);
-            color: white; border: 1px solid white; border-radius: 5px;
-            cursor: pointer; z-index: 100;
-        }
-        #settings-menu {
+        .stats { display: flex; justify-content: space-between; font-size: 24px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        #timer { color: #ffeb3b; }
+        #settings-panel {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.9); color: white; padding: 30px;
-            border-radius: 15px; display: none; flex-direction: column; gap: 15px;
-            min-width: 250px; z-index: 101;
+            background: rgba(0,0,0,0.85); padding: 30px; border-radius: 15px;
+            pointer-events: all; display: none; flex-direction: column; gap: 15px; color: white; border: 1px solid #444;
         }
-        .setting-row { display: flex; justify-content: space-between; align-items: center; }
-        input[type=range] { cursor: pointer; }
-        
-        #instructions {
-            position: absolute; bottom: 20px; width: 100%; text-align: center;
-            color: white; font-size: 14px; opacity: 0.8; pointer-events: none;
+        .slider-row { display: flex; justify-content: space-between; gap: 20px; align-items: center; }
+        button { cursor: pointer; padding: 10px; background: #3498db; border: none; color: white; border-radius: 5px; font-weight: bold; }
+        #game-over {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: none; flex-direction: column;
+            align-items: center; justify-content: center; color: white; z-index: 100;
         }
     </style>
 </head>
 <body>
 
-<div id="ui">
-    <div>SIZE</div>
-    <div id="score-val">2.0m</div>
+<div id="ui-overlay">
+    <div class="stats">
+        <div id="score">SIZE: 1.5m</div>
+        <div id="timer">02:00</div>
+    </div>
+    <div style="text-align: center; opacity: 0.6;">Hold Mouse to Move</div>
 </div>
 
-<button id="settings-btn">Settings</button>
-
-<div id="settings-menu">
-    <h2 style="margin-top:0">Settings</h2>
-    <div class="setting-row">
-        <label>Sensitivity</label>
-        <input type="range" id="sens-slider" min="1" max="100" value="15">
-    </div>
-    <div class="setting-row">
-        <label>Camera Smoothness</label>
-        <input type="range" id="cam-slider" min="1" max="100" value="10">
-    </div>
-    <button id="close-settings" style="margin-top:10px; padding: 8px; cursor: pointer;">Close & Resume</button>
+<div id="settings-panel">
+    <h2>Settings</h2>
+    <div class="slider-row"><label>Sensitivity</label><input type="range" id="sens" min="5" max="50" value="20"></div>
+    <button onclick="toggleSettings()">Resume</button>
 </div>
 
-<div id="instructions">Drag to move • Eat smaller objects to grow</div>
+<div id="game-over">
+    <h1 id="final-status">TIME'S UP!</h1>
+    <p id="final-score">Final Size: 0m</p>
+    <button onclick="location.reload()">Play Again</button>
+</div>
 
 <script type="importmap">
-    {
-        "imports": {
-            "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
-        }
-    }
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
 </script>
 
 <script type="module">
     import * as THREE from 'three';
 
-    // --- Config & State ---
-    const config = {
-        sensitivity: 0.015,
-        camSmooth: 0.1,
-        holeRadius: 2.0,
-        score: 2.0
-    };
+    // --- Configuration ---
+    const GAME_TIME = 120; // 2 minutes
+    const WORLD_SIZE = 120;
+    const GRID_RES = 6; // Spacing between buildings
+    let holeRadius = 1.6;
+    let score = 1.6;
+    let sensitivity = 0.02;
+    let timeLeft = GAME_TIME;
+    let gameActive = true;
 
-    let isPaused = false;
-    const items = [];
-    const mouse = new THREE.Vector2();
-    const targetHolePos = new THREE.Vector3();
-
-    // --- Scene Setup ---
+    // --- Three.js Setup ---
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
+    scene.fog = new THREE.Fog(0x87ceeb, 50, 150);
 
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 20, 20);
-
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
-    renderer.localClippingEnabled = true; // Required for the "falling into floor" effect
     document.body.appendChild(renderer.domElement);
 
-    // --- Lighting ---
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-    sun.position.set(50, 100, 50);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambient);
+
+    const sun = new THREE.DirectionalLight(0xffffff, 1);
+    sun.position.set(50, 100, 20);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     scene.add(sun);
 
-    // --- The Ground (With visual hole) ---
-    const groundGeo = new THREE.PlaneGeometry(200, 200);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x55aa55 });
-    const ground = new THREE.Mesh(groundGeo, groundMat);
+    // --- Ground ---
+    const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(WORLD_SIZE * 2, WORLD_SIZE * 2),
+        new THREE.MeshStandardMaterial({ color: 0x444444 })
+    );
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // The "Pit" (A black cylinder that follows the hole)
-    const pitGeo = new THREE.CylinderGeometry(1, 1, 10, 32);
-    const pitMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    const pit = new THREE.Mesh(pitGeo, pitMat);
-    pit.position.y = -5.01; // Just below surface
-    scene.add(pit);
+    // --- Hole Visual ---
+    const holeGroup = new THREE.Group();
+    const holeCircle = new THREE.Mesh(
+        new THREE.RingGeometry(0.95, 1, 32),
+        new THREE.MeshBasicMaterial({ color: 0x000000 })
+    );
+    holeCircle.rotation.x = -Math.PI / 2;
+    holeCircle.position.y = 0.05;
 
-    // Visual Ring around the hole
-    const ringGeo = new THREE.RingGeometry(0.95, 1, 32);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.02;
-    scene.add(ring);
+    const holePit = new THREE.Mesh(
+        new THREE.CylinderGeometry(1, 1, 10, 32),
+        new THREE.MeshBasicMaterial({ color: 0x000000 })
+    );
+    holePit.position.y = -5.01;
 
-    // --- Object Creation ---
-    function createBox(x, z, w, h, d, type) {
-        const geo = new THREE.BoxGeometry(w, h, d);
-        const mat = new THREE.MeshStandardMaterial({ 
-            color: Math.random() * 0xffffff,
-            clippingPlanes: [] // We will dynamically add planes here
-        });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(x, h/2, z);
+    holeGroup.add(holeCircle);
+    holeGroup.add(holePit);
+    scene.add(holeGroup);
+
+    // --- World Generation ---
+    const items = [];
+    const colors = [0xff5722, 0x4caf50, 0x2196f3, 0xffeb3b, 0x9c27b0, 0xffffff];
+
+    function createObject(x, z, w, h, d, isSegmented) {
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        
+        if (isSegmented) {
+            const floors = Math.ceil(h / 0.8);
+            for (let i = 0; i < floors; i++) {
+                const segH = 0.75;
+                const mesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(w, segH, d),
+                    new THREE.MeshStandardMaterial({ color })
+                );
+                mesh.position.set(x, (i * (segH + 0.05)) + segH/2, z);
+                setupObject(mesh, w, d);
+            }
+        } else {
+            const mesh = new THREE.Mesh(
+                new THREE.BoxGeometry(w, h, d),
+                new THREE.MeshStandardMaterial({ color })
+            );
+            mesh.position.set(x, h/2, z);
+            setupObject(mesh, w, d);
+        }
+    }
+
+    function setupObject(mesh, w, d) {
         mesh.castShadow = true;
         mesh.receiveShadow = true;
-        
         mesh.userData = {
-            type,
-            size: Math.max(w, d),
-            height: h,
+            size: Math.sqrt(w*w + d*d) / 2, // Radius-like size
+            fallStarted: 0,
             isFalling: false,
-            velY: 0,
-            rotVel: new THREE.Vector3(Math.random()*0.1, Math.random()*0.1, Math.random()*0.1)
+            velocity: new THREE.Vector3(),
+            rotVel: new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).multiplyScalar(0.1)
         };
-        
         scene.add(mesh);
         items.push(mesh);
     }
 
-    // Build a segmented city
-    for(let i=0; i<60; i++) {
-        const x = (Math.random()-0.5) * 150;
-        const z = (Math.random()-0.5) * 150;
-        
-        if (Math.random() > 0.4) {
-            // Segmented Building
-            const floors = 3 + Math.floor(Math.random() * 5);
-            const w = 2 + Math.random();
-            for(let f=0; f<floors; f++) {
-                createBox(x, f*1.1 + 0.5, z, 1, 2, 2, 'building');
+    // Programmatic Grid Generation
+    for (let x = -WORLD_SIZE/2; x < WORLD_SIZE/2; x += GRID_RES) {
+        for (let z = -WORLD_SIZE/2; z < WORLD_SIZE/2; z += GRID_RES) {
+            if (Math.abs(x) < 5 && Math.abs(z) < 5) continue; // Keep center clear
+
+            const chance = Math.random();
+            const cx = x + (Math.random() - 0.5) * 2;
+            const cz = z + (Math.random() - 0.5) * 2;
+
+            if (chance > 0.8) {
+                // Tall segmented building
+                createObject(cx, cz, 3, 6 + Math.random() * 8, 3, true);
+            } else if (chance > 0.4) {
+                // Solid small building/house
+                createObject(cx, cz, 2.5, 2 + Math.random() * 3, 2.5, false);
+            } else if (chance > 0.1) {
+                // Small props (cars/boxes)
+                createObject(cx, cz, 1, 0.6, 2, false);
             }
-        } else {
-            // Cars/Props
-            createBox(x, 0.4, z, 1.2, 0.8, 2.5, 'car');
         }
     }
 
-    // --- Controls Logic ---
+    // --- Game Logic ---
+    const mouse = new THREE.Vector2();
     const raycaster = new THREE.Raycaster();
-    
+    const holeTarget = new THREE.Vector3();
+
     window.addEventListener('mousemove', (e) => {
         mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
         mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     });
 
-    const settingsBtn = document.getElementById('settings-btn');
-    const settingsMenu = document.getElementById('settings-menu');
-    const closeBtn = document.getElementById('close-settings');
-    const sensSlider = document.getElementById('sens-slider');
-    const camSlider = document.getElementById('cam-slider');
+    // Handle timer
+    const timerInterval = setInterval(() => {
+        if (!gameActive) return;
+        timeLeft--;
+        const mins = Math.floor(timeLeft / 60);
+        const secs = timeLeft % 60;
+        document.getElementById('timer').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        
+        if (timeLeft <= 0) endGame();
+    }, 1000);
 
-    settingsBtn.onclick = () => { isPaused = true; settingsMenu.style.display = 'flex'; };
-    closeBtn.onclick = () => { isPaused = false; settingsMenu.style.display = 'none'; };
-    sensSlider.oninput = (e) => { config.sensitivity = e.target.value / 1000; };
-    camSlider.oninput = (e) => { config.camSmooth = e.target.value / 100; };
+    function endGame() {
+        gameActive = false;
+        document.getElementById('game-over').style.display = 'flex';
+        document.getElementById('final-score').innerText = `Final Size: ${score.toFixed(1)}m`;
+    }
 
-    // --- Core Game Loop ---
     function animate() {
         requestAnimationFrame(animate);
-        if (isPaused) return;
+        if (!gameActive) return;
 
-        // 1. Smoothly move target based on mouse
+        // 1. Hole Movement
         raycaster.setFromCamera(mouse, camera);
         const intersect = raycaster.intersectObject(ground);
         if (intersect.length > 0) {
-            // The hole "drifts" toward the cursor based on sensitivity
             const p = intersect[0].point;
-            targetHolePos.lerp(p, config.sensitivity * 10); 
+            holeTarget.lerp(p, sensitivity);
         }
+        holeGroup.position.copy(holeTarget);
+        holeGroup.scale.set(holeRadius, 1, holeRadius);
 
-        // Apply hole position
-        pit.position.x = targetHolePos.x;
-        pit.position.z = targetHolePos.z;
-        ring.position.x = targetHolePos.x;
-        ring.position.z = targetHolePos.z;
-        
-        // Scale hole visuals
-        pit.scale.set(config.holeRadius, 1, config.holeRadius);
-        ring.scale.set(config.holeRadius, config.holeRadius, 1);
+        // 2. Dynamic Camera (Zooms out as hole grows to keep visual size consistent)
+        // Base distance * hole scale factor
+        const camDist = 15 + (holeRadius * 4);
+        const camHeight = 12 + (holeRadius * 3);
+        const targetCamPos = new THREE.Vector3(
+            holeTarget.x, 
+            camHeight, 
+            holeTarget.z + camDist
+        );
+        camera.position.lerp(targetCamPos, 0.05);
+        camera.lookAt(holeTarget);
 
-        // 2. Smooth Camera Follow
-        const camTarget = new THREE.Vector3(targetHolePos.x, camera.position.y, targetHolePos.z + 25);
-        camera.position.lerp(camTarget, config.camSmooth);
-        camera.lookAt(targetHolePos.x, 0, targetHolePos.z);
+        // 3. Physics & Delayed Falling
+        const now = Date.now();
 
-        // 3. Physics & Falling Logic
-        items.forEach((item, index) => {
-            if (item.userData.consumed) return;
+        for (let i = items.length - 1; i >= 0; i--) {
+            const item = items[i];
+            const dx = item.position.x - holeTarget.x;
+            const dz = item.position.z - holeTarget.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
 
-            const dist = new THREE.Vector2(item.position.x - targetHolePos.x, item.position.z - targetHolePos.z).length();
-
-            // If object is over the hole
-            if (dist < config.holeRadius) {
-                // Only fall if hole is large enough
-                if (config.holeRadius > item.userData.size * 0.8) {
-                    item.userData.isFalling = true;
+            // Logic: Is object within the hole?
+            if (dist < holeRadius * 0.9) {
+                // Sizing Check: Hole must be significantly larger than the base
+                if (holeRadius > item.userData.size * 1.1) {
+                    
+                    if (!item.userData.isFalling) {
+                        if (item.userData.fallStarted === 0) {
+                            item.userData.fallStarted = now; // Start the 200ms timer
+                        } else if (now - item.userData.fallStarted > 200) {
+                            item.userData.isFalling = true;
+                        }
+                    }
                 }
+            } else {
+                // If it moved out of the hole before 200ms, reset timer
+                if (!item.userData.isFalling) item.userData.fallStarted = 0;
             }
 
             if (item.userData.isFalling) {
-                // Sucking effect: move toward center
-                item.position.x += (targetHolePos.x - item.position.x) * 0.1;
-                item.position.z += (targetHolePos.z - item.position.z) * 0.1;
+                // Smooth Suck to center
+                item.position.x += (holeTarget.x - item.position.x) * 0.1;
+                item.position.z += (holeTarget.z - item.position.z) * 0.1;
 
-                // Falling effect: gravity
-                item.userData.velY -= 0.01;
-                item.position.y += item.userData.velY;
-
-                // Tumbling effect
+                // Straight Smooth Fall
+                item.userData.velocity.y -= 0.015;
+                item.position.y += item.userData.velocity.y;
+                
+                // Rotate while falling
                 item.rotation.x += item.userData.rotVel.x;
-                item.rotation.y += item.userData.rotVel.y;
+                item.rotation.z += item.userData.rotVel.z;
 
-                // Scale down slightly as it falls
-                item.scale.multiplyScalar(0.98);
+                // Scale down slightly as it goes deep
+                item.scale.multiplyScalar(0.97);
 
-                // Consumption check
-                if (item.position.y < -5 || item.scale.x < 0.1) {
+                // Cleanup and Score
+                if (item.position.y < -8) {
                     scene.remove(item);
-                    item.userData.consumed = true;
-                    config.score += 0.1;
-                    config.holeRadius += 0.03;
-                    document.getElementById('score-val').innerText = config.score.toFixed(1) + "m";
+                    items.splice(i, 1);
+                    score += 0.05;
+                    holeRadius += 0.02;
+                    document.getElementById('score').innerText = `SIZE: ${score.toFixed(1)}m`;
                 }
-            } else {
-                // If not falling, ensure it stays on ground (for segmented buildings logic)
-                // This keeps segments from floating if the one below them is eaten
-                const belowThreshold = (item.userData.type === 'building') ? -100 : 0;
-                if (item.position.y > item.userData.height/2) {
-                     // Simple gravity for building blocks if floor below is gone
-                     let hasSupport = false;
-                     // In a full game we'd raycast down, here we just let them settle
-                     item.position.y -= 0.05; 
-                }
-                if (item.position.y < item.userData.height/2) item.position.y = item.userData.height/2;
             }
-        });
+        }
 
         renderer.render(scene, camera);
     }
+
+    // Settings
+    window.toggleSettings = () => {
+        const panel = document.getElementById('settings-panel');
+        const isVisible = panel.style.display === 'flex';
+        panel.style.display = isVisible ? 'none' : 'flex';
+        gameActive = isVisible;
+    };
+
+    document.getElementById('sens').oninput = (e) => {
+        sensitivity = e.target.value / 1000;
+    };
 
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Hole.io Clone - Perfect Physics & Growth</title>
+    <title>Pro Hole.io Clone - Tiered Growth</title>
     <style>
         body { margin: 0; overflow: hidden; background: #222; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none;}
         
@@ -25,6 +25,7 @@
         #level-text { font-size: 18px; color: #aaa; margin-bottom: 5px; text-transform: uppercase;}
         #score-text { color: #4caf50; }
         
+        /* Growth Bar Styling */
         #growth-container { margin-top: 10px; font-size: 14px; width: 260px; text-align: center;}
         #growth-text { color: #ddd; margin-bottom: 4px; font-weight: bold; letter-spacing: 1px; font-size: 13px;}
         .progress-bg { width: 100%; height: 16px; background: rgba(0,0,0,0.8); border: 2px solid #666; border-radius: 8px; overflow: hidden; box-shadow: inset 0 0 5px black; }
@@ -90,8 +91,9 @@
             <div id="level-text">Level 1 - Easy</div>
             <div id="score-text">0 / 0 pts</div>
             
+            <!-- NEW GROWTH BAR HUD -->
             <div id="growth-container">
-                <div id="growth-text">NEXT SIZE: 0 / 30</div>
+                <div id="growth-text">NEXT SIZE: 0 / 100</div>
                 <div class="progress-bg">
                     <div id="growth-bar"></div>
                 </div>
@@ -168,12 +170,14 @@
     let totalWorldPoints = 0;
     let score = 0;
     
+    // Growth Logic Variables
     let holeLevel = 1;
     let holePoints = 0;
-    let targetHolePoints = 30; // Faster initial growth
-    let holeRadius = 1.2;
-    let scoreMultiplier = 1.2; 
+    let targetHolePoints = 100;
+    let holeRadius = 1.6;
+    let scoreMultiplier = 1.6; 
     
+    // Independent Control Sensitivities
     let mouseSpeed = 15;
     let touchSpeed = 15;
     let keySpeed = 25;
@@ -205,12 +209,12 @@
     world.addContactMaterial(new CANNON.ContactMaterial(objMat, objMat, { friction: 0.5, restitution: 0.0 }));
     world.addContactMaterial(new CANNON.ContactMaterial(rimMat, objMat, { friction: 0.0, restitution: 0.0, contactEquationStiffness: 1e6 }));
     
-    // Frictionless Teflon Dead-Wall (Prevents sticky jittering)
+    // Anti-bounce Dead Wall Physics
     world.addContactMaterial(new CANNON.ContactMaterial(wallMat, objMat, { 
-        friction: 0.0, 
+        friction: 1.0, 
         restitution: 0.0, 
         contactEquationStiffness: 1e8, 
-        contactEquationRelaxation: 3 
+        contactEquationRelaxation: 5 
     }));
 
     const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: staticMat });
@@ -342,15 +346,14 @@
         return { name: "Easy", min: 0.30, max: 0.40, color: '#4caf50' };
     }
 
-    // --- FASTER GROWTH LOGIC ---
+    // --- GROWTH LOGIC HELPERS ---
     function getNextTargetPoints(level) {
-        if (level === 1) return 30;
-        if (level === 2) return 100;
-        if (level === 3) return 250;
-        if (level === 4) return 600;
-        if (level === 5) return 1500;
-        if (level === 6) return 3000;
-        return Math.floor(3000 * Math.pow(1.5, level - 6));
+        if (level === 1) return 100;
+        if (level === 2) return 300;
+        if (level === 3) return 1000;
+        if (level === 4) return 3000;
+        if (level === 5) return 8000;
+        return Math.floor(8000 * Math.pow(1.6, level - 5));
     }
 
     function getGrowthPercent(level) {
@@ -358,7 +361,7 @@
         if (level === 3) return 0.40;
         if (level === 4) return 0.60;
         if (level === 5) return 0.70;
-        return 0.75; 
+        return 0.75; // Capped max growth per tier
     }
 
     function updateGrowthUI() {
@@ -369,6 +372,7 @@
             const pct = Math.min(100, (holePoints / targetHolePoints) * 100);
             bar.style.width = `${pct}%`;
             
+            // Dynamic color shift based on hole level
             let c1 = '#3498db', c2 = '#2ecc71'; 
             if (holeLevel === 3) { c1 = '#f1c40f'; c2 = '#f39c12'; } 
             else if (holeLevel === 4) { c1 = '#e67e22'; c2 = '#d35400'; } 
@@ -395,9 +399,16 @@
             world.removeBody(item.body); 
         });
         
-        items = []; totalWorldPoints = 0; score = 0; holeRadius = 1.2; scoreMultiplier = 1.2;
+        // Reset all core values
+        items = []; 
+        totalWorldPoints = 0; 
+        score = 0; 
+        holeRadius = 1.6; 
+        scoreMultiplier = 1.6;
         
-        holeLevel = 1; holePoints = 0; targetHolePoints = getNextTargetPoints(1);
+        holeLevel = 1;
+        holePoints = 0;
+        targetHolePoints = getNextTargetPoints(1);
         updateGrowthUI();
         
         inputVelocity.set(0,0);
@@ -465,8 +476,7 @@
         mapMeshes.push(islandMesh);
 
         const edgePath = new THREE.CurvePath();
-        const wallThickness = 200; 
-        const wallHeight = 200;
+        const wallThickness = 200; // Massively thick to mathematically prevent tunnel-through
 
         for (let i = 0; i < polygon.length; i++) {
             const p1 = polygon[i], p2 = polygon[(i + 1) % polygon.length];
@@ -478,11 +488,11 @@
             
             const nx = dy / dist; const nz = -dx / dist;
 
-            const wallShape = new CANNON.Box(new CANNON.Vec3(dist / 2, wallHeight / 2, wallThickness / 2));
+            const wallShape = new CANNON.Box(new CANNON.Vec3(dist / 2, 100, wallThickness / 2));
             const wallBody = new CANNON.Body({ mass: 0, material: wallMat });
             wallBody.addShape(wallShape);
             
-            wallBody.position.set(midX + (nx * wallThickness/2), wallHeight/2 - 10, midZ + (nz * wallThickness/2));
+            wallBody.position.set(midX + (nx * wallThickness/2), 45, midZ + (nz * wallThickness/2));
             wallBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), -Math.atan2(dy, dx));
             
             wallBody.collisionFilterGroup = CG_GROUND;
@@ -536,7 +546,8 @@
         world.addBody(body);
         body.sleep(); 
         mesh.rotation.y = rotY; 
-        
+        mesh.userData.radius = Math.max(w, d)/2;
+
         items.push({ mesh, body, radius: Math.max(w, d)/2, targetOpacity: 1.0, mass, cat: category, color, previewObj: mesh });
     }
 
@@ -569,7 +580,7 @@
         body.collisionFilterGroup = CG_ALL_OBJS; body.collisionFilterMask = CG_GROUND | CG_ALL_OBJS;
         world.addBody(body); body.sleep();
 
-        scene.add(group); totalWorldPoints += totalMass; 
+        scene.add(group); totalWorldPoints += totalMass; group.userData.radius = maxRadius;
 
         items.push({ mesh: group, body, radius: maxRadius, targetOpacity: 1.0, mass: totalMass, cat: category, color, previewObj: group });
     }
@@ -673,10 +684,7 @@
         for (let i = 1; i <= 2; i++) {
             if (validGroups.length > 0) {
                 const group = validGroups.pop();
-                
-                const box = new THREE.Box3().setFromObject(group.previewObj);
-                const baseRadius = box.getSize(new THREE.Vector3()).length() / 2;
-                
+                const baseRadius = group.previewObj.userData.radius;
                 let maxCount = baseRadius > 2.0 ? 2 : (baseRadius > 1.2 ? 3 : 5);
                 const reqCount = Math.min(group.count, Math.floor(Math.random() * maxCount) + 1); 
                 
@@ -937,6 +945,7 @@
                         rt.z = (rt.z / dist) * maxR;
                     }
                     
+                    // Limit max jump distance to prevent flyaways
                     const maxSpeed = (40 + holeRadius * 3) * (mouseSpeed / 10);
                     const maxDelta = maxSpeed * dt;
                     
@@ -982,27 +991,18 @@
         for (let i = items.length - 1; i >= 0; i--) {
             const item = items[i];
             
-            if (item.body.position.y > -1.0) {
+            // --- ULTIMATE BOUNDARY FAILSAFE ---
+            const swallowed = (item.body.position.y < -0.3 && Math.sqrt((item.body.position.x - holeTarget.x)**2 + (item.body.position.z - holeTarget.z)**2) < holeRadius * 1.2);
+            
+            if (!swallowed && item.body.position.y > -1.0) {
                 const itemAngle = Math.atan2(item.body.position.z, item.body.position.x);
-                const polyR = getPolygonRadius(itemAngle);
+                const maxIslandR = getPolygonRadius(itemAngle) - 0.5; 
                 const itemDist = Math.sqrt(item.body.position.x**2 + item.body.position.z**2);
-                
-                if (itemDist > polyR - 8.0) {
-                    item.body.angularDamping = 0.99;
-                    item.body.linearDamping = 0.8;
-                } else {
-                    item.body.angularDamping = 0.3;
-                    item.body.linearDamping = 0.3;
-                }
-
-                const safeMargin = item.radius + 0.5; 
-                const maxIslandR = polyR - safeMargin;
                 
                 if (itemDist > maxIslandR && maxIslandR > 0) {
                     item.body.position.x = (item.body.position.x / itemDist) * maxIslandR;
                     item.body.position.z = (item.body.position.z / itemDist) * maxIslandR;
-                    item.body.velocity.x = 0;
-                    item.body.velocity.z = 0;
+                    item.body.velocity.set(0, item.body.velocity.y, 0); 
                     item.body.angularVelocity.set(0, 0, 0);
                 }
             }
@@ -1012,46 +1012,18 @@
             const dx = item.body.position.x - holeTarget.x; const dz = item.body.position.z - holeTarget.z;
             const dist = Math.sqrt(dx * dx + dz * dz);
             
-            // --- FIXED X-RAY VISION ---
-            // Elevate the raycast target so it checks against the middle of tall buildings instead of the floor base
-            const testPos = item.mesh.position.clone();
-            testPos.y += item.radius; 
-            
-            const camToItem = new THREE.Vector3().subVectors(testPos, camera.position);
+            const camToItem = new THREE.Vector3().subVectors(item.mesh.position, camera.position);
             const distToItem = camToItem.length(); camToItem.normalize();
-            const blockingAngle = Math.min(0.5, 0.15 + (item.radius / Math.max(1, distToItem)));
+            const blockingAngle = Math.min(0.3, 0.05 + (item.radius / Math.max(1, distToItem)));
             
-            item.targetOpacity = (distToItem < distToHole - 2 && item.body.position.y > 0 && camToHole.angleTo(camToItem) < blockingAngle) ? 0.2 : 1.0;
+            item.targetOpacity = (distToItem < distToHole - 5 && item.body.position.y > 0 && camToHole.angleTo(camToItem) < blockingAngle) ? 0.2 : 1.0;
             if (item.mesh.isGroup) { item.mesh.traverse((c) => { if (c.isMesh && Math.abs(c.material.opacity - item.targetOpacity) > 0.01) c.material.opacity += (item.targetOpacity - c.material.opacity) * 0.15; }); } 
             else if (Math.abs(item.mesh.material.opacity - item.targetOpacity) > 0.01) item.mesh.material.opacity += (item.targetOpacity - item.mesh.material.opacity) * 0.15;
 
-            // --- FIXED SKYSCRAPER CONSUMPTION PHYSICS ---
-            const canFit = item.radius <= holeRadius * 2.5; 
-            const isTouchingHole = canFit && dist < holeRadius + item.radius;
-            const isOverHole = canFit && dist < holeRadius * 0.9;
-            
-            const swallowed = (isOverHole && item.body.position.y < -0.5) || (canFit && dist < holeRadius * 0.5 && item.body.position.y < 0);
-
             if (swallowed) {
                 if (item.body.collisionFilterMask !== 0) item.body.collisionFilterMask = 0; 
-                item.body.applyForce(new CANNON.Vec3(0, -item.body.mass * 40, 0), item.body.position);
+                item.body.applyForce(new CANNON.Vec3(0, -item.body.mass * 20, 0), item.body.position);
                 item.mesh.scale.multiplyScalar(0.85); 
-            } else if (isOverHole) {
-                if (item.body.collisionFilterMask !== CG_ALL_OBJS) item.body.collisionFilterMask = CG_ALL_OBJS;
-                const suckDir = new CANNON.Vec3(holeTarget.x - item.body.position.x, -2, holeTarget.z - item.body.position.z).normalize();
-                item.body.applyForce(suckDir.scale(item.body.mass * 20), item.body.position);
-            } else if (isTouchingHole) {
-                if (item.body.collisionFilterMask !== maskFalling) { 
-                    item.body.collisionFilterMask = maskFalling; 
-                    item.body.wakeUp(); 
-                }
-                // ARTIFICIAL TIPPING TORQUE - Pulls top of skyscraper into hole
-                const tipDir = new CANNON.Vec3(holeTarget.x - item.body.position.x, -1, holeTarget.z - item.body.position.z).normalize();
-                item.body.applyForce(tipDir.scale(item.body.mass * 15), new CANNON.Vec3(item.body.position.x, item.body.position.y + 2, item.body.position.z));
-            } else {
-                if (item.body.position.y > -0.1 && item.body.collisionFilterMask !== maskNormal) {
-                    item.body.collisionFilterMask = maskNormal;
-                }
             }
 
             if (item.body.position.y < -6 || item.mesh.scale.x < 0.1) {
@@ -1066,6 +1038,7 @@
                     updateScoreObjective(); 
                     checkItemObjective(item);
                     
+                    // === TIERED GROWTH DISCRETE LOGIC ===
                     holePoints += item.mass;
                     let leveledUp = false;
                     
@@ -1091,6 +1064,11 @@
                 
                 if (items.length === 0) levelComplete(); 
                 continue;
+            }
+
+            if (!swallowed) {
+                if (dist < holeRadius + item.radius) { if (item.body.collisionFilterMask !== maskFalling) { item.body.collisionFilterMask = maskFalling; item.body.wakeUp(); } } 
+                else if (item.body.position.y > -0.1 && item.body.collisionFilterMask !== maskNormal) item.body.collisionFilterMask = maskNormal;
             }
         }
         renderer.render(scene, camera);

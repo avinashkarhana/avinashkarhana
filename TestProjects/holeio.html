@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Hole.io Clone</title>
+    <title>Pro Hole.io Clone - Ultimate Diverse City</title>
     <style>
         body { margin: 0; overflow: hidden; background: #222; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         #ui-overlay {
@@ -31,10 +31,10 @@
 
 <div id="ui-overlay">
     <div class="stats">
-        <div id="score">SIZE: 1.5m</div>
+        <div id="score">SIZE: 1.6m</div>
         <div id="timer">02:00</div>
     </div>
-    <div style="text-align: center; opacity: 0.6;">Hold Mouse to Move</div>
+    <div style="text-align: center; opacity: 0.6;">3-Zone City (Hold Mouse to Move)</div>
 </div>
 
 <div id="settings-panel">
@@ -50,26 +50,80 @@
 </div>
 
 <script type="importmap">
-    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    { 
+        "imports": { 
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+        } 
+    }
 </script>
 
 <script type="module">
     import * as THREE from 'three';
+    import * as CANNON from 'cannon-es';
 
     // --- Configuration ---
-    const GAME_TIME = 120; // 2 minutes
-    const WORLD_SIZE = 120;
-    const GRID_RES = 6; // Spacing between buildings
+    const GAME_TIME = 120;
+    const WORLD_SIZE = 140;
+    const AVG_RADIUS = WORLD_SIZE * 0.45;
     let holeRadius = 1.6;
-    let score = 1.6;
     let sensitivity = 0.02;
     let timeLeft = GAME_TIME;
     let gameActive = true;
+    let scoreMultiplier = 1.6;
+
+    // Organic Coastline Math
+    function getIslandRadius(angle) {
+        return AVG_RADIUS + Math.sin(angle * 4) * 12 + Math.cos(angle * 7) * 8;
+    }
+
+    // --- Physics Setup (Cannon.js) ---
+    const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -30, 0) });
+    world.allowSleep = true;
+    world.solver.iterations = 40;
+    world.solver.tolerance = 0.001;
+
+    const CG_GROUND = 1, CG_HOLE_RIM = 2, CG_ALL_OBJS = 4;
+    const staticMat = new CANNON.Material();
+    const objMat = new CANNON.Material();
+    const rimMat = new CANNON.Material();
+
+    world.addContactMaterial(new CANNON.ContactMaterial(staticMat, objMat, { friction: 0.7, restitution: 0.0 }));
+    world.addContactMaterial(new CANNON.ContactMaterial(objMat, objMat, { friction: 0.5, restitution: 0.0 }));
+    world.addContactMaterial(new CANNON.ContactMaterial(rimMat, objMat, { friction: 0.0, restitution: 0.0, contactEquationStiffness: 1e6 }));
+
+    const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: staticMat });
+    groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    groundBody.collisionFilterGroup = CG_GROUND;
+    groundBody.collisionFilterMask = CG_ALL_OBJS; 
+    world.addBody(groundBody);
+
+    let holeBody;
+    function updateHolePhysics(radius) {
+        if (holeBody) world.removeBody(holeBody);
+        holeBody = new CANNON.Body({ type: CANNON.Body.KINEMATIC, position: new CANNON.Vec3(holeTarget.x, 0, holeTarget.z), material: rimMat });
+        holeBody.collisionFilterGroup = CG_HOLE_RIM;
+        holeBody.collisionFilterMask = CG_ALL_OBJS; 
+        
+        const numSegments = 32;
+        const boxThickness = 40;
+        const distance = (radius + 0.1) + boxThickness / 2;
+        const boxWidth = 2 * distance * Math.tan(Math.PI / numSegments) + 0.5;
+        
+        for (let i = 0; i < numSegments; i++) {
+            const angle = i * ((Math.PI * 2) / numSegments);
+            const shape = new CANNON.Box(new CANNON.Vec3(boxThickness/2, 4/2, boxWidth/2));
+            const quat = new CANNON.Quaternion();
+            quat.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), -angle);
+            holeBody.addShape(shape, new CANNON.Vec3(Math.cos(angle) * distance, -2, Math.sin(angle) * distance), quat);
+        }
+        world.addBody(holeBody);
+    }
 
     // --- Three.js Setup ---
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
-    scene.fog = new THREE.Fog(0x87ceeb, 50, 150);
+    scene.fog = new THREE.Fog(0x87ceeb, 30, 100);
 
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -77,103 +131,175 @@
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambient);
-
-    const sun = new THREE.DirectionalLight(0xffffff, 1);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
     sun.position.set(50, 100, 20);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -70; sun.shadow.camera.right = 70;
+    sun.shadow.camera.top = 70; sun.shadow.camera.bottom = -70;
     scene.add(sun);
 
-    // --- Ground ---
-    const ground = new THREE.Mesh(
-        new THREE.PlaneGeometry(WORLD_SIZE * 2, WORLD_SIZE * 2),
-        new THREE.MeshStandardMaterial({ color: 0x444444 })
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    scene.add(ground);
+    // --- Graphics: Dynamic Hole Shader ---
+    const groundUniforms = { holePos: { value: new THREE.Vector3() }, holeRadius: { value: holeRadius } };
 
-    // --- Hole Visual ---
-    const holeGroup = new THREE.Group();
-    const holeCircle = new THREE.Mesh(
-        new THREE.RingGeometry(0.95, 1, 32),
-        new THREE.MeshBasicMaterial({ color: 0x000000 })
-    );
-    holeCircle.rotation.x = -Math.PI / 2;
-    holeCircle.position.y = 0.05;
+    function applyHoleShader(material, isWater = false) {
+        material.onBeforeCompile = (shader) => {
+            shader.uniforms.holePos = groundUniforms.holePos;
+            shader.uniforms.holeRadius = groundUniforms.holeRadius;
+            shader.vertexShader = `varying vec3 vCustomWorldPos; ${shader.vertexShader}`.replace('#include <project_vertex>', `#include <project_vertex>\n vCustomWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;`);
+            
+            let fragInject = `if (length(vCustomWorldPos.xz - holePos.xz) < holeRadius) discard;`;
+            if (!isWater) fragInject += `\n float grid = max(step(0.95, fract(vCustomWorldPos.x * 0.5)), step(0.95, fract(vCustomWorldPos.z * 0.5))); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2), grid * 0.3);`;
+            
+            shader.fragmentShader = `uniform vec3 holePos; uniform float holeRadius; varying vec3 vCustomWorldPos; ${shader.fragmentShader}`
+                .replace('#include <map_fragment>', `#include <map_fragment>\n ${fragInject}`);
+        };
+    }
 
-    const holePit = new THREE.Mesh(
-        new THREE.CylinderGeometry(1, 1, 10, 32),
-        new THREE.MeshBasicMaterial({ color: 0x000000 })
-    );
-    holePit.position.y = -5.01;
-
-    holeGroup.add(holeCircle);
-    holeGroup.add(holePit);
-    scene.add(holeGroup);
-
-    // --- World Generation ---
-    const items = [];
-    const colors = [0xff5722, 0x4caf50, 0x2196f3, 0xffeb3b, 0x9c27b0, 0xffffff];
-
-    function createObject(x, z, w, h, d, isSegmented) {
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        
-        if (isSegmented) {
-            const floors = Math.ceil(h / 0.8);
-            for (let i = 0; i < floors; i++) {
-                const segH = 0.75;
-                const mesh = new THREE.Mesh(
-                    new THREE.BoxGeometry(w, segH, d),
-                    new THREE.MeshStandardMaterial({ color })
-                );
-                mesh.position.set(x, (i * (segH + 0.05)) + segH/2, z);
-                setupObject(mesh, w, d);
-            }
-        } else {
-            const mesh = new THREE.Mesh(
-                new THREE.BoxGeometry(w, h, d),
-                new THREE.MeshStandardMaterial({ color })
-            );
-            mesh.position.set(x, h/2, z);
-            setupObject(mesh, w, d);
+    // Generate True 3D Organic Island
+    const islandGeom = new THREE.CylinderGeometry(1, 1, 4, 64);
+    const pos = islandGeom.attributes.position;
+    for(let i = 0; i < pos.count; i++) {
+        const vx = pos.getX(i), vz = pos.getZ(i);
+        if (vx !== 0 || vz !== 0) {
+            const angle = Math.atan2(vz, vx);
+            const r = getIslandRadius(angle);
+            const norm = Math.sqrt(vx*vx + vz*vz);
+            pos.setX(i, (vx / norm) * r);
+            pos.setZ(i, (vz / norm) * r);
         }
     }
+    islandGeom.computeVertexNormals();
 
-    function setupObject(mesh, w, d) {
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        mesh.userData = {
-            size: Math.sqrt(w*w + d*d) / 2, // Radius-like size
-            fallStarted: 0,
-            isFalling: false,
-            velocity: new THREE.Vector3(),
-            rotVel: new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).multiplyScalar(0.1)
-        };
+    const islandMat = new THREE.MeshStandardMaterial({ color: 0x4aa651, roughness: 0.9 });
+    applyHoleShader(islandMat, false);
+    const islandMesh = new THREE.Mesh(islandGeom, islandMat);
+    islandMesh.position.y = -2; // Top of the 4m thick cylinder is flush at Y=0
+    islandMesh.receiveShadow = true;
+    scene.add(islandMesh);
+
+    // Procedural Water Texture
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#006994'; ctx.fillRect(0,0,256,256);
+    for(let i=0; i<3000; i++) {
+        ctx.fillStyle = `rgba(255,255,255,${Math.random()*0.15})`;
+        ctx.fillRect(Math.random()*256, Math.random()*256, 3, 1);
+    }
+    const waterTex = new THREE.CanvasTexture(canvas);
+    waterTex.wrapS = waterTex.wrapT = THREE.RepeatWrapping;
+    waterTex.repeat.set(30, 30);
+
+    const waterGeom = new THREE.PlaneGeometry(2000, 2000);
+    const waterMat = new THREE.MeshStandardMaterial({ color: 0x006994, roughness: 0.1, metalness: 0.2, map: waterTex });
+    applyHoleShader(waterMat, true);
+    const waterMesh = new THREE.Mesh(waterGeom, waterMat);
+    waterMesh.rotation.x = -Math.PI / 2;
+    waterMesh.position.y = -1.5; 
+    scene.add(waterMesh);
+
+    const raycastPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshBasicMaterial({ visible: false }));
+    raycastPlane.rotation.x = -Math.PI / 2;
+    scene.add(raycastPlane);
+
+    // --- Endless Pit Visual ---
+    const holeGroup = new THREE.Group();
+    const pitWall = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 40, 32, 1, true), new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.BackSide }));
+    pitWall.position.y = -20;
+    const pitBase = new THREE.Mesh(new THREE.CircleGeometry(1, 32), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+    pitBase.rotation.x = -Math.PI / 2; pitBase.position.y = -39.9;
+    holeGroup.add(pitWall); holeGroup.add(pitBase);
+    scene.add(holeGroup);
+
+    // --- City Generation (Unified Standard Entities) ---
+    const items = [];
+    const colors = [0xff5722, 0x4caf50, 0x2196f3, 0xffeb3b, 0x9c27b0, 0xffffff, 0x607d8b, 0x795548];
+
+    // THE FIX: Visuals can be Box or Cylinder. Physics is ALWAYS a Box! (Guarantees perfect stacking)
+    function createEntity(x, y, z, w, h, d, color, visualType = 'box') {
+        let meshGeom;
+        if (visualType === 'cylinder') {
+            meshGeom = new THREE.CylinderGeometry(w/2, d/2, h, 16);
+        } else {
+            meshGeom = new THREE.BoxGeometry(w, h, d);
+        }
+
+        const mesh = new THREE.Mesh(meshGeom, new THREE.MeshStandardMaterial({ color, roughness: 0.8, transparent: true, opacity: 1.0 }));
+        mesh.castShadow = true; mesh.receiveShadow = true;
         scene.add(mesh);
-        items.push(mesh);
+
+        // Physics Box
+        const mass = w * h * d * 0.5;
+        const shape = new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2));
+        const body = new CANNON.Body({ 
+            mass, shape, material: objMat, position: new CANNON.Vec3(x, y, z),
+            linearDamping: 0.2, angularDamping: 0.2 
+        });
+        
+        body.collisionFilterGroup = CG_ALL_OBJS;
+        body.collisionFilterMask = CG_GROUND | CG_ALL_OBJS; 
+        
+        world.addBody(body);
+        body.sleep(); // Perfect stillness until hit
+
+        items.push({ mesh, body, radius: Math.max(w, d) / 2, targetOpacity: 1.0 });
     }
 
-    // Programmatic Grid Generation
-    for (let x = -WORLD_SIZE/2; x < WORLD_SIZE/2; x += GRID_RES) {
-        for (let z = -WORLD_SIZE/2; z < WORLD_SIZE/2; z += GRID_RES) {
-            if (Math.abs(x) < 5 && Math.abs(z) < 5) continue; // Keep center clear
+    // Smart Zoning Spawner
+    for (let x = -WORLD_SIZE/2; x < WORLD_SIZE/2; x += 6) {
+        for (let z = -WORLD_SIZE/2; z < WORLD_SIZE/2; z += 6) {
+            if (Math.abs(x) < 5 && Math.abs(z) < 5) continue; // Keep spawn clear
 
-            const chance = Math.random();
+            const angle = Math.atan2(z, x);
+            const coastDist = getIslandRadius(angle);
+            const distToCenter = Math.sqrt(x*x + z*z);
+            
+            // Keep buildings slightly inland
+            if (distToCenter > coastDist - 4) continue; 
+
             const cx = x + (Math.random() - 0.5) * 2;
             const cz = z + (Math.random() - 0.5) * 2;
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const chance = Math.random();
 
-            if (chance > 0.8) {
-                // Tall segmented building
-                createObject(cx, cz, 3, 6 + Math.random() * 8, 3, true);
-            } else if (chance > 0.4) {
-                // Solid small building/house
-                createObject(cx, cz, 2.5, 2 + Math.random() * 3, 2.5, false);
-            } else if (chance > 0.1) {
-                // Small props (cars/boxes)
-                createObject(cx, cz, 1, 0.6, 2, false);
+            if (distToCenter < 25) { 
+                // ZONE 1: DOWNTOWN (Tapered, Cylindrical, Tall Blocks)
+                if (chance > 0.4 && x % 12 === 0) { // Spaced out giants
+                    const type = Math.random() > 0.5 ? 'cylinder' : 'box';
+                    const floors = 4 + Math.floor(Math.random() * 5);
+                    let w = 4 + Math.random() * 2;
+                    for (let i = 0; i < floors; i++) {
+                        createEntity(cx, 0.75 + i * 1.51, cz, w, 1.5, w, color, type);
+                        if (Math.random() > 0.4) w *= 0.85; // Tapering logic
+                    }
+                } else if (chance > 0.2) {
+                    createEntity(cx, 1.5, cz, 3.5, 3, 3.5, color, 'box'); // Solid base office
+                }
+            } 
+            else if (distToCenter < 45) { 
+                // ZONE 2: MIDTOWN (Medium height, Standard blocks, Props)
+                if (chance > 0.6) {
+                    const floors = 3 + Math.floor(Math.random() * 3); // Tall straight
+                    for (let i = 0; i < floors; i++) {
+                        createEntity(cx, 0.6 + i * 1.21, cz, 3, 1.2, 3, color, 'box');
+                    }
+                } else if (chance > 0.3) {
+                    createEntity(cx, 1.5, cz, 5, 3, 3, color, 'box'); // Wide standard block
+                } else {
+                    createEntity(cx, 0.4, cz, 1, 0.8, 2, color, 'box'); // Small prop/car
+                }
+            } 
+            else { 
+                // ZONE 3: RESIDENTIAL (Dense, tightly packed small houses)
+                if (chance > 0.15) {
+                    const floors = Math.random() > 0.8 ? 2 : 1;
+                    for (let i = 0; i < floors; i++) {
+                        createEntity(cx, 0.5 + i * 1.01, cz, 3.5, 1, 3.5, color, 'box');
+                    }
+                }
             }
         }
     }
@@ -181,125 +307,168 @@
     // --- Game Logic ---
     const mouse = new THREE.Vector2();
     const raycaster = new THREE.Raycaster();
-    const holeTarget = new THREE.Vector3();
+    const holeTarget = new THREE.Vector3(0, 0, 0);
+
+    updateHolePhysics(holeRadius);
 
     window.addEventListener('mousemove', (e) => {
         mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
         mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     });
 
-    // Handle timer
     const timerInterval = setInterval(() => {
         if (!gameActive) return;
         timeLeft--;
         const mins = Math.floor(timeLeft / 60);
         const secs = timeLeft % 60;
         document.getElementById('timer').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        
         if (timeLeft <= 0) endGame();
     }, 1000);
 
     function endGame() {
         gameActive = false;
         document.getElementById('game-over').style.display = 'flex';
-        document.getElementById('final-score').innerText = `Final Size: ${score.toFixed(1)}m`;
+        document.getElementById('final-score').innerText = `Final Size: ${scoreMultiplier.toFixed(1)}m`;
     }
+
+    function updateHoleSize(newRadius) {
+        holeRadius = newRadius;
+        groundUniforms.holeRadius.value = holeRadius;
+        holeGroup.scale.set(holeRadius, 1, holeRadius);
+        updateHolePhysics(holeRadius);
+        document.getElementById('score').innerText = `SIZE: ${scoreMultiplier.toFixed(1)}m`;
+    }
+
+    const timeStep = 1 / 60;
+    let lastCallTime = performance.now();
+    const maskNormal = CG_GROUND | CG_ALL_OBJS;   
+    const maskFalling = CG_HOLE_RIM | CG_ALL_OBJS; 
 
     function animate() {
         requestAnimationFrame(animate);
         if (!gameActive) return;
 
-        // 1. Hole Movement
-        raycaster.setFromCamera(mouse, camera);
-        const intersect = raycaster.intersectObject(ground);
-        if (intersect.length > 0) {
-            const p = intersect[0].point;
-            holeTarget.lerp(p, sensitivity);
-        }
-        holeGroup.position.copy(holeTarget);
-        holeGroup.scale.set(holeRadius, 1, holeRadius);
+        const time = performance.now() / 1000;
+        const dt = time - lastCallTime;
+        lastCallTime = time;
 
-        // 2. Dynamic Camera (Zooms out as hole grows to keep visual size consistent)
-        // Base distance * hole scale factor
-        const camDist = 15 + (holeRadius * 4);
-        const camHeight = 12 + (holeRadius * 3);
-        const targetCamPos = new THREE.Vector3(
-            holeTarget.x, 
-            camHeight, 
-            holeTarget.z + camDist
-        );
-        camera.position.lerp(targetCamPos, 0.05);
+        waterTex.offset.x -= 0.0005;
+        waterTex.offset.y -= 0.0005;
+
+        // Move Hole with Mathematical Coastline Clamping
+        raycaster.setFromCamera(mouse, camera);
+        const intersect = raycaster.intersectObject(raycastPlane);
+        if (intersect.length > 0) {
+            const rt = intersect[0].point;
+            const angle = Math.atan2(rt.z, rt.x);
+            const maxR = getIslandRadius(angle) - holeRadius;
+            const dist = Math.sqrt(rt.x*rt.x + rt.z*rt.z);
+            
+            if (dist > maxR && maxR > 0) {
+                rt.x = (rt.x / dist) * maxR;
+                rt.z = (rt.z / dist) * maxR;
+            }
+            holeTarget.lerp(rt, sensitivity);
+        }
+
+        holeGroup.position.copy(holeTarget);
+        groundUniforms.holePos.value.copy(holeTarget);
+        if (holeBody) holeBody.position.set(holeTarget.x, 0, holeTarget.z);
+
+        const camDist = 15 + (holeRadius * 3.5);
+        const camHeight = 12 + (holeRadius * 2.5);
+        camera.position.lerp(new THREE.Vector3(holeTarget.x, camHeight, holeTarget.z + camDist), 0.05);
         camera.lookAt(holeTarget);
 
-        // 3. Physics & Delayed Falling
-        const now = Date.now();
+        scene.fog.near = camDist + 10;
+        scene.fog.far = camDist + 80 + (holeRadius * 10);
+
+        world.step(timeStep, dt, 3);
+
+        const camToHole = new THREE.Vector3().subVectors(holeTarget, camera.position).normalize();
+        const distToHole = camera.position.distanceTo(holeTarget);
 
         for (let i = items.length - 1; i >= 0; i--) {
             const item = items[i];
-            const dx = item.position.x - holeTarget.x;
-            const dz = item.position.z - holeTarget.z;
-            const dist = Math.sqrt(dx * dx + dz * dz);
+            
+            item.mesh.position.copy(item.body.position);
+            item.mesh.quaternion.copy(item.body.quaternion);
 
-            // Logic: Is object within the hole?
-            if (dist < holeRadius * 0.9) {
-                // Sizing Check: Hole must be significantly larger than the base
-                if (holeRadius > item.userData.size * 1.1) {
-                    
-                    if (!item.userData.isFalling) {
-                        if (item.userData.fallStarted === 0) {
-                            item.userData.fallStarted = now; // Start the 200ms timer
-                        } else if (now - item.userData.fallStarted > 200) {
-                            item.userData.isFalling = true;
+            const dx = item.body.position.x - holeTarget.x;
+            const dz = item.body.position.z - holeTarget.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            
+            // X-Ray Vision for Blocking Buildings
+            const camToItem = new THREE.Vector3().subVectors(item.mesh.position, camera.position);
+            const distToItem = camToItem.length();
+            camToItem.normalize();
+
+            const blockingAngle = Math.min(0.3, 0.05 + (item.radius / Math.max(1, distToItem)));
+            if (distToItem < distToHole - 5 && item.body.position.y > 0 && camToHole.angleTo(camToItem) < blockingAngle) {
+                item.targetOpacity = 0.2; 
+            } else {
+                item.targetOpacity = 1.0;
+            }
+            if (Math.abs(item.mesh.material.opacity - item.targetOpacity) > 0.01) {
+                item.mesh.material.opacity += (item.targetOpacity - item.mesh.material.opacity) * 0.15;
+            }
+
+            let isGhost = false;
+
+            // Falling Physics Logic
+            const islandR = getIslandRadius(Math.atan2(item.body.position.z, item.body.position.x));
+            const centerDist = Math.sqrt(item.body.position.x**2 + item.body.position.z**2);
+            
+            const fallenOffCoast = (centerDist > islandR && item.body.position.y > -0.5 && dist > holeRadius);
+            const swallowedByHole = (item.body.position.y < -0.3 && dist < holeRadius * 1.2);
+
+            if (fallenOffCoast || swallowedByHole) {
+                isGhost = true;
+                if (item.body.collisionFilterMask !== 0) item.body.collisionFilterMask = 0; 
+                item.body.applyForce(new CANNON.Vec3(0, -item.body.mass * 20, 0), item.body.position);
+                if (swallowedByHole) item.mesh.scale.multiplyScalar(0.85); 
+            }
+
+            if (item.body.position.y < -6 || item.mesh.scale.x < 0.1) {
+                scene.remove(item.mesh);
+                world.removeBody(item.body);
+                items.splice(i, 1);
+                
+                if (item.mesh.scale.x < 0.2 || dist < holeRadius * 2) {
+                    const mass = item.body.mass;
+                    scoreMultiplier += mass * 0.04;
+                    updateHoleSize(holeRadius + mass * 0.015);
+                }
+                continue;
+            }
+
+            // Ground transitions
+            if (!isGhost) {
+                if (dist < holeRadius + item.radius) {
+                    if (item.body.collisionFilterMask !== maskFalling) {
+                        item.body.collisionFilterMask = maskFalling;
+                        item.body.wakeUp(); // Only wake up right as the hole touches them
+                    }
+                } else {
+                    if (item.body.position.y > -0.1) {
+                        if (item.body.collisionFilterMask !== maskNormal) {
+                            item.body.collisionFilterMask = maskNormal;
                         }
                     }
                 }
-            } else {
-                // If it moved out of the hole before 200ms, reset timer
-                if (!item.userData.isFalling) item.userData.fallStarted = 0;
-            }
-
-            if (item.userData.isFalling) {
-                // Smooth Suck to center
-                item.position.x += (holeTarget.x - item.position.x) * 0.1;
-                item.position.z += (holeTarget.z - item.position.z) * 0.1;
-
-                // Straight Smooth Fall
-                item.userData.velocity.y -= 0.015;
-                item.position.y += item.userData.velocity.y;
-                
-                // Rotate while falling
-                item.rotation.x += item.userData.rotVel.x;
-                item.rotation.z += item.userData.rotVel.z;
-
-                // Scale down slightly as it goes deep
-                item.scale.multiplyScalar(0.97);
-
-                // Cleanup and Score
-                if (item.position.y < -8) {
-                    scene.remove(item);
-                    items.splice(i, 1);
-                    score += 0.05;
-                    holeRadius += 0.02;
-                    document.getElementById('score').innerText = `SIZE: ${score.toFixed(1)}m`;
-                }
             }
         }
-
         renderer.render(scene, camera);
     }
 
-    // Settings
     window.toggleSettings = () => {
         const panel = document.getElementById('settings-panel');
         const isVisible = panel.style.display === 'flex';
         panel.style.display = isVisible ? 'none' : 'flex';
-        gameActive = isVisible;
+        gameActive = !isVisible;
+        if(gameActive) lastCallTime = performance.now() / 1000;
     };
-
-    document.getElementById('sens').oninput = (e) => {
-        sensitivity = e.target.value / 1000;
-    };
-
+    document.getElementById('sens').oninput = (e) => sensitivity = e.target.value / 1000;
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();

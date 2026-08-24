@@ -164,11 +164,12 @@
     let totalWorldPoints = 0;
     let score = 0;
     
-    // Growth Logic
+    // Growth Logic (Gradual Animation Over ~2 Seconds)
     let holeLevel = 1;
     let holePoints = 0;
     let targetHolePoints = 100;
-    let holeRadius = 1.6;
+    let holeRadius = 1.6;       // Live animated radius
+    let targetHoleRadius = 1.6; // Goal radius after level ups
     let scoreMultiplier = 1.6; 
     
     // Sensitivities
@@ -447,6 +448,7 @@
         totalWorldPoints = 0; 
         score = 0; 
         holeRadius = 1.6; 
+        targetHoleRadius = 1.6;
         scoreMultiplier = 1.6;
         groundUniforms.holeRadius.value = 1.6;
         holeLevel = 1; 
@@ -1094,7 +1096,7 @@
         const modal = document.getElementById('end-modal');
         const title = document.getElementById('end-title');
         modal.style.display = 'flex';
-        document.getElementById('end-stats').innerText = `Final Score: ${score} Points\nHole Diameter: ${(holeRadius * 2).toFixed(1)}m`;
+        document.getElementById('end-stats').innerText = `Final Score: ${score} Points\nHole Diameter: ${(targetHoleRadius * 2).toFixed(1)}m`;
         
         let starsHtml = '';
         let passed = objectives[0].achieved; 
@@ -1227,6 +1229,14 @@
             return;
         }
 
+        // --- Smooth 2-Second Hole Growth Animation ---
+        if (Math.abs(holeRadius - targetHoleRadius) > 0.001) {
+            holeRadius += (targetHoleRadius - holeRadius) * (1 - Math.exp(-2.2 * dt));
+            updateHoleVisuals(holeRadius);
+        } else {
+            holeRadius = targetHoleRadius;
+        }
+
         if (holeTopMesh) holeTopMesh.rotation.z += 0.02;
 
         let currentMode = 'mouse';
@@ -1316,15 +1326,13 @@
         for (let i = items.length - 1; i >= 0; i--) {
             const item = items[i];
             
-            // --- Exponential Vertical Velocity Suppression & Jump Height Clamping ---
+            // --- Exponential Vertical Speed Reduction & Jump Height Clamping ---
             if (item.body.velocity.y > 0) {
                 const vy = item.body.velocity.y;
-                // Exponential decay: higher upward speed = exponentially greater reduction
                 const decay = Math.exp(-6.0 * vy * dt);
-                item.body.velocity.y = Math.min(vy * decay, 1.2); // Strict ceiling on upward speed
+                item.body.velocity.y = Math.min(vy * decay, 1.2);
             }
 
-            // Max jump ceiling above spawn resting height
             const maxJumpThreshold = 0.5;
             if (item.body.position.y > item.initialY + maxJumpThreshold) {
                 item.body.position.y = item.initialY + maxJumpThreshold;
@@ -1382,22 +1390,17 @@
                     checkItemObjective(item);
                     
                     holePoints += item.mass;
-                    let leveledUp = false;
                     
+                    // Trigger level-up target expansion
                     while (holePoints >= targetHolePoints) {
                         holePoints -= targetHolePoints;
                         holeLevel++;
-                        leveledUp = true;
                         
                         let percent = getGrowthPercent(holeLevel);
-                        holeRadius *= (1 + percent);
+                        targetHoleRadius *= (1 + percent);
                         scoreMultiplier *= (1 + percent);
                         
                         targetHolePoints = getNextTargetPoints(holeLevel);
-                    }
-                    
-                    if (leveledUp) {
-                        updateHoleVisuals(holeRadius);
                     }
                     
                     updateGrowthUI();

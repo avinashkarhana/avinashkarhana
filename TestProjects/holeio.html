@@ -87,7 +87,7 @@
             <span class="star" id="ui-star-2">★</span>
         </div>
         <div id="center-info">
-            <div id="level-text">Level 1 - Easy</div>
+            <div id="level-text">Level 1 - Intro</div>
             <div id="score-text">0 / 0 pts</div>
             <div id="growth-container">
                 <div id="growth-text">NEXT SIZE: 0 / 100</div>
@@ -95,7 +95,7 @@
             </div>
         </div>
         <div class="right-hud">
-            <div id="timer">02:00</div>
+            <div id="timer">02:30</div>
             <div id="btn-settings" onclick="showSettingsModal()">⚙️ Pause (ESC)</div>
         </div>
     </div>
@@ -158,7 +158,7 @@
     import * as CANNON from 'cannon-es';
 
     // --- Global Game State ---
-    const GAME_TIME = 120;
+    let GAME_TIME = 150;
     let currentLevel = 1;
     let difficultyConfig = {};
     let totalWorldPoints = 0;
@@ -187,6 +187,9 @@
     let items = [];
     let mapMeshes = [];
     let wallBodies = [];
+    
+    let nextBuildingId = 1;
+    let buildingMap = {};
 
     // --- Physics & Engine Setup ---
     const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -30, 0) });
@@ -251,7 +254,7 @@
         const box = new THREE.Box3().setFromObject(clone);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
+        const maxDim = Math.max(size.x, size.y, size.z, 1.0);
         
         clone.position.sub(center); 
         snapCamera.position.set(maxDim * 1.5, maxDim * 1.2, maxDim * 1.5);
@@ -338,11 +341,13 @@
         return r1 * (1 - t) + r2 * t; 
     }
 
+    // Dynamic Level Difficulty & Time Scaling
     function getDifficultyConfig(level) {
-        if (level % 18 === 0 || level % 19 === 0) return { name: "Very Hard", min: 0.60, max: 0.70, color: '#ff3333' };
-        if (level % 12 === 0 || level % 13 === 0) return { name: "Hard", min: 0.50, max: 0.60, color: '#ff9800' };
-        if (level % 5 === 0 || level % 6 === 0) return { name: "Medium", min: 0.40, max: 0.50, color: '#ffeb3b' };
-        return { name: "Easy", min: 0.30, max: 0.40, color: '#4caf50' };
+        if (level === 1) return { name: "Intro", min: 0.08, max: 0.12, time: 150, color: '#4caf50' };
+        if (level <= 3)  return { name: "Easy",  min: 0.15, max: 0.22, time: 140, color: '#4caf50' };
+        if (level <= 6)  return { name: "Medium",min: 0.25, max: 0.35, time: 130, color: '#ffeb3b' };
+        if (level <= 12) return { name: "Hard",  min: 0.35, max: 0.45, time: 120, color: '#ff9800' };
+        return { name: "Very Hard", min: 0.48, max: 0.58, time: 110, color: '#ff3333' };
     }
 
     function getNextTargetPoints(level) {
@@ -396,9 +401,17 @@
             world.removeBody(item.body); 
         });
         
-        items = []; totalWorldPoints = 0; score = 0; holeRadius = 1.6; scoreMultiplier = 1.6;
+        items = []; 
+        buildingMap = {};
+        nextBuildingId = 1;
+        totalWorldPoints = 0; 
+        score = 0; 
+        holeRadius = 1.6; 
+        scoreMultiplier = 1.6;
         groundUniforms.holeRadius.value = 1.6;
-        holeLevel = 1; holePoints = 0; targetHolePoints = getNextTargetPoints(1);
+        holeLevel = 1; 
+        holePoints = 0; 
+        targetHolePoints = getNextTargetPoints(1);
         updateGrowthUI();
         inputVelocity.set(0, 0);
         mouseDir.set(0, 0);
@@ -408,6 +421,7 @@
     function startLevel(levelNum) {
         currentLevel = levelNum;
         difficultyConfig = getDifficultyConfig(currentLevel);
+        GAME_TIME = difficultyConfig.time;
         clearLevel();
         
         WORLD_SIZE = Math.floor(Math.random() * 80) + 120;
@@ -526,8 +540,8 @@
 
     const colors = [0xff5722, 0x4caf50, 0x2196f3, 0xffeb3b, 0x9c27b0, 0xffffff, 0x607d8b, 0x795548];
 
-    // Every block/floor is its own individual entity in physics and graphics
-    function createSimpleEntity(x, y, z, w, h, d, color, visualType, rotY = 0, category = 'Block') {
+    // Every block/floor is an individual entity with building & block metadata
+    function createSimpleEntity(x, y, z, w, h, d, color, visualType, rotY = 0, category = 'Block', buildingId = 0, blockIndex = 0, previewObj = null) {
         const meshGeom = visualType === 'cylinder' ? new THREE.CylinderGeometry(w/2, d/2, h, 16) : new THREE.BoxGeometry(w, h, d);
         const meshMat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, transparent: true, opacity: 1.0 });
         const mesh = new THREE.Mesh(meshGeom, meshMat);
@@ -540,73 +554,88 @@
         totalWorldPoints += mass;
         
         let shape;
-        let quat = new CANNON.Quaternion();
+        let shapeQuat = new CANNON.Quaternion();
         if (visualType === 'cylinder') {
             shape = new CANNON.Cylinder(w/2, d/2, h, 16);
-            const qRotX = new CANNON.Quaternion();
-            qRotX.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
-            const qRotY = new CANNON.Quaternion();
-            qRotY.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), rotY);
-            quat = qRotY.mult(qRotX);
+            shapeQuat.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
         } else {
             shape = new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2));
-            quat.setFromEuler(0, rotY, 0);
         }
 
         const body = new CANNON.Body({ mass, material: objMat, position: new CANNON.Vec3(x, y, z), linearDamping: 0.3, angularDamping: 0.3 });
-        body.quaternion.copy(quat);
-        body.addShape(shape);
+        body.quaternion.setFromEuler(0, rotY, 0);
+        body.addShape(shape, new CANNON.Vec3(0, 0, 0), shapeQuat);
         body.collisionFilterGroup = CG_ALL_OBJS;
         body.collisionFilterMask = CG_GROUND | CG_ALL_OBJS; 
         world.addBody(body);
         body.sleep(); 
         mesh.userData.radius = Math.max(w, d)/2;
 
-        items.push({ mesh, body, radius: Math.max(w, d)/2, initialY: y, targetOpacity: 1.0, mass, cat: category, color, previewObj: mesh });
+        items.push({ 
+            mesh, 
+            body, 
+            radius: Math.max(w, d)/2, 
+            initialY: y, 
+            targetOpacity: 1.0, 
+            mass, 
+            cat: category, 
+            color, 
+            buildingId, 
+            blockIndex, 
+            previewObj: previewObj || mesh 
+        });
     }
 
-    // Multi-block stack: Spawns discrete independent physics blocks that balance & tumble realistically
+    // Spawns discrete physics blocks while generating a FULL 3D building structure for criteria preview
     function spawnBuildingStack(cx, cz, blocksData, color, category) {
-        blocksData.forEach(b => {
+        const buildingId = nextBuildingId++;
+        const previewGroup = new THREE.Group();
+        buildingMap[buildingId] = { totalBlocks: blocksData.length, eatenBlocks: 0, cat: category, color: color };
+
+        blocksData.forEach((b, idx) => {
             const depth = b.d || b.w;
             const x = cx + (b.offsetX || 0);
             const y = b.y;
             const z = cz + (b.offsetZ || 0);
-            createSimpleEntity(x, y, z, b.w, b.h, depth, color, b.type || 'box', b.rotY || 0, category);
+            
+            // Construct visual piece for the full building preview
+            const geom = b.type === 'cylinder' ? new THREE.CylinderGeometry(b.w/2, b.w/2, b.h, 16) : new THREE.BoxGeometry(b.w, b.h, depth);
+            const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
+            const pMesh = new THREE.Mesh(geom, mat);
+            pMesh.position.set(b.offsetX || 0, b.y, b.offsetZ || 0);
+            pMesh.rotation.y = b.rotY || 0;
+            previewGroup.add(pMesh);
+
+            createSimpleEntity(x, y, z, b.w, b.h, depth, color, b.type || 'box', b.rotY || 0, category, buildingId, idx, previewGroup);
         });
     }
 
     function buildSkyscraper(cx, cz, color, style) {
+        let blocks = []; 
         let cy = 0;
         if (style === 0) {
             let floors = 5 + Math.floor(Math.random() * 4); 
             let w = 4.0 + Math.random() * 2.0;
             for (let i = 0; i < floors; i++) { 
                 let h = 1.2 + Math.random() * 0.5; 
-                createSimpleEntity(cx, cy + h/2, cz, w, h, w, color, 'box', 0, 'Skyscraper');
+                blocks.push({ y: cy + h/2, w: w, h: h, type: 'box' }); 
                 cy += h; 
                 w *= 0.82; 
             }
         } else if (style === 1) {
             let h = 2.0 + Math.random(), w = 4.5; 
-            createSimpleEntity(cx, cy + h/2, cz, w, h, w, color, 'box', 0, 'Skyscraper');
-            cy += h;
-
+            blocks.push({ y: cy + h/2, w: w, h: h, type: 'box' }); cy += h;
             h = 6 + Math.random() * 4; w = 1.8; 
-            createSimpleEntity(cx, cy + h/2, cz, w, h, w, color, 'box', 0, 'Skyscraper');
-            cy += h;
-
+            blocks.push({ y: cy + h/2, w: w, h: h, type: 'box' }); cy += h;
             h = 1.5; w = 3.5; 
-            createSimpleEntity(cx, cy + h/2, cz, w, h, w, color, 'box', 0, 'Skyscraper');
-            cy += h;
-
+            blocks.push({ y: cy + h/2, w: w, h: h, type: 'box' }); cy += h;
             h = 4; w = 0.5; 
-            createSimpleEntity(cx, cy + h/2, cz, w, h, w, color, 'cylinder', 0, 'Skyscraper');
+            blocks.push({ y: cy + h/2, w: w, h: h, type: 'cylinder' });
         } else if (style === 2) {
             let floors = 7 + Math.floor(Math.random() * 4); 
             let w = 3.5, h = 1.2, rot = 0;
             for(let i = 0; i < floors; i++) { 
-                createSimpleEntity(cx, cy + h/2, cz, w, h, w, color, 'box', rot, 'Skyscraper');
+                blocks.push({ y: cy + h/2, w: w, h: h, type: 'box', rotY: rot }); 
                 cy += h; 
                 rot += 0.25; 
             }
@@ -615,11 +644,12 @@
             let w = 3.5, h = 1.1;
             for(let i = 0; i < floors; i++) { 
                 let offsetX = Math.sin(i * 0.7) * (w * 0.2); 
-                createSimpleEntity(cx + offsetX, cy + h/2, cz, w, h, w, color, 'box', 0, 'Skyscraper');
+                blocks.push({ y: cy + h/2, w: w, h: h, type: 'box', offsetX }); 
                 cy += h; 
                 w *= 0.96; 
             }
         }
+        spawnBuildingStack(cx, cz, blocks, color, 'Skyscraper');
     }
 
     function spawnCity(startX, startZ) {
@@ -690,10 +720,19 @@
 
         const groups = {};
         items.forEach(it => {
-            if(it.cat === 'Fence' || it.cat === 'Small Box') return; 
+            if(it.cat === 'Fence' || it.cat === 'Small Box' || it.cat === 'Bush') return; 
             const key = it.cat + '_' + it.color;
-            if(!groups[key]) groups[key] = { count: 0, cat: it.cat, color: it.color, previewObj: it.previewObj };
+            if(!groups[key]) {
+                groups[key] = { 
+                    count: 0, 
+                    cat: it.cat, 
+                    color: it.color, 
+                    previewObj: it.previewObj, // Full multi-tier building preview!
+                    buildingIds: new Set()
+                };
+            }
             groups[key].count++;
+            if (it.buildingId) groups[key].buildingIds.add(it.buildingId);
         });
 
         const validGroups = Object.values(groups).filter(g => g.count >= 2).sort(() => 0.5 - Math.random());
@@ -701,26 +740,41 @@
         for (let i = 1; i <= 2; i++) {
             if (validGroups.length > 0) {
                 const group = validGroups.pop();
-                const baseRadius = group.previewObj.userData.radius;
-                let maxCount = baseRadius > 2.0 ? 5 : (baseRadius > 1.2 ? 8 : 12);
-                const reqCount = Math.min(group.count, Math.floor(Math.random() * maxCount) + 2); 
-                
+                const hasBuildings = group.buildingIds.size > 0;
+                let reqCount, desc, targetType;
+
+                if (hasBuildings) {
+                    targetType = 'building';
+                    reqCount = Math.min(group.buildingIds.size, Math.floor(Math.random() * 2) + 1);
+                    desc = `Eat ${reqCount} ${group.cat}${reqCount > 1 ? 's' : ''}`;
+                } else {
+                    targetType = 'block';
+                    reqCount = Math.min(group.count, Math.floor(Math.random() * 5) + 2);
+                    desc = `Eat ${reqCount} ${group.cat}${reqCount > 1 ? 's' : ''}`;
+                }
+
                 let hasTimeLimit = Math.random() > 0.5;
                 let limit = null;
-                
                 if (hasTimeLimit) {
-                    let minTime = Math.floor(baseRadius * 25); 
-                    if (currentLevel % 12 === 0 || currentLevel % 18 === 0) minTime *= 0.75; 
-                    limit = minTime + Math.floor(Math.random() * 20);
+                    let minTime = hasBuildings ? 45 : 30;
+                    limit = minTime + Math.floor(Math.random() * 30);
                     if (limit > GAME_TIME - 15) limit = null; 
                 }
-                
-                let desc = `Eat ${reqCount} ${group.cat} block${reqCount>1?'s':''}`;
+
                 if (limit) desc += ` in first ${limit}s`;
 
                 objectives.push({
-                    id: i, desc, target: reqCount, current: 0, achieved: false, failed: false,
-                    cat: group.cat, color: group.color, timeLimit: limit, thumb: createSnapshot(group.previewObj)
+                    id: i, 
+                    desc, 
+                    target: reqCount, 
+                    current: 0, 
+                    achieved: false, 
+                    failed: false,
+                    cat: group.cat, 
+                    color: group.color, 
+                    targetType, 
+                    timeLimit: limit, 
+                    thumb: createSnapshot(group.previewObj)
                 });
             } else {
                 objectives.push({
@@ -731,14 +785,32 @@
     }
 
     function checkItemObjective(item) {
+        let buildingFullyEaten = false;
+        if (item.buildingId && buildingMap[item.buildingId]) {
+            buildingMap[item.buildingId].eatenBlocks++;
+            if (buildingMap[item.buildingId].eatenBlocks >= buildingMap[item.buildingId].totalBlocks) {
+                buildingFullyEaten = true;
+            }
+        }
+
         objectives.forEach(obj => {
             if (obj.id > 0 && !obj.achieved && !obj.failed && obj.cat === item.cat && obj.color === item.color) {
-                obj.current++;
-                if (obj.current >= obj.target) {
-                    obj.achieved = true;
-                    document.getElementById(`ui-star-${obj.id}`).classList.add('achieved');
-                    if (isPaused) populateObjectiveModal(); 
+                if (obj.targetType === 'building') {
+                    if (buildingFullyEaten) {
+                        obj.current++;
+                        if (obj.current >= obj.target) {
+                            obj.achieved = true;
+                            document.getElementById(`ui-star-${obj.id}`).classList.add('achieved');
+                        }
+                    }
+                } else {
+                    obj.current++;
+                    if (obj.current >= obj.target) {
+                        obj.achieved = true;
+                        document.getElementById(`ui-star-${obj.id}`).classList.add('achieved');
+                    }
                 }
+                if (isPaused) populateObjectiveModal(); 
             }
         });
     }
@@ -1014,7 +1086,7 @@
             const dz = item.body.position.z - holeTarget.z;
             const dist = Math.sqrt(dx * dx + dz * dz);
             
-            // Submerged / swallow criteria for individual blocks
+            // Submerged / swallow criteria
             const isSubmerged = item.body.position.y < Math.min(item.initialY - 0.4, 0.2);
             const swallowed = isSubmerged && (dist < holeRadius * 1.25);
             

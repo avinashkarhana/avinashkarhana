@@ -211,6 +211,38 @@
             gap: 12px;
             box-sizing: border-box;
         }
+
+        /* Cyberpunk Main Menu Title & Badges */
+        .main-menu-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 32px;
+            font-weight: 900;
+            color: var(--neon-cyan);
+            letter-spacing: 4px;
+            text-shadow: 0 0 20px var(--neon-cyan), 0 0 40px rgba(0, 240, 255, 0.6);
+            margin: 0;
+        }
+        .main-menu-sub {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            color: var(--neon-pink);
+            letter-spacing: 3px;
+            margin-top: -6px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 8px var(--neon-pink);
+        }
+        .save-badge {
+            background: rgba(0, 240, 255, 0.08);
+            border: 1px solid var(--border-cyan);
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #94a3b8;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .save-badge strong {
+            color: var(--neon-yellow);
+        }
         
         .obj-row { 
             display: flex; 
@@ -235,7 +267,7 @@
         .obj-desc { 
             font-weight: 700; 
             font-size: 15px; 
-            color: #f1f5f9;
+            color: #f1f5f9; 
             letter-spacing: 0.5px;
             margin-bottom: 2px; 
         }
@@ -282,7 +314,7 @@
 
         button { 
             cursor: pointer; 
-            padding: 10px 20px; 
+            padding: 11px 22px; 
             background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(0, 240, 255, 0.05)); 
             border: 1px solid var(--neon-cyan); 
             color: var(--neon-cyan); 
@@ -306,9 +338,27 @@
             background: linear-gradient(135deg, rgba(0, 255, 102, 0.2), rgba(0, 255, 102, 0.05));
         }
         button.success:hover {
-            background: var(--neon-green);
-            color: #05070d;
+            background: var(--neon-green); 
+            color: #05070d; 
             box-shadow: 0 0 20px rgba(0, 255, 102, 0.6);
+        }
+        button.danger {
+            border-color: var(--neon-pink);
+            color: var(--neon-pink);
+            background: linear-gradient(135deg, rgba(255, 0, 85, 0.2), rgba(255, 0, 85, 0.05));
+        }
+        button.danger:hover {
+            background: var(--neon-pink);
+            color: #ffffff;
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.6);
+        }
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            border-color: #475569;
+            color: #64748b;
+            box-shadow: none;
+            transform: none;
         }
         
         #instructions { 
@@ -368,9 +418,12 @@
             #btn-settings { font-size: 11px; padding: 4px 6px; }
             #instructions { font-size: 10px; bottom: 8px; }
             .modal-content { padding: 16px; gap: 8px; }
+            .main-menu-title { font-size: 24px; letter-spacing: 2px; }
+            .main-menu-sub { font-size: 9px; }
             .obj-row { padding: 6px 8px; gap: 8px; }
             .obj-row img { width: 45px; height: 45px; }
             .obj-desc { font-size: 13px; }
+            button { font-size: 12px; padding: 9px 16px; }
         }
 
         @media (max-height: 500px) {
@@ -408,9 +461,22 @@
     <div id="instructions">DRAG TO STEER // WASD / ARROWS // AVOID EDGES</div>
 </div>
 
+<!-- Main Menu Modal -->
+<div id="main-menu-modal" class="modal" style="display: flex;">
+    <div class="modal-content">
+        <h1 class="main-menu-title">// HOLE.IO //</h1>
+        <div class="main-menu-sub">CYBERPUNK SINGULARITY</div>
+        <div id="main-menu-save-info" class="save-badge" style="display: none;"></div>
+        <button id="btn-menu-resume" class="success" onclick="handleResumeGame()">RESUME MISSION</button>
+        <button id="btn-menu-new" onclick="handleNewGame()">NEW GAME</button>
+        <button onclick="showSettingsModal()">SETTINGS</button>
+    </div>
+</div>
+
+<!-- Pause Settings Modal -->
 <div id="settings-modal" class="modal">
     <div class="modal-content">
-        <h2 style="margin: 0; color: var(--neon-cyan); font-family: 'Orbitron', sans-serif; font-size: 18px; letter-spacing: 2px;">// SYSTEM PAUSED //</h2>
+        <h2 style="margin: 0; color: var(--neon-cyan); font-family: 'Orbitron', sans-serif; font-size: 18px; letter-spacing: 2px;">// SYSTEM SETTINGS //</h2>
         <div class="slider-row">
             <label>MOUSE / TRACK</label>
             <input type="range" id="sens-mouse" min="5" max="50" value="20">
@@ -426,10 +492,12 @@
             <input type="range" id="sens-key" min="5" max="50" value="20">
             <span class="val-display" id="val-key">20</span>
         </div>
-        <button onclick="resumeGame('settings-modal')">RESUME</button>
+        <button class="success" onclick="resumeGame('settings-modal')">RESUME</button>
+        <button class="danger" onclick="returnToMainMenu('settings-modal')">MAIN MENU</button>
     </div>
 </div>
 
+<!-- Objectives Modal -->
 <div id="obj-modal" class="modal">
     <div class="modal-content">
         <h2 style="margin: 0; color: var(--neon-yellow); font-family: 'Orbitron', sans-serif; font-size: 18px; letter-spacing: 2px;">// MISSION OBJECTIVES //</h2>
@@ -438,6 +506,7 @@
     </div>
 </div>
 
+<!-- End Game Modal -->
 <div id="end-modal" class="modal">
     <div class="modal-content">
         <h1 id="end-title" style="font-size: 28px; margin: 0; font-family: 'Orbitron', sans-serif; letter-spacing: 2px;">MISSION EXPIRED</h1>
@@ -446,6 +515,7 @@
         <div id="end-buttons">
             <button id="btn-next" class="success" style="display:none;" onclick="nextLevel()">NEXT SECTOR</button>
             <button id="btn-retry" onclick="retryLevel()">RETRY MISSION</button>
+            <button class="danger" onclick="returnToMainMenu('end-modal')">MAIN MENU</button>
         </div>
     </div>
 </div>
@@ -485,7 +555,8 @@
     
     let timeLeft = GAME_TIME;
     let gameActive = false;
-    let isPaused = false;
+    let isPaused = true;
+    let inMainMenu = true;
     
     let objectives = []; 
     let WORLD_SIZE = 160;
@@ -497,6 +568,161 @@
     
     let nextBuildingId = 1;
     let buildingMap = {};
+
+    // --- LocalStorage State & Settings Management ---
+    function saveSettings() {
+        try {
+            localStorage.setItem('holeio_settings', JSON.stringify({
+                mouseSpeed,
+                touchSpeed,
+                keySpeed
+            }));
+        } catch (e) {}
+    }
+
+    function loadSettings() {
+        try {
+            const saved = localStorage.getItem('holeio_settings');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed.mouseSpeed !== undefined) mouseSpeed = parseFloat(parsed.mouseSpeed);
+                if (parsed.touchSpeed !== undefined) touchSpeed = parseFloat(parsed.touchSpeed);
+                if (parsed.keySpeed !== undefined) keySpeed = parseFloat(parsed.keySpeed);
+            }
+        } catch (e) {}
+    }
+
+    function saveGameState() {
+        if (!gameActive && !isPaused) return;
+        if (inMainMenu) return;
+        try {
+            const state = {
+                currentLevel,
+                score,
+                holeLevel,
+                holePoints,
+                targetHolePoints,
+                holeRadius,
+                targetHoleRadius,
+                scoreMultiplier,
+                timeLeft,
+                holeTarget: { x: holeTarget.x, z: holeTarget.z },
+                WORLD_SIZE,
+                polygon: polygon.map(p => ({ x: p.x, y: p.y })),
+                difficultyConfig,
+                objectives,
+                buildingMap,
+                nextBuildingId,
+                items: items.map(it => ({
+                    x: it.body.position.x,
+                    y: it.body.position.y,
+                    z: it.body.position.z,
+                    rotY: it.mesh.rotation.y,
+                    w: it.mesh.geometry.parameters ? (it.mesh.geometry.parameters.width || it.mesh.geometry.parameters.radiusTop * 2 || it.radius * 2) : it.radius * 2,
+                    h: it.mesh.geometry.parameters ? (it.mesh.geometry.parameters.height || 1) : 1,
+                    d: it.mesh.geometry.parameters ? (it.mesh.geometry.parameters.depth || it.mesh.geometry.parameters.radiusBottom * 2 || it.radius * 2) : it.radius * 2,
+                    color: it.color,
+                    visualType: it.mesh.geometry.type === 'CylinderGeometry' ? 'cylinder' : 'box',
+                    mass: it.mass,
+                    cat: it.cat,
+                    buildingId: it.buildingId || 0,
+                    blockIndex: it.blockIndex || 0,
+                    initialY: it.initialY,
+                    radius: it.radius
+                }))
+            };
+            localStorage.setItem('holeio_gamestate', JSON.stringify(state));
+        } catch (e) {
+            console.warn("Save game state skipped:", e);
+        }
+    }
+
+    function loadGameState() {
+        try {
+            const saved = localStorage.getItem('holeio_gamestate');
+            if (!saved) return false;
+            const state = JSON.parse(saved);
+            if (!state || !state.items || !state.polygon || state.items.length === 0) return false;
+
+            currentLevel = state.currentLevel || 1;
+            score = state.score || 0;
+            holeLevel = state.holeLevel || 1;
+            holePoints = state.holePoints || 0;
+            targetHolePoints = state.targetHolePoints || 100;
+            holeRadius = state.holeRadius || 1.6;
+            targetHoleRadius = state.targetHoleRadius || 1.6;
+            scoreMultiplier = state.scoreMultiplier || 1.6;
+            timeLeft = state.timeLeft || 150;
+            difficultyConfig = state.difficultyConfig || getDifficultyConfig(currentLevel);
+            objectives = state.objectives || [];
+            buildingMap = state.buildingMap || {};
+            nextBuildingId = state.nextBuildingId || 1;
+            WORLD_SIZE = state.WORLD_SIZE || 160;
+
+            clearLevelStateOnly();
+
+            polygon = state.polygon.map(p => new THREE.Vector2(p.x, p.y));
+
+            buildIslandAndWalls();
+            buildRandomHoleTop();
+
+            const startX = state.holeTarget ? state.holeTarget.x : 0;
+            const startZ = state.holeTarget ? state.holeTarget.z : 0;
+
+            holeTarget.set(startX, 0, startZ);
+            cameraTarget.set(startX, 0, startZ);
+            groundUniforms.holePos.value.set(startX, 0, startZ);
+            
+            const aspect = window.innerWidth / window.innerHeight;
+            const aspectMultiplier = aspect < 1.4 ? Math.min(2.6, 1.4 / Math.max(0.45, aspect)) : 1.0;
+            camera.position.set(startX, (7 + holeRadius * 1.5) * aspectMultiplier, startZ + (8 + holeRadius * 2.5) * aspectMultiplier);
+            camera.lookAt(cameraTarget);
+
+            state.items.forEach(it => {
+                createSimpleEntity(it.x, it.y, it.z, it.w, it.h, it.d, it.color, it.visualType, it.rotY, it.cat, it.buildingId, it.blockIndex);
+            });
+
+            updateHoleVisuals(holeRadius);
+            updateUI();
+
+            document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+            gameActive = true; 
+            isPaused = false;
+            inMainMenu = false;
+            lastCallTime = performance.now() / 1000;
+            return true;
+        } catch (e) {
+            console.warn("Corrupt saved game state, starting fresh:", e);
+            return false;
+        }
+    }
+
+    function clearSavedGame() {
+        try {
+            localStorage.removeItem('holeio_gamestate');
+        } catch (e) {}
+    }
+
+    function refreshMainMenuUI() {
+        const resumeBtn = document.getElementById('btn-menu-resume');
+        const infoBadge = document.getElementById('main-menu-save-info');
+        try {
+            const saved = localStorage.getItem('holeio_gamestate');
+            if (saved) {
+                const state = JSON.parse(saved);
+                if (state && state.currentLevel && state.items && state.items.length > 0) {
+                    resumeBtn.disabled = false;
+                    const mins = Math.floor(Math.max(0, state.timeLeft) / 60);
+                    const secs = Math.floor(Math.max(0, state.timeLeft) % 60);
+                    infoBadge.style.display = 'block';
+                    infoBadge.innerHTML = `SAVED DATA: <strong>SECTOR ${state.currentLevel}</strong> // SCORE: <strong>${state.score} PTS</strong> // TIME: <strong>${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}</strong>`;
+                    return;
+                }
+            }
+        } catch(e) {}
+        resumeBtn.disabled = true;
+        infoBadge.style.display = 'none';
+    }
 
     // --- Physics Setup (Pure Void Hole Architecture) ---
     const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -30, 0) });
@@ -761,7 +987,7 @@
         }
     }
 
-    function clearLevel() {
+    function clearLevelStateOnly() {
         mapMeshes.forEach(m => { scene.remove(m); m.geometry?.dispose(); m.material?.dispose(); });
         mapMeshes = [];
         wallBodies.forEach(b => world.removeBody(b));
@@ -776,8 +1002,11 @@
             }
             world.removeBody(item.body); 
         });
-        
-        items = []; 
+        items = [];
+    }
+
+    function clearLevel() {
+        clearLevelStateOnly();
         buildingMap = {};
         nextBuildingId = 1;
         totalWorldPoints = 0; 
@@ -800,6 +1029,7 @@
         difficultyConfig = getDifficultyConfig(currentLevel);
         GAME_TIME = difficultyConfig.time;
         clearLevel();
+        clearSavedGame();
         
         WORLD_SIZE = Math.floor(Math.random() * 40) + 150;
         const AVG_RADIUS = WORLD_SIZE * 0.44;
@@ -835,7 +1065,6 @@
         cameraTarget.set(startX, 0, startZ);
         groundUniforms.holePos.value.set(startX, 0, startZ);
         
-        // Responsive adaptive initial camera placement
         const aspect = window.innerWidth / window.innerHeight;
         const aspectMultiplier = aspect < 1.4 ? Math.min(2.6, 1.4 / Math.max(0.45, aspect)) : 1.0;
         camera.position.set(startX, (7 + 1.6 * 1.5) * aspectMultiplier, startZ + (8 + 1.6 * 2.5) * aspectMultiplier);
@@ -846,10 +1075,12 @@
         
         timeLeft = GAME_TIME;
         updateUI();
+        saveGameState();
         
         document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
         gameActive = true; 
         isPaused = false;
+        inMainMenu = false;
         lastCallTime = performance.now() / 1000;
     }
 
@@ -1251,7 +1482,6 @@
             }
         }
 
-        // Tighter Urban Grid for Maximum City Density
         const BLOCK_SIZE = 16;
         const ROAD_WIDTH = 4.5;
         const CELL_STEP = BLOCK_SIZE + ROAD_WIDTH;
@@ -1266,7 +1496,6 @@
         });
         applyHoleShader(roadMat);
 
-        // Spawn Urban Road Grid & Dense Sidewalk Blocks
         for (let x = -WORLD_SIZE/2; x < WORLD_SIZE/2; x += CELL_STEP) {
             for (let z = -WORLD_SIZE/2; z < WORLD_SIZE/2; z += CELL_STEP) {
                 const cx = x + BLOCK_SIZE / 2;
@@ -1300,7 +1529,7 @@
                 scene.add(swMesh);
                 mapMeshes.push(swMesh);
 
-                // Asphalt Road Segments (Bounded strictly within island perimeter)
+                // Asphalt Road Segments
                 const rz_pos = z - ROAD_WIDTH / 2;
                 if (isRoadInside(cx - CELL_STEP/2, rz_pos, cx + CELL_STEP/2, rz_pos)) {
                     const roadXGeom = new THREE.PlaneGeometry(CELL_STEP, ROAD_WIDTH);
@@ -1339,7 +1568,7 @@
                     continue; 
                 }
 
-                // Downtown District (High-Density Multi-Tower Clusters)
+                // Downtown District
                 if (minDistToDt < 24) {
                     let layout = Math.random();
                     if (layout > 0.4) {
@@ -1538,6 +1767,7 @@
 
     function updateScoreObjective() {
         const obj0 = objectives[0];
+        if (!obj0) return;
         obj0.current = score;
         if (score >= obj0.target && !obj0.achieved) {
             obj0.achieved = true;
@@ -1546,6 +1776,30 @@
         document.getElementById('score-text').innerText = `${score} / ${obj0.target} PTS`;
         document.getElementById('score-text').style.color = obj0.achieved ? 'var(--neon-green)' : '#fff';
     }
+
+    // --- Window Handlers for UI & Menus ---
+    window.handleResumeGame = () => {
+        if (!loadGameState()) {
+            startLevel(1);
+        }
+        document.getElementById('main-menu-modal').style.display = 'none';
+    };
+
+    window.handleNewGame = () => {
+        clearSavedGame();
+        startLevel(1);
+        document.getElementById('main-menu-modal').style.display = 'none';
+    };
+
+    window.returnToMainMenu = (modalId) => {
+        saveGameState();
+        document.getElementById(modalId).style.display = 'none';
+        document.getElementById('main-menu-modal').style.display = 'flex';
+        inMainMenu = true;
+        gameActive = false;
+        isPaused = true;
+        refreshMainMenuUI();
+    };
 
     window.showSettingsModal = () => { 
         isPaused = true; 
@@ -1556,20 +1810,46 @@
         document.getElementById('sens-key').value = keySpeed;
         document.getElementById('val-key').innerText = keySpeed;
         document.getElementById('settings-modal').style.display = 'flex'; 
+        saveGameState();
     };
-    window.showObjectivesModal = () => { isPaused = true; populateObjectiveModal(); document.getElementById('obj-modal').style.display = 'flex'; };
-    window.resumeGame = (modalId) => { isPaused = false; document.getElementById(modalId).style.display = 'none'; lastCallTime = performance.now() / 1000; };
+
+    window.showObjectivesModal = () => { 
+        isPaused = true; 
+        populateObjectiveModal(); 
+        document.getElementById('obj-modal').style.display = 'flex'; 
+        saveGameState();
+    };
+
+    window.resumeGame = (modalId) => { 
+        isPaused = false; 
+        document.getElementById(modalId).style.display = 'none'; 
+        lastCallTime = performance.now() / 1000; 
+        saveGameState();
+    };
+
     window.nextLevel = () => startLevel(currentLevel + 1);
     window.retryLevel = () => startLevel(currentLevel);
 
-    document.getElementById('sens-mouse').oninput = (e) => { mouseSpeed = parseFloat(e.target.value); document.getElementById('val-mouse').innerText = e.target.value; };
-    document.getElementById('sens-touch').oninput = (e) => { touchSpeed = parseFloat(e.target.value); document.getElementById('val-touch').innerText = e.target.value; };
-    document.getElementById('sens-key').oninput = (e) => { keySpeed = parseFloat(e.target.value); document.getElementById('val-key').innerText = e.target.value; };
+    document.getElementById('sens-mouse').oninput = (e) => { 
+        mouseSpeed = parseFloat(e.target.value); 
+        document.getElementById('val-mouse').innerText = e.target.value; 
+        saveSettings();
+    };
+    document.getElementById('sens-touch').oninput = (e) => { 
+        touchSpeed = parseFloat(e.target.value); 
+        document.getElementById('val-touch').innerText = e.target.value; 
+        saveSettings();
+    };
+    document.getElementById('sens-key').oninput = (e) => { 
+        keySpeed = parseFloat(e.target.value); 
+        document.getElementById('val-key').innerText = e.target.value; 
+        saveSettings();
+    };
 
     function updateUI() {
-        document.getElementById('level-text').innerText = `LVL ${currentLevel} // ${difficultyConfig.name.toUpperCase()}`;
-        document.getElementById('level-text').style.color = difficultyConfig.color;
-        document.getElementById('level-text').style.textShadow = `0 0 10px ${difficultyConfig.color}`;
+        document.getElementById('level-text').innerText = `LVL ${currentLevel} // ${difficultyConfig.name ? difficultyConfig.name.toUpperCase() : 'INTRO'}`;
+        document.getElementById('level-text').style.color = difficultyConfig.color || 'var(--neon-cyan)';
+        document.getElementById('level-text').style.textShadow = `0 0 10px ${difficultyConfig.color || 'var(--neon-cyan)'}`;
         for (let i=0; i<3; i++) {
             const el = document.getElementById(`ui-star-${i}`);
             el.className = 'star'; 
@@ -1598,14 +1878,15 @@
 
     function levelComplete() {
         gameActive = false; isPaused = true;
+        clearSavedGame();
         const modal = document.getElementById('end-modal');
         const title = document.getElementById('end-title');
         modal.style.display = 'flex';
         document.getElementById('end-stats').innerText = `Final Score: ${score} Points | Singularity Size: ${(targetHoleRadius * 2).toFixed(1)}m`;
         
         let starsHtml = '';
-        let passed = objectives[0].achieved; 
-        for(let i=0; i<3; i++) starsHtml += objectives[i].achieved ? '<span style="color:var(--neon-yellow); text-shadow:0 0 15px var(--neon-yellow);">★</span>' : '<span style="color:#1e293b;">★</span>';
+        let passed = objectives[0] && objectives[0].achieved; 
+        for(let i=0; i<3; i++) starsHtml += (objectives[i] && objectives[i].achieved) ? '<span style="color:var(--neon-yellow); text-shadow:0 0 15px var(--neon-yellow);">★</span>' : '<span style="color:#1e293b;">★</span>';
         document.getElementById('end-stars').innerHTML = starsHtml;
 
         if (passed) { 
@@ -1626,6 +1907,7 @@
     const activeKeys = new Set();
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            if (inMainMenu) return;
             if (isPaused) { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); isPaused = false; lastCallTime = performance.now() / 1000; } 
             else if (gameActive) { showSettingsModal(); }
         } else {
@@ -1637,6 +1919,12 @@
         activeKeys.clear(); 
         inputVelocity.set(0, 0);
         mouseDir.set(0, 0);
+        saveGameState();
+    });
+
+    window.addEventListener('beforeunload', saveGameState);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) saveGameState();
     });
 
     let lastPointerType = 'mouse';
@@ -1649,7 +1937,7 @@
 
     window.addEventListener('pointerdown', (e) => {
         lastPointerType = e.pointerType;
-        if(e.pointerType === 'mouse') return; 
+        if(e.pointerType === 'mouse' || inMainMenu) return; 
         
         if(isPaused || e.target.tagName === 'BUTTON' || e.target.closest('#stars-container') || e.target.tagName === 'INPUT') return;
         isDragging = true;
@@ -1663,6 +1951,7 @@
 
     window.addEventListener('pointermove', (e) => {
         lastPointerType = e.pointerType;
+        if (inMainMenu) return;
         if(e.pointerType === 'mouse') {
             const nx = (e.clientX / window.innerWidth) * 2 - 1;
             const ny = (e.clientY / window.innerHeight) * 2 - 1;
@@ -1690,7 +1979,6 @@
         }
     });
 
-    // Touch Inertia Release: Preserves velocity for smooth momentum glide
     const stopTouch = (e) => {
         if (e.pointerType === 'mouse') return;
         isDragging = false; 
@@ -1707,6 +1995,8 @@
 
     const timeStep = 1 / 60;
     let lastCallTime = performance.now() / 1000;
+    let autoSaveTimer = 0;
+    let menuOrbitAngle = 0;
     
     const maskGroundOnly = CG_GROUND | CG_ALL_OBJS; 
     const maskVoidFall   = CG_ALL_OBJS;            
@@ -1716,6 +2006,19 @@
 
     function animate() {
         requestAnimationFrame(animate);
+
+        // Smooth 3D background camera orbit while in Main Menu
+        if (inMainMenu) {
+            menuOrbitAngle += 0.003;
+            const aspect = window.innerWidth / window.innerHeight;
+            const aspectMultiplier = aspect < 1.4 ? Math.min(2.6, 1.4 / Math.max(0.45, aspect)) : 1.0;
+            const camR = 40 * aspectMultiplier;
+            camera.position.set(Math.cos(menuOrbitAngle) * camR, 25 * aspectMultiplier, Math.sin(menuOrbitAngle) * camR);
+            camera.lookAt(0, 5, 0);
+            renderer.render(scene, camera);
+            return;
+        }
+
         if (!gameActive || isPaused) { 
             renderer.render(scene, camera); 
             return; 
@@ -1730,6 +2033,12 @@
         const secs = Math.floor(Math.max(0, timeLeft) % 60);
         document.getElementById('timer').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         
+        autoSaveTimer += dt;
+        if (autoSaveTimer >= 1.5) {
+            autoSaveTimer = 0;
+            saveGameState();
+        }
+
         let elapsed = GAME_TIME - timeLeft;
         objectives.forEach(obj => {
             if (obj.timeLimit && !obj.achieved && !obj.failed && elapsed >= obj.timeLimit) { 
@@ -1774,7 +2083,6 @@
             holeTarget.z += vec.y * kSpeed * dt;
             
         } else if (currentMode === 'touch' || currentMode === 'touch-inertia') {
-            // Delta-Time Friction Glide
             if (currentMode === 'touch-inertia') {
                 const glideFriction = Math.exp(-2.8 * dt);
                 inputVelocity.multiplyScalar(glideFriction);
@@ -1804,7 +2112,6 @@
         holeGroup.position.copy(holeTarget);
         groundUniforms.holePos.value.copy(holeTarget);
 
-        // Real-Time Aspect-Adaptive Dynamic Camera Zoom (Ensures hole size is always proportional across phones & desktop)
         const aspect = window.innerWidth / window.innerHeight;
         const aspectMultiplier = aspect < 1.4 ? Math.min(2.6, 1.4 / Math.max(0.45, aspect)) : 1.0;
 
@@ -1925,6 +2232,7 @@
                     }
                     
                     updateGrowthUI();
+                    saveGameState();
                 }
                 
                 if (items.length === 0) levelComplete(); 
@@ -1953,7 +2261,38 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    startLevel(currentLevel);
+    // Startup Execution
+    loadSettings();
+    
+    // Spawn background preview cityscape for the Main Menu
+    if (!loadGameState()) {
+        currentLevel = 1;
+        difficultyConfig = getDifficultyConfig(1);
+        GAME_TIME = difficultyConfig.time;
+        clearLevel();
+        
+        WORLD_SIZE = 160;
+        const AVG_RADIUS = WORLD_SIZE * 0.44;
+        polygon = [];
+        for (let i = 0; i < 60; i++) {
+            const angle = (i / 60) * Math.PI * 2; 
+            const r = AVG_RADIUS + Math.sin(angle * 3) * 12 + Math.cos(angle * 5) * 8;
+            polygon.push(new THREE.Vector2(Math.cos(angle) * r, Math.sin(angle) * r));
+        }
+        buildIslandAndWalls();
+        buildRandomHoleTop();
+        spawnCity(0, 0);
+        generateObjectives();
+        updateUI();
+    }
+    
+    // Show Main Menu on launch
+    inMainMenu = true;
+    gameActive = false;
+    isPaused = true;
+    document.getElementById('main-menu-modal').style.display = 'flex';
+    refreshMainMenuUI();
+
     animate();
 </script>
 </body>

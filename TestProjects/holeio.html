@@ -1193,8 +1193,8 @@
     let lastCallTime = performance.now() / 1000;
     
     // Pure Void Collision Masks
-    const maskGroundOnly = CG_GROUND | CG_ALL_OBJS; // Resting on floor
-    const maskVoidFall   = CG_ALL_OBJS;            // Zero floor collision, falls freely into void
+    const maskGroundOnly = CG_GROUND | CG_ALL_OBJS; 
+    const maskVoidFall   = CG_ALL_OBJS;            
     
     const _camToHole = new THREE.Vector3();
     const _camToItem = new THREE.Vector3();
@@ -1315,11 +1315,26 @@
 
         for (let i = items.length - 1; i >= 0; i--) {
             const item = items[i];
+            
+            // --- Exponential Vertical Velocity Suppression & Jump Height Clamping ---
+            if (item.body.velocity.y > 0) {
+                const vy = item.body.velocity.y;
+                // Exponential decay: higher upward speed = exponentially greater reduction
+                const decay = Math.exp(-6.0 * vy * dt);
+                item.body.velocity.y = Math.min(vy * decay, 1.2); // Strict ceiling on upward speed
+            }
+
+            // Max jump ceiling above spawn resting height
+            const maxJumpThreshold = 0.5;
+            if (item.body.position.y > item.initialY + maxJumpThreshold) {
+                item.body.position.y = item.initialY + maxJumpThreshold;
+                if (item.body.velocity.y > 0) item.body.velocity.y = 0;
+            }
+
             const dx = item.body.position.x - holeTarget.x; 
             const dz = item.body.position.z - holeTarget.z;
             const dist = Math.sqrt(dx * dx + dz * dz);
             
-            // Submerged into the hole opening
             const isSubmerged = item.body.position.y < Math.min(item.initialY - 0.4, 0.2);
             const swallowed = isSubmerged && (dist < holeRadius * 1.25);
             
@@ -1392,7 +1407,7 @@
                 continue;
             }
 
-            // Pure Void Hole Ingestion: Dropping objects lose ground support without any rim collision
+            // Pure Void Ingestion: Dropping objects lose ground support without any rim collision
             if (!swallowed) {
                 const overHole = dist < holeRadius;
                 if (overHole) { 

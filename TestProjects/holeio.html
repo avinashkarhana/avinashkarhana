@@ -191,41 +191,31 @@
     let nextBuildingId = 1;
     let buildingMap = {};
 
-    // --- Physics & Engine Setup ---
+    // --- Physics Setup (Pure Void Hole Architecture) ---
     const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -30, 0) });
     world.allowSleep = true;
-    world.solver.iterations = 60;
+    world.solver.iterations = 40;
 
-    const CG_GROUND = 1, CG_HOLE_RIM = 2, CG_ALL_OBJS = 4;
+    const CG_GROUND = 1, CG_ALL_OBJS = 2;
     const staticMat = new CANNON.Material();
     const objMat = new CANNON.Material();
-    const rimMat = new CANNON.Material();
     const wallMat = new CANNON.Material();
 
-    // Absolute zero elastic collision & smooth sliding contacts
     world.defaultContactMaterial.restitution = 0.0;
     world.defaultContactMaterial.friction = 0.4;
     
     world.addContactMaterial(new CANNON.ContactMaterial(staticMat, objMat, { 
-        friction: 0.7, 
-        restitution: 0.0, 
-        contactEquationStiffness: 1e6, 
-        contactEquationRelaxation: 3 
-    }));
-    
-    world.addContactMaterial(new CANNON.ContactMaterial(objMat, objMat, { 
         friction: 0.6, 
         restitution: 0.0, 
         contactEquationStiffness: 1e6, 
         contactEquationRelaxation: 3 
     }));
     
-    // Zero-friction, zero-bounce, energy-absorbing rim slide
-    world.addContactMaterial(new CANNON.ContactMaterial(rimMat, objMat, { 
-        friction: 0.0, 
+    world.addContactMaterial(new CANNON.ContactMaterial(objMat, objMat, { 
+        friction: 0.5, 
         restitution: 0.0, 
-        contactEquationStiffness: 1e5, 
-        contactEquationRelaxation: 4 
+        contactEquationStiffness: 1e6, 
+        contactEquationRelaxation: 3 
     }));
     
     world.addContactMaterial(new CANNON.ContactMaterial(wallMat, objMat, { 
@@ -364,9 +354,8 @@
     holeGroup.add(pitWall); holeGroup.add(pitBase);
     scene.add(holeGroup);
     
-    let holeTopMesh, holeBody;
+    let holeTopMesh;
     let holeTarget = new THREE.Vector3(0, 0, 0);
-    let prevHoleTarget = new THREE.Vector3(0, 0, 0);
 
     function isPointInPolygon(x, z, poly) {
         if (!poly || poly.length < 3) return true;
@@ -466,7 +455,7 @@
         updateGrowthUI();
         inputVelocity.set(0, 0);
         mouseDir.set(0, 0);
-        updateHolePhysics(holeRadius);
+        updateHoleVisuals(holeRadius);
     }
 
     function startLevel(levelNum) {
@@ -506,7 +495,6 @@
         }
         
         holeTarget.set(startX, 0, startZ);
-        prevHoleTarget.set(startX, 0, startZ);
         cameraTarget.set(startX, 0, startZ);
         groundUniforms.holePos.value.set(startX, 0, startZ);
         camera.position.set(startX, 7 + (1.6 * 1.5), startZ + 8 + (1.6 * 2.5));
@@ -1196,60 +1184,17 @@
     window.addEventListener('pointercancel', stopTouch);
     window.addEventListener('pointerleave', stopTouch);
 
-    // Beveled / Funneled Inward Ramp Physics Rim
-    function updateHolePhysics(radius) {
-        if (holeBody) world.removeBody(holeBody);
-        holeBody = new CANNON.Body({ 
-            type: CANNON.Body.KINEMATIC, 
-            position: new CANNON.Vec3(holeTarget.x, 0, holeTarget.z), 
-            material: rimMat 
-        });
-        holeBody.collisionFilterGroup = CG_HOLE_RIM; 
-        holeBody.collisionFilterMask = CG_ALL_OBJS; 
-        
-        const numSegments = 32; 
-        const boxThickness = 30; 
-        const boxHeight = 6;
-        const tiltAngle = 0.28; // ~16 degrees inward bevel slide
-        
-        const cosT = Math.cos(tiltAngle);
-        const sinT = Math.sin(tiltAngle);
-        const halfThick = boxThickness / 2;
-        const halfH = boxHeight / 2;
-        
-        const localInnerTopX = -halfThick * cosT - halfH * sinT;
-        const localInnerTopY = halfThick * sinT + halfH * cosT;
-        
-        const distance = (radius + 0.05) - localInnerTopX;
-        const posY = -localInnerTopY;
-        const boxWidth = 2 * (radius + 0.05 + halfThick) * Math.tan(Math.PI / numSegments) + 0.5;
-
-        for (let i = 0; i < numSegments; i++) {
-            const angle = i * ((Math.PI * 2) / numSegments);
-            const shape = new CANNON.Box(new CANNON.Vec3(halfThick, halfH, boxWidth / 2));
-            
-            const qYaw = new CANNON.Quaternion();
-            qYaw.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), -angle);
-            
-            const qTilt = new CANNON.Quaternion();
-            qTilt.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), -tiltAngle);
-            
-            const quat = qYaw.mult(qTilt);
-            
-            const shapePos = new CANNON.Vec3(
-                Math.cos(angle) * distance,
-                posY,
-                Math.sin(angle) * distance
-            );
-            
-            holeBody.addShape(shape, shapePos, quat);
-        }
-        world.addBody(holeBody);
+    function updateHoleVisuals(radius) {
+        holeGroup.scale.set(radius, 1, radius);
+        groundUniforms.holeRadius.value = radius;
     }
 
     const timeStep = 1 / 60;
     let lastCallTime = performance.now() / 1000;
-    const maskNormal = CG_GROUND | CG_ALL_OBJS, maskFalling = CG_HOLE_RIM | CG_ALL_OBJS; 
+    
+    // Pure Void Collision Masks
+    const maskGroundOnly = CG_GROUND | CG_ALL_OBJS; // Resting on floor
+    const maskVoidFall   = CG_ALL_OBJS;            // Zero floor collision, falls freely into void
     
     const _camToHole = new THREE.Vector3();
     const _camToItem = new THREE.Vector3();
@@ -1328,22 +1273,8 @@
             inputVelocity.set(0, 0); 
         }
 
-        // Continuous Kinematic Velocity Calculation
-        let velX = 0, velZ = 0;
-        if (dt > 0.0001) {
-            velX = (holeTarget.x - prevHoleTarget.x) / dt;
-            velZ = (holeTarget.z - prevHoleTarget.z) / dt;
-        }
-        prevHoleTarget.copy(holeTarget);
-
         holeGroup.position.copy(holeTarget);
-        holeGroup.scale.set(holeRadius, 1, holeRadius);
         groundUniforms.holePos.value.copy(holeTarget);
-        
-        if (holeBody) {
-            holeBody.position.set(holeTarget.x, 0, holeTarget.z);
-            holeBody.velocity.set(velX, 0, velZ);
-        }
 
         const camDist = 8 + (holeRadius * 2.5); 
         const camHeight = 7 + (holeRadius * 1.5);
@@ -1388,9 +1319,11 @@
             const dz = item.body.position.z - holeTarget.z;
             const dist = Math.sqrt(dx * dx + dz * dz);
             
+            // Submerged into the hole opening
             const isSubmerged = item.body.position.y < Math.min(item.initialY - 0.4, 0.2);
             const swallowed = isSubmerged && (dist < holeRadius * 1.25);
             
+            // Island containment
             if (!swallowed && item.body.position.y > -2.0) {
                 const itemAngle = Math.atan2(item.body.position.z, item.body.position.x);
                 const maxIslandR = getPolygonRadius(itemAngle) - 0.5; 
@@ -1407,6 +1340,7 @@
             item.mesh.position.copy(item.body.position); 
             item.mesh.quaternion.copy(item.body.quaternion);
 
+            // Unified X-Ray
             const isObstructing = (item.buildingId && occludedBuildingIds.has(item.buildingId)) || occludedSingleItems.has(item);
             item.targetOpacity = isObstructing ? 0.2 : 1.0;
 
@@ -1416,7 +1350,7 @@
 
             if (swallowed) {
                 if (item.body.collisionFilterMask !== 0) item.body.collisionFilterMask = 0; 
-                item.body.applyForce(new CANNON.Vec3(0, -item.body.mass * 25, 0), item.body.position);
+                item.body.applyForce(new CANNON.Vec3(0, -item.body.mass * 35, 0), item.body.position);
                 item.mesh.scale.multiplyScalar(0.88); 
             }
 
@@ -1448,8 +1382,7 @@
                     }
                     
                     if (leveledUp) {
-                        groundUniforms.holeRadius.value = holeRadius; 
-                        updateHolePhysics(holeRadius);
+                        updateHoleVisuals(holeRadius);
                     }
                     
                     updateGrowthUI();
@@ -1459,15 +1392,16 @@
                 continue;
             }
 
+            // Pure Void Hole Ingestion: Dropping objects lose ground support without any rim collision
             if (!swallowed) {
-                const fallThreshold = Math.max(holeRadius * 0.9, holeRadius + (item.radius * 0.3));
-                if (dist < fallThreshold) { 
-                    if (item.body.collisionFilterMask !== maskFalling) { 
-                        item.body.collisionFilterMask = maskFalling; 
+                const overHole = dist < holeRadius;
+                if (overHole) { 
+                    if (item.body.collisionFilterMask !== maskVoidFall) { 
+                        item.body.collisionFilterMask = maskVoidFall; 
                         item.body.wakeUp(); 
                     } 
-                } else if (item.body.position.y > -0.8 && item.body.collisionFilterMask !== maskNormal) {
-                    item.body.collisionFilterMask = maskNormal;
+                } else if (item.body.position.y > -0.2 && item.body.collisionFilterMask !== maskGroundOnly) {
+                    item.body.collisionFilterMask = maskGroundOnly;
                 }
             }
         }

@@ -220,7 +220,7 @@
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1500);
     let cameraTarget = new THREE.Vector3(0, 0, 0);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
@@ -235,43 +235,64 @@
     sun.shadow.camera.top = 100; sun.shadow.camera.bottom = -100;
     scene.add(sun);
 
+    // Single-Context Safe Snapshot Generator
     const snapCanvas = document.createElement('canvas');
     snapCanvas.width = 128; snapCanvas.height = 128;
-    const snapRenderer = new THREE.WebGLRenderer({ canvas: snapCanvas, alpha: true, antialias: true });
     const snapScene = new THREE.Scene();
     const snapLight = new THREE.DirectionalLight(0xffffff, 1.5);
     snapLight.position.set(5, 10, 5);
-    snapScene.add(new THREE.AmbientLight(0xffffff, 1.0), snapLight);
+    snapScene.add(new THREE.AmbientLight(0xffffff, 1.0));
+    snapScene.add(snapLight);
     const snapCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
 
     function createSnapshot(previewObj) {
-        snapScene.children = snapScene.children.filter(c => c.isLight);
-        const clone = previewObj.clone();
-        clone.position.set(0,0,0);
-        clone.rotation.set(0,0,0);
-        snapScene.add(clone);
-        
-        const box = new THREE.Box3().setFromObject(clone);
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z, 1.0);
-        
-        clone.position.sub(center); 
-        snapCamera.position.set(maxDim * 1.5, maxDim * 1.2, maxDim * 1.5);
-        snapCamera.lookAt(0, 0, 0);
-        
-        snapRenderer.render(snapScene, snapCamera);
-        const dataUrl = snapCanvas.toDataURL();
+        if (!previewObj) return null;
+        try {
+            const renderTarget = new THREE.WebGLRenderTarget(128, 128);
+            const clone = previewObj.clone(true);
+            clone.position.set(0, 0, 0);
+            clone.rotation.set(0, 0, 0);
+            snapScene.add(clone);
 
-        snapScene.remove(clone);
-        clone.traverse(c => {
-            if (c.isMesh) {
-                c.geometry?.dispose();
-                if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
-                else c.material?.dispose();
+            const box = new THREE.Box3().setFromObject(clone);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z, 1.0);
+
+            clone.position.sub(center);
+            snapCamera.position.set(maxDim * 1.5, maxDim * 1.2, maxDim * 1.5);
+            snapCamera.lookAt(0, 0, 0);
+
+            const oldTarget = renderer.getRenderTarget();
+            renderer.setRenderTarget(renderTarget);
+            renderer.render(snapScene, snapCamera);
+
+            const buffer = new Uint8Array(128 * 128 * 4);
+            renderer.readRenderTargetPixels(renderTarget, 0, 0, 128, 128, buffer);
+            renderer.setRenderTarget(oldTarget);
+
+            const sCtx = snapCanvas.getContext('2d');
+            const imgData = sCtx.createImageData(128, 128);
+            for (let y = 0; y < 128; y++) {
+                for (let x = 0; x < 128; x++) {
+                    const srcIdx = ((127 - y) * 128 + x) * 4;
+                    const dstIdx = (y * 128 + x) * 4;
+                    imgData.data[dstIdx] = buffer[srcIdx];
+                    imgData.data[dstIdx + 1] = buffer[srcIdx + 1];
+                    imgData.data[dstIdx + 2] = buffer[srcIdx + 2];
+                    imgData.data[dstIdx + 3] = buffer[srcIdx + 3];
+                }
             }
-        });
-        return dataUrl;
+            sCtx.putImageData(imgData, 0, 0);
+            const dataUrl = snapCanvas.toDataURL();
+
+            snapScene.remove(clone);
+            renderTarget.dispose();
+            return dataUrl;
+        } catch (e) {
+            console.warn("Snapshot fallback icon used:", e);
+            return null;
+        }
     }
 
     const groundUniforms = { holePos: { value: new THREE.Vector3(0, 0, 0) }, holeRadius: { value: holeRadius } };
@@ -288,7 +309,7 @@
         };
     }
 
-    // STATIC WATER
+    // Static Water
     const waterCanvas = document.createElement('canvas');
     waterCanvas.width = waterCanvas.height = 256;
     const ctx = waterCanvas.getContext('2d');
@@ -319,6 +340,7 @@
     let holeTarget = new THREE.Vector3(0, 0, 0);
 
     function isPointInPolygon(x, z, poly) {
+        if (!poly || poly.length < 3) return true;
         let isInside = false;
         for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
             const xi = poly[i].x, zi = poly[i].y;
@@ -330,6 +352,7 @@
     }
 
     function getPolygonRadius(angle) {
+        if (!polygon || polygon.length === 0) return WORLD_SIZE * 0.45;
         let a = (angle + Math.PI * 2) % (Math.PI * 2);
         const numPoints = polygon.length;
         const indexFloat = (a / (Math.PI * 2)) * numPoints;
@@ -341,7 +364,6 @@
         return r1 * (1 - t) + r2 * t; 
     }
 
-    // Dynamic Level Difficulty & Time Scaling
     function getDifficultyConfig(level) {
         if (level === 1) return { name: "Intro", min: 0.08, max: 0.12, time: 150, color: '#4caf50' };
         if (level <= 3)  return { name: "Easy",  min: 0.15, max: 0.22, time: 140, color: '#4caf50' };
@@ -386,7 +408,7 @@
     }
 
     function clearLevel() {
-        mapMeshes.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+        mapMeshes.forEach(m => { scene.remove(m); m.geometry?.dispose(); m.material?.dispose(); });
         mapMeshes = [];
         wallBodies.forEach(b => world.removeBody(b));
         wallBodies = [];
@@ -394,7 +416,7 @@
         items.forEach(item => { 
             scene.remove(item.mesh);
             if(item.mesh.isGroup) {
-                item.mesh.traverse(child => { if (child.isMesh) { child.geometry.dispose(); child.material.dispose(); } });
+                item.mesh.traverse(child => { if (child.isMesh) { child.geometry?.dispose(); child.material?.dispose(); } });
             } else {
                 item.mesh.geometry?.dispose(); item.mesh.material?.dispose();
             }
@@ -424,8 +446,8 @@
         GAME_TIME = difficultyConfig.time;
         clearLevel();
         
-        WORLD_SIZE = Math.floor(Math.random() * 80) + 120;
-        const AVG_RADIUS = WORLD_SIZE * 0.45;
+        WORLD_SIZE = Math.floor(Math.random() * 60) + 120;
+        const AVG_RADIUS = WORLD_SIZE * 0.42;
         
         polygon = [];
         const numPoints = 60;
@@ -434,7 +456,7 @@
         
         for (let i = 0; i < numPoints; i++) {
             const angle = (i / numPoints) * Math.PI * 2; 
-            const r = AVG_RADIUS + Math.sin(angle * bumpA) * 15 + Math.cos(angle * bumpB) * 10;
+            const r = AVG_RADIUS + Math.sin(angle * bumpA) * 12 + Math.cos(angle * bumpB) * 8;
             polygon.push(new THREE.Vector2(Math.cos(angle) * r, Math.sin(angle) * r));
         }
 
@@ -442,11 +464,16 @@
         buildRandomHoleTop();
         
         let startX = 0, startZ = 0;
-        while(true) {
-            startX = (Math.random() - 0.5) * WORLD_SIZE * 0.6;
-            startZ = (Math.random() - 0.5) * WORLD_SIZE * 0.6;
-            const dist = Math.sqrt(startX**2 + startZ**2);
-            if (isPointInPolygon(startX, startZ, polygon) && (getPolygonRadius(Math.atan2(startZ, startX)) - dist) > 15) break; 
+        let attempts = 0;
+        while (attempts++ < 500) {
+            const testX = (Math.random() - 0.5) * WORLD_SIZE * 0.5;
+            const testZ = (Math.random() - 0.5) * WORLD_SIZE * 0.5;
+            const dist = Math.sqrt(testX**2 + testZ**2);
+            if (isPointInPolygon(testX, testZ, polygon) && (getPolygonRadius(Math.atan2(testZ, testX)) - dist) > 10) {
+                startX = testX;
+                startZ = testZ;
+                break;
+            }
         }
         
         holeTarget.set(startX, 0, startZ);
@@ -462,7 +489,8 @@
         updateUI();
         
         document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
-        gameActive = true; isPaused = false;
+        gameActive = true; 
+        isPaused = false;
         lastCallTime = performance.now() / 1000;
     }
 
@@ -493,7 +521,7 @@
             
             const dx = p2.x - p1.x; const dy = p2.y - p1.y;
             const dist = Math.sqrt(dx*dx + dy*dy);
-            const midX = (p1.x + p2.x) / 2; const midZ = (p1.y + p2.y) / 2;
+            if (dist <= 0.001) continue;
             
             const nx = dy / dist; const nz = -dx / dist;
 
@@ -501,7 +529,7 @@
             const wallBody = new CANNON.Body({ mass: 0, material: wallMat });
             wallBody.addShape(wallShape);
             
-            wallBody.position.set(midX + (nx * wallThickness/2), 45, midZ + (nz * wallThickness/2));
+            wallBody.position.set((p1.x + p2.x) / 2 + (nx * wallThickness/2), 45, (p1.y + p2.y) / 2 + (nz * wallThickness/2));
             wallBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), -Math.atan2(dy, dx));
             
             wallBody.collisionFilterGroup = CG_GROUND;
@@ -521,8 +549,8 @@
     function buildRandomHoleTop() {
         if (holeTopMesh) {
             holeGroup.remove(holeTopMesh);
-            holeTopMesh.geometry.dispose();
-            holeTopMesh.material.dispose();
+            holeTopMesh.geometry?.dispose();
+            holeTopMesh.material?.dispose();
         }
         const rColor = new THREE.Color().setHSL(Math.random(), 0.8, 0.5);
         const type = Math.floor(Math.random() * 3);
@@ -540,7 +568,6 @@
 
     const colors = [0xff5722, 0x4caf50, 0x2196f3, 0xffeb3b, 0x9c27b0, 0xffffff, 0x607d8b, 0x795548];
 
-    // Every block/floor is an individual entity with building & block metadata
     function createSimpleEntity(x, y, z, w, h, d, color, visualType, rotY = 0, category = 'Block', buildingId = 0, blockIndex = 0, previewObj = null) {
         const meshGeom = visualType === 'cylinder' ? new THREE.CylinderGeometry(w/2, d/2, h, 16) : new THREE.BoxGeometry(w, h, d);
         const meshMat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, transparent: true, opacity: 1.0 });
@@ -550,7 +577,7 @@
         mesh.castShadow = mesh.receiveShadow = true;
         scene.add(mesh);
 
-        const mass = Math.floor(w * h * d * 5); 
+        const mass = Math.max(1, Math.floor(w * h * d * 5)); 
         totalWorldPoints += mass;
         
         let shape;
@@ -586,7 +613,6 @@
         });
     }
 
-    // Spawns discrete physics blocks while generating a FULL 3D building structure for criteria preview
     function spawnBuildingStack(cx, cz, blocksData, color, category) {
         const buildingId = nextBuildingId++;
         const previewGroup = new THREE.Group();
@@ -597,22 +623,23 @@
             const x = cx + (b.offsetX || 0);
             const y = b.y;
             const z = cz + (b.offsetZ || 0);
+            const blockCol = b.color !== undefined ? b.color : color;
             
-            // Construct visual piece for the full building preview
-            const geom = b.type === 'cylinder' ? new THREE.CylinderGeometry(b.w/2, b.w/2, b.h, 16) : new THREE.BoxGeometry(b.w, b.h, depth);
-            const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
+            const geom = b.type === 'cylinder' ? new THREE.CylinderGeometry(b.w/2, (b.d ? b.d/2 : b.w/2), b.h, 16) : new THREE.BoxGeometry(b.w, b.h, depth);
+            const mat = new THREE.MeshStandardMaterial({ color: blockCol, roughness: 0.8 });
             const pMesh = new THREE.Mesh(geom, mat);
             pMesh.position.set(b.offsetX || 0, b.y, b.offsetZ || 0);
             pMesh.rotation.y = b.rotY || 0;
             previewGroup.add(pMesh);
 
-            createSimpleEntity(x, y, z, b.w, b.h, depth, color, b.type || 'box', b.rotY || 0, category, buildingId, idx, previewGroup);
+            createSimpleEntity(x, y, z, b.w, b.h, depth, blockCol, b.type || 'box', b.rotY || 0, category, buildingId, idx, previewGroup);
         });
     }
 
     function buildSkyscraper(cx, cz, color, style) {
         let blocks = []; 
         let cy = 0;
+
         if (style === 0) {
             let floors = 5 + Math.floor(Math.random() * 4); 
             let w = 4.0 + Math.random() * 2.0;
@@ -648,7 +675,138 @@
                 cy += h; 
                 w *= 0.96; 
             }
+        } else if (style === 4) {
+            let baseH = 1.4, baseW = 5.2;
+            blocks.push({ y: cy + baseH/2, w: baseW, h: baseH, type: 'box', offsetX: 0 }); cy += baseH;
+            blocks.push({ y: cy + 0.65, w: 4.2, h: 1.3, type: 'box', offsetX: -0.5 }); cy += 1.3;
+            blocks.push({ y: cy + 0.65, w: 3.2, h: 1.3, type: 'box', offsetX: 0.6 }); cy += 1.3;
+            blocks.push({ y: cy + 0.65, w: 4.2, h: 1.3, type: 'box', offsetX: -0.4 }); cy += 1.3;
+            blocks.push({ y: cy + 0.7, w: 2.4, h: 1.4, type: 'box', offsetX: 0.7 }); cy += 1.4;
+            blocks.push({ y: cy + 0.75, w: 1.3, h: 1.5, type: 'box', offsetX: 1.1 }); cy += 1.5;
+            blocks.push({ y: cy + 1.2, w: 0.35, h: 2.4, type: 'cylinder', offsetX: 1.1 });
+        } else if (style === 5) {
+            let colH = 1.2;
+            for (let i = 0; i < 5; i++) {
+                blocks.push({ y: cy + colH/2, w: 1.8, d: 1.8, h: colH, type: 'box', offsetX: -1.5 });
+                blocks.push({ y: cy + colH/2, w: 1.8, d: 1.8, h: colH, type: 'box', offsetX: 1.5 });
+                cy += colH;
+            }
+            blocks.push({ y: cy + 0.6, w: 5.0, d: 2.0, h: 1.2, type: 'box', offsetX: 0 }); cy += 1.2;
+            blocks.push({ y: cy + 0.7, w: 1.2, d: 1.2, h: 1.4, type: 'box', offsetX: -1.5 });
+            blocks.push({ y: cy + 0.7, w: 1.2, d: 1.2, h: 1.4, type: 'box', offsetX: 1.5 }); cy += 1.4;
+            blocks.push({ y: cy + 1.0, w: 0.3, h: 2.0, type: 'cylinder', offsetX: -1.5 });
+            blocks.push({ y: cy + 1.0, w: 0.3, h: 2.0, type: 'cylinder', offsetX: 1.5 });
+        } else if (style === 6) {
+            let jFloors = 6 + Math.floor(Math.random() * 3);
+            let longDim = 4.6, shortDim = 2.2, floorH = 1.2;
+            for (let i = 0; i < jFloors; i++) {
+                let isX = i % 2 === 0;
+                let shift = (Math.random() - 0.5) * 1.0;
+                blocks.push({
+                    y: cy + floorH/2,
+                    w: isX ? longDim : shortDim,
+                    d: isX ? shortDim : longDim,
+                    h: floorH,
+                    type: 'box',
+                    offsetX: isX ? shift : 0,
+                    offsetZ: isX ? 0 : shift
+                });
+                cy += floorH;
+                longDim *= 0.94;
+                shortDim *= 0.94;
+            }
+            blocks.push({ y: cy + 0.8, w: 1.2, h: 1.6, type: 'cylinder' });
+        } else if (style === 7) {
+            let bH = 1.3;
+            blocks.push({ y: cy + bH/2, w: 4.8, d: 4.8, h: bH, type: 'box' }); cy += bH;
+            blocks.push({ y: cy + bH/2, w: 3.8, d: 3.8, h: bH, type: 'box' }); cy += bH;
+            blocks.push({ y: cy + 2.5, w: 1.8, d: 1.8, h: 5.0, type: 'box' }); cy += 5.0;
+            blocks.push({ y: cy + 0.8, w: 4.6, d: 4.6, h: 1.6, type: 'box' }); cy += 1.6;
+            blocks.push({ y: cy + 0.6, w: 3.2, d: 3.2, h: 1.2, type: 'cylinder' }); cy += 1.2;
+            blocks.push({ y: cy + 1.2, w: 0.4, h: 2.4, type: 'cylinder' });
+        } else if (style === 8) {
+            let zSteps = 5, curW = 5.6, stepH = 1.3;
+            for (let i = 0; i < zSteps; i++) {
+                blocks.push({ y: cy + stepH/2, w: curW, d: curW, h: stepH, type: 'box' });
+                cy += stepH;
+                curW -= 0.9;
+            }
+            blocks.push({ y: cy + 1.5, w: 0.4, h: 3.0, type: 'cylinder' });
+        } else if (style === 9) {
+            blocks.push({ y: cy + 0.9, w: 5.2, d: 5.2, h: 1.8, type: 'box' }); cy += 1.8;
+            blocks.push({ y: cy + 0.7, w: 4.2, d: 4.2, h: 1.4, type: 'box' }); cy += 1.4;
+            blocks.push({ y: cy + 2.0, w: 3.6, d: 3.6, h: 4.0, type: 'cylinder' }); cy += 4.0;
+            blocks.push({ y: cy + 0.4, w: 4.8, d: 4.8, h: 0.8, type: 'box' }); cy += 0.8;
+            blocks.push({ y: cy + 1.2, w: 2.6, d: 2.6, h: 2.4, type: 'cylinder' }); cy += 2.4;
+            blocks.push({ y: cy + 0.6, w: 1.6, d: 1.6, h: 1.2, type: 'box' }); cy += 1.2;
+            blocks.push({ y: cy + 1.2, w: 0.3, h: 2.4, type: 'cylinder' });
+        } else if (style === 10) {
+            let baseH = 1.4;
+            blocks.push({ y: cy + baseH/2, w: 5.6, d: 5.6, h: baseH, type: 'box' }); cy += baseH;
+            blocks.push({ y: cy + 3.0, w: 2.0, d: 2.0, h: 6.0, type: 'box' });
+            let siloR = 1.2, siloH = 6.0, offset = 1.8;
+            blocks.push({ y: cy + 3.0, w: siloR, d: siloR, h: siloH, type: 'cylinder', offsetX: -offset, offsetZ: -offset });
+            blocks.push({ y: cy + 3.0, w: siloR, d: siloR, h: siloH, type: 'cylinder', offsetX: offset, offsetZ: -offset });
+            blocks.push({ y: cy + 3.0, w: siloR, d: siloR, h: siloH, type: 'cylinder', offsetX: -offset, offsetZ: offset });
+            blocks.push({ y: cy + 3.0, w: siloR, d: siloR, h: siloH, type: 'cylinder', offsetX: offset, offsetZ: offset });
+            cy += 6.0;
+            blocks.push({ y: cy + 0.5, w: 5.0, d: 5.0, h: 1.0, type: 'box' }); cy += 1.0;
+            blocks.push({ y: cy + 1.0, w: 2.8, d: 2.8, h: 2.0, type: 'cylinder' }); cy += 2.0;
+            blocks.push({ y: cy + 1.5, w: 0.4, h: 3.0, type: 'cylinder' });
+        } else if (style === 11) {
+            let pFloors = 5, curW = 3.6, curDisc = 5.4;
+            for (let i = 0; i < pFloors; i++) {
+                blocks.push({ y: cy + 0.6, w: curW, d: curW, h: 1.2, type: 'box' }); cy += 1.2;
+                blocks.push({ y: cy + 0.2, w: curDisc, d: curDisc, h: 0.4, type: 'cylinder' }); cy += 0.4;
+                curW *= 0.86;
+                curDisc *= 0.86;
+            }
+            blocks.push({ y: cy + 1.5, w: 0.4, h: 3.0, type: 'cylinder' });
+        } else if (style === 12) {
+            blocks.push({ y: cy + 0.8, w: 4.8, d: 4.8, h: 1.6, type: 'box' }); cy += 1.6;
+            blocks.push({ y: cy + 3.5, w: 1.6, d: 1.6, h: 7.0, type: 'cylinder' }); cy += 7.0;
+            blocks.push({ y: cy + 0.6, w: 5.4, d: 5.4, h: 1.2, type: 'cylinder' }); cy += 1.2;
+            blocks.push({ y: cy + 0.6, w: 3.4, d: 3.4, h: 1.2, type: 'box' }); cy += 1.2;
+            blocks.push({ y: cy + 0.5, w: 2.2, d: 2.2, h: 1.0, type: 'cylinder' }); cy += 1.0;
+            blocks.push({ y: cy + 1.8, w: 0.3, h: 3.6, type: 'cylinder' });
+        } else if (style === 13) {
+            let coreH = 8.5;
+            blocks.push({ y: cy + 0.7, w: 4.4, d: 4.4, h: 1.4, type: 'box' }); cy += 1.4;
+            blocks.push({ y: cy + coreH/2, w: 2.0, d: 2.0, h: coreH, type: 'box' });
+            for (let i = 0; i < 5; i++) {
+                let podY = cy + (i * 1.6) + 0.8;
+                let isCyl = i % 2 === 1;
+                let side = i % 4;
+                let ox = side === 0 ? 1.8 : (side === 1 ? -1.8 : 0);
+                let oz = side === 2 ? 1.8 : (side === 3 ? -1.8 : 0);
+                blocks.push({
+                    y: podY,
+                    w: 1.4,
+                    d: 1.4,
+                    h: 1.2,
+                    type: isCyl ? 'cylinder' : 'box',
+                    offsetX: ox,
+                    offsetZ: oz
+                });
+            }
+            cy += coreH;
+            blocks.push({ y: cy + 0.6, w: 2.6, d: 2.6, h: 1.2, type: 'box' }); cy += 1.2;
+            blocks.push({ y: cy + 1.0, w: 0.35, h: 2.0, type: 'cylinder' });
+        } else if (style === 14) {
+            blocks.push({ y: cy + 1.0, w: 5.4, d: 5.4, h: 2.0, type: 'box' }); cy += 2.0;
+            blocks.push({ y: cy + 1.2, w: 3.4, d: 3.4, h: 2.4, type: 'box' });
+            let tR = 0.8, tH = 2.4, tOff = 2.1;
+            blocks.push({ y: cy + 1.2, w: tR, d: tR, h: tH, type: 'cylinder', offsetX: -tOff, offsetZ: -tOff });
+            blocks.push({ y: cy + 1.2, w: tR, d: tR, h: tH, type: 'cylinder', offsetX: tOff, offsetZ: -tOff });
+            blocks.push({ y: cy + 1.2, w: tR, d: tR, h: tH, type: 'cylinder', offsetX: -tOff, offsetZ: tOff });
+            blocks.push({ y: cy + 1.2, w: tR, d: tR, h: tH, type: 'cylinder', offsetX: tOff, offsetZ: tOff });
+            cy += 2.4;
+
+            blocks.push({ y: cy + 0.6, w: 2.6, d: 2.6, h: 1.2, type: 'cylinder' }); cy += 1.2;
+            blocks.push({ y: cy + 0.4, w: 1.6, d: 1.6, h: 0.8, type: 'cylinder' }); cy += 0.8;
+            blocks.push({ y: cy + 1.5, w: 0.35, h: 3.0, type: 'cylinder' });
         }
+
         spawnBuildingStack(cx, cz, blocks, color, 'Skyscraper');
     }
 
@@ -661,9 +819,10 @@
             const p1 = polygon[i], p2 = polygon[(i + 1) % polygon.length];
             const dx = p2.x - p1.x; const dy = p2.y - p1.y;
             const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist <= 0.001) continue;
             
             const nx = -dy / dist; const nz = dx / dist;
-            const count = Math.floor(dist / 2.05);
+            const count = Math.max(1, Math.floor(dist / 2.05));
             const angle = Math.atan2(dy, dx);
             
             for (let j = 0; j < count; j++) {
@@ -699,11 +858,49 @@
                 }
 
                 if (minDistToDt < 15 && Math.random() > 0.3) {
-                    buildSkyscraper(cx, cz, color, Math.floor(Math.random() * 4));
+                    buildSkyscraper(cx, cz, color, Math.floor(Math.random() * 15));
                 } else if (minDistToDt < 30 && Math.random() > 0.4) {
-                    spawnBuildingStack(cx, cz, [ { y: 1.5, w: 3.0, h: 3.0, type: 'box' }, { y: 3.5, w: 2.0, h: 1.0, type: 'box' } ], color, 'Office Building');
+                    let oType = Math.floor(Math.random() * 3);
+                    if (oType === 0) {
+                        spawnBuildingStack(cx, cz, [
+                            { y: 1.5, w: 3.2, h: 3.0, type: 'box' },
+                            { y: 3.6, w: 2.2, h: 1.2, type: 'cylinder' },
+                            { y: 4.5, w: 0.3, h: 1.0, type: 'cylinder' }
+                        ], color, 'Office Building');
+                    } else if (oType === 1) {
+                        spawnBuildingStack(cx, cz, [
+                            { y: 1.3, w: 3.0, d: 3.0, h: 2.6, type: 'box' },
+                            { y: 1.3, w: 1.6, d: 1.6, h: 2.6, type: 'cylinder', offsetX: 2.35 },
+                            { y: 3.1, w: 2.4, d: 2.4, h: 1.0, type: 'box' }
+                        ], color, 'Office Building');
+                    } else {
+                        spawnBuildingStack(cx, cz, [
+                            { y: 1.2, w: 2.0, d: 2.0, h: 2.4, type: 'cylinder', offsetX: -1.75 },
+                            { y: 1.2, w: 2.0, d: 2.0, h: 2.4, type: 'cylinder', offsetX: 1.75 },
+                            { y: 1.2, w: 1.4, d: 1.6, h: 2.0, type: 'box' },
+                            { y: 2.8, w: 4.6, d: 2.4, h: 0.8, type: 'box' }
+                        ], color, 'Office Building');
+                    }
                 } else if (Math.random() > 0.3) {
-                    spawnBuildingStack(cx, cz, [ { y: 1.0, w: 2.0, h: 2.0, type: 'box' }, { y: 2.5, w: 1.5, h: 1.0, type: 'box' } ], color, 'House');
+                    let hType = Math.floor(Math.random() * 3);
+                    if (hType === 0) {
+                        spawnBuildingStack(cx, cz, [
+                            { y: 1.0, w: 2.2, h: 2.0, type: 'box' },
+                            { y: 2.5, w: 1.6, h: 1.0, type: 'box' }
+                        ], color, 'House');
+                    } else if (hType === 1) {
+                        spawnBuildingStack(cx, cz, [
+                            { y: 0.9, w: 2.2, d: 2.0, h: 1.8, type: 'box' },
+                            { y: 0.9, w: 1.4, d: 1.4, h: 1.8, type: 'cylinder', offsetX: 1.85 },
+                            { y: 2.2, w: 1.8, d: 1.6, h: 0.8, type: 'box' }
+                        ], color, 'House');
+                    } else {
+                        spawnBuildingStack(cx, cz, [
+                            { y: 0.9, w: 2.0, h: 1.8, type: 'cylinder' },
+                            { y: 1.9, w: 1.4, h: 0.8, type: 'box' },
+                            { y: 2.5, w: 0.3, h: 0.8, type: 'cylinder' }
+                        ], color, 'House');
+                    }
                 }
             }
         }
@@ -727,7 +924,7 @@
                     count: 0, 
                     cat: it.cat, 
                     color: it.color, 
-                    previewObj: it.previewObj, // Full multi-tier building preview!
+                    previewObj: it.previewObj,
                     buildingIds: new Set()
                 };
             }
@@ -989,10 +1186,16 @@
     const timeStep = 1 / 60;
     let lastCallTime = performance.now() / 1000;
     const maskNormal = CG_GROUND | CG_ALL_OBJS, maskFalling = CG_HOLE_RIM | CG_ALL_OBJS; 
+    
+    const _camToHole = new THREE.Vector3();
+    const _camToItem = new THREE.Vector3();
 
     function animate() {
         requestAnimationFrame(animate);
-        if (!gameActive || isPaused) { renderer.render(scene, camera); return; }
+        if (!gameActive || isPaused) { 
+            renderer.render(scene, camera); 
+            return; 
+        }
 
         const time = performance.now() / 1000;
         const dt = Math.min(time - lastCallTime, 0.1); 
@@ -1077,8 +1280,31 @@
         scene.fog.far = camDist + 70 + (holeRadius * 8);
 
         world.step(timeStep, dt, 3);
-        const camToHole = new THREE.Vector3().subVectors(holeTarget, camera.position).normalize();
-        const distToHole = camera.position.distanceTo(holeTarget);
+        
+        _camToHole.subVectors(holeTarget, camera.position);
+        const distToHole = _camToHole.length();
+        _camToHole.normalize();
+
+        const occludedBuildingIds = new Set();
+        const occludedSingleItems = new Set();
+
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            _camToItem.subVectors(item.mesh.position, camera.position);
+            const distToItem = _camToItem.length();
+            _camToItem.normalize();
+            
+            const blockingAngle = Math.min(0.35, 0.06 + (item.radius / Math.max(1, distToItem)));
+            const isBetween = distToItem < distToHole - 3 && item.body.position.y > 0.1;
+            
+            if (isBetween && _camToHole.angleTo(_camToItem) < blockingAngle) {
+                if (item.buildingId) {
+                    occludedBuildingIds.add(item.buildingId);
+                } else {
+                    occludedSingleItems.add(item);
+                }
+            }
+        }
 
         for (let i = items.length - 1; i >= 0; i--) {
             const item = items[i];
@@ -1086,7 +1312,6 @@
             const dz = item.body.position.z - holeTarget.z;
             const dist = Math.sqrt(dx * dx + dz * dz);
             
-            // Submerged / swallow criteria
             const isSubmerged = item.body.position.y < Math.min(item.initialY - 0.4, 0.2);
             const swallowed = isSubmerged && (dist < holeRadius * 1.25);
             
@@ -1106,14 +1331,11 @@
             item.mesh.position.copy(item.body.position); 
             item.mesh.quaternion.copy(item.body.quaternion);
 
-            const camToItem = new THREE.Vector3().subVectors(item.mesh.position, camera.position);
-            const distToItem = camToItem.length(); 
-            camToItem.normalize();
-            const blockingAngle = Math.min(0.3, 0.05 + (item.radius / Math.max(1, distToItem)));
-            
-            item.targetOpacity = (distToItem < distToHole - 5 && item.body.position.y > 0 && camToHole.angleTo(camToItem) < blockingAngle) ? 0.2 : 1.0;
+            const isObstructing = (item.buildingId && occludedBuildingIds.has(item.buildingId)) || occludedSingleItems.has(item);
+            item.targetOpacity = isObstructing ? 0.2 : 1.0;
+
             if (Math.abs(item.mesh.material.opacity - item.targetOpacity) > 0.01) {
-                item.mesh.material.opacity += (item.targetOpacity - item.mesh.material.opacity) * 0.15;
+                item.mesh.material.opacity += (item.targetOpacity - item.mesh.material.opacity) * 0.18;
             }
 
             if (swallowed) {

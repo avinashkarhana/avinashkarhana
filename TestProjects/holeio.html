@@ -164,12 +164,12 @@
     let totalWorldPoints = 0;
     let score = 0;
     
-    // Growth Logic (Gradual Animation Over ~2 Seconds)
+    // Growth Logic (Smooth Animation Over ~2 Seconds)
     let holeLevel = 1;
     let holePoints = 0;
     let targetHolePoints = 100;
-    let holeRadius = 1.6;       // Live animated radius
-    let targetHoleRadius = 1.6; // Goal radius after level ups
+    let holeRadius = 1.6;       
+    let targetHoleRadius = 1.6; 
     let scoreMultiplier = 1.6; 
     
     // Sensitivities
@@ -182,7 +182,7 @@
     let isPaused = false;
     
     let objectives = []; 
-    let WORLD_SIZE = 140;
+    let WORLD_SIZE = 160;
     let polygon = []; 
     
     let items = [];
@@ -234,7 +234,7 @@
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
-    scene.fog = new THREE.Fog(0x87ceeb, 20, 150);
+    scene.fog = new THREE.Fog(0x87ceeb, 20, 160);
 
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1500);
     let cameraTarget = new THREE.Vector3(0, 0, 0);
@@ -244,14 +244,14 @@
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.75);
     scene.add(ambient);
-    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-    sun.position.set(50, 100, 20);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.25);
+    sun.position.set(70, 120, 40);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -100; sun.shadow.camera.right = 100;
-    sun.shadow.camera.top = 100; sun.shadow.camera.bottom = -100;
+    sun.shadow.camera.left = -120; sun.shadow.camera.right = 120;
+    sun.shadow.camera.top = 120; sun.shadow.camera.bottom = -120;
     scene.add(sun);
 
     // Single-Context Safe Snapshot Generator
@@ -347,6 +347,20 @@
     waterMesh.position.y = -1.5; 
     scene.add(waterMesh);
 
+    // Procedural Asphalt Road Texture with Dashed Center Markings
+    const roadCanvas = document.createElement('canvas');
+    roadCanvas.width = 64; roadCanvas.height = 64;
+    const rCtx = roadCanvas.getContext('2d');
+    rCtx.fillStyle = '#262626';
+    rCtx.fillRect(0, 0, 64, 64);
+    rCtx.fillStyle = '#ffffff';
+    rCtx.fillRect(0, 0, 64, 2);
+    rCtx.fillRect(0, 62, 64, 2);
+    rCtx.fillStyle = '#ffcc00';
+    rCtx.fillRect(16, 30, 32, 4);
+    const roadTexture = new THREE.CanvasTexture(roadCanvas);
+    roadTexture.wrapS = roadTexture.wrapT = THREE.RepeatWrapping;
+
     const holeGroup = new THREE.Group();
     const pitWall = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 40, 32, 1, true), new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.BackSide }));
     pitWall.position.y = -20;
@@ -381,6 +395,21 @@
         const r1 = Math.sqrt(polygon[i1].x**2 + polygon[i1].y**2);
         const r2 = Math.sqrt(polygon[i2].x**2 + polygon[i2].y**2);
         return r1 * (1 - t) + r2 * t; 
+    }
+
+    // Strict Boundary Check for Roads and Sidewalks to prevent any water clipping
+    function isRoadInside(x1, z1, x2, z2) {
+        const mx = (x1 + x2) / 2, mz = (z1 + z2) / 2;
+        const d1 = Math.sqrt(x1*x1 + z1*z1);
+        const d2 = Math.sqrt(x2*x2 + z2*z2);
+        const dm = Math.sqrt(mx*mx + mz*mz);
+        
+        const r1 = getPolygonRadius(Math.atan2(z1, x1));
+        const r2 = getPolygonRadius(Math.atan2(z2, x2));
+        const rm = getPolygonRadius(Math.atan2(mz, mx));
+        
+        if (r1 - d1 < 3.8 || r2 - d2 < 3.8 || rm - dm < 3.8) return false;
+        return isPointInPolygon(x1, z1, polygon) && isPointInPolygon(x2, z2, polygon) && isPointInPolygon(mx, mz, polygon);
     }
 
     function getDifficultyConfig(level) {
@@ -466,8 +495,8 @@
         GAME_TIME = difficultyConfig.time;
         clearLevel();
         
-        WORLD_SIZE = Math.floor(Math.random() * 60) + 120;
-        const AVG_RADIUS = WORLD_SIZE * 0.42;
+        WORLD_SIZE = Math.floor(Math.random() * 40) + 150;
+        const AVG_RADIUS = WORLD_SIZE * 0.44;
         
         polygon = [];
         const numPoints = 60;
@@ -489,7 +518,7 @@
             const testX = (Math.random() - 0.5) * WORLD_SIZE * 0.5;
             const testZ = (Math.random() - 0.5) * WORLD_SIZE * 0.5;
             const dist = Math.sqrt(testX**2 + testZ**2);
-            if (isPointInPolygon(testX, testZ, polygon) && (getPolygonRadius(Math.atan2(testZ, testX)) - dist) > 10) {
+            if (isPointInPolygon(testX, testZ, polygon) && (getPolygonRadius(Math.atan2(testZ, testX)) - dist) > 14) {
                 startX = testX;
                 startZ = testZ;
                 break;
@@ -656,72 +685,131 @@
         });
     }
 
+    // Street Props
+    function spawnCar(cx, cz, color, rotY = 0) {
+        spawnBuildingStack(cx, cz, [
+            { y: 0.35, w: 1.8, d: 3.4, h: 0.5, type: 'box', color: color },
+            { y: 0.85, w: 1.5, d: 1.9, h: 0.5, type: 'box', color: color, offsetZ: -0.2 }
+        ], color, 'Car');
+    }
+
+    function spawnTree(cx, cz) {
+        spawnBuildingStack(cx, cz, [
+            { y: 0.9, w: 0.4, d: 0.4, h: 1.8, type: 'cylinder', color: 0x6b4226 },
+            { y: 2.3, w: 1.8, d: 1.8, h: 1.5, type: 'cylinder', color: 0x2e8b57 },
+            { y: 3.3, w: 1.2, d: 1.2, h: 1.0, type: 'cylinder', color: 0x3cb371 }
+        ], 0x2e8b57, 'Tree');
+    }
+
+    function spawnStreetlight(cx, cz, rotY = 0) {
+        spawnBuildingStack(cx, cz, [
+            { y: 1.8, w: 0.18, d: 0.18, h: 3.6, type: 'cylinder', color: 0x333333 },
+            { y: 3.6, w: 0.6, d: 0.25, h: 0.2, type: 'box', color: 0xffffaa, offsetX: 0.25 }
+        ], 0x444444, 'Streetlight');
+    }
+
+    function spawnBench(cx, cz, rotY = 0) {
+        spawnBuildingStack(cx, cz, [
+            { y: 0.25, w: 1.4, d: 0.6, h: 0.4, type: 'box', color: 0x8b5a2b },
+            { y: 0.6, w: 1.4, d: 0.2, h: 0.5, type: 'box', color: 0x8b5a2b, offsetZ: -0.2 }
+        ], 0x8b5a2b, 'Bench');
+    }
+
+    function spawnHydrant(cx, cz) {
+        createSimpleEntity(cx, 0.4, cz, 0.5, 0.8, 0.5, 0xee2222, 'cylinder', 0, 'Hydrant');
+    }
+
+    // 15 Taller (8 to 18 Story) Architectural Skyscraper Styles
     function buildSkyscraper(cx, cz, color, style) {
         let blocks = []; 
         let cy = 0;
 
         if (style === 0) {
-            let floors = 5 + Math.floor(Math.random() * 4); 
-            let w = 4.0 + Math.random() * 2.0;
+            // Style 0: Grand 10-14 Story Stepped Pyramid Tower
+            let floors = 9 + Math.floor(Math.random() * 5); 
+            let w = 5.2 + Math.random() * 1.5;
             for (let i = 0; i < floors; i++) { 
-                let h = 1.2 + Math.random() * 0.5; 
+                let h = 1.3 + Math.random() * 0.4; 
                 blocks.push({ y: cy + h/2, w: w, h: h, type: 'box' }); 
                 cy += h; 
-                w *= 0.82; 
+                w *= 0.88; 
             }
+            blocks.push({ y: cy + 1.5, w: 0.35, h: 3.0, type: 'cylinder' });
         } else if (style === 1) {
-            let h = 2.0 + Math.random(), w = 4.5; 
+            // Style 1: Mega Corporate High-Rise with Spire (28-35m tall)
+            let h = 2.4 + Math.random(), w = 5.2; 
             blocks.push({ y: cy + h/2, w: w, h: h, type: 'box' }); cy += h;
-            h = 6 + Math.random() * 4; w = 1.8; 
-            blocks.push({ y: cy + h/2, w: w, h: h, type: 'box' }); cy += h;
-            h = 1.5; w = 3.5; 
-            blocks.push({ y: cy + h/2, w: w, h: h, type: 'box' }); cy += h;
-            h = 4; w = 0.5; 
-            blocks.push({ y: cy + h/2, w: w, h: h, type: 'cylinder' });
+            // Tall column
+            let midFloors = 8 + Math.floor(Math.random() * 4);
+            let colW = 2.4;
+            for(let i=0; i<midFloors; i++) {
+                blocks.push({ y: cy + 0.8, w: colW, h: 1.6, type: 'box' });
+                cy += 1.6;
+            }
+            // Observation Crown & Spire
+            blocks.push({ y: cy + 0.8, w: 4.2, h: 1.6, type: 'box' }); cy += 1.6;
+            blocks.push({ y: cy + 0.6, w: 2.8, h: 1.2, type: 'cylinder' }); cy += 1.2;
+            blocks.push({ y: cy + 2.0, w: 0.4, h: 4.0, type: 'cylinder' });
         } else if (style === 2) {
-            let floors = 7 + Math.floor(Math.random() * 4); 
-            let w = 3.5, h = 1.2, rot = 0;
+            // Style 2: 12-16 Story Twisted Spiral Tower
+            let floors = 12 + Math.floor(Math.random() * 4); 
+            let w = 4.2, h = 1.3, rot = 0;
             for(let i = 0; i < floors; i++) { 
                 blocks.push({ y: cy + h/2, w: w, h: h, type: 'box', rotY: rot }); 
                 cy += h; 
-                rot += 0.25; 
+                rot += 0.22; 
+                w *= 0.96;
             }
+            blocks.push({ y: cy + 1.2, w: 0.35, h: 2.4, type: 'cylinder' });
         } else if (style === 3) {
-            let floors = 7 + Math.floor(Math.random() * 4); 
-            let w = 3.5, h = 1.1;
+            // Style 3: 12-Story Serpentine Wave Tower
+            let floors = 12 + Math.floor(Math.random() * 4); 
+            let w = 4.2, h = 1.3;
             for(let i = 0; i < floors; i++) { 
-                let offsetX = Math.sin(i * 0.7) * (w * 0.2); 
-                blocks.push({ y: cy + h/2, w: w, h: h, type: 'box', offsetX }); 
+                let offsetX = Math.sin(i * 0.65) * 0.9; 
+                let offsetZ = Math.cos(i * 0.65) * 0.5;
+                blocks.push({ y: cy + h/2, w: w, h: h, type: 'box', offsetX, offsetZ }); 
                 cy += h; 
-                w *= 0.96; 
+                w *= 0.95; 
             }
+            blocks.push({ y: cy + 1.2, w: 0.4, h: 2.4, type: 'cylinder' });
         } else if (style === 4) {
-            let baseH = 1.4, baseW = 5.2;
+            // Style 4: Asymmetric Stepped Cantilever (Upgraded 10-Tier Edition)
+            let baseH = 1.6, baseW = 5.6;
             blocks.push({ y: cy + baseH/2, w: baseW, h: baseH, type: 'box', offsetX: 0 }); cy += baseH;
-            blocks.push({ y: cy + 0.65, w: 4.2, h: 1.3, type: 'box', offsetX: -0.5 }); cy += 1.3;
-            blocks.push({ y: cy + 0.65, w: 3.2, h: 1.3, type: 'box', offsetX: 0.6 }); cy += 1.3;
-            blocks.push({ y: cy + 0.65, w: 4.2, h: 1.3, type: 'box', offsetX: -0.4 }); cy += 1.3;
-            blocks.push({ y: cy + 0.7, w: 2.4, h: 1.4, type: 'box', offsetX: 0.7 }); cy += 1.4;
-            blocks.push({ y: cy + 0.75, w: 1.3, h: 1.5, type: 'box', offsetX: 1.1 }); cy += 1.5;
-            blocks.push({ y: cy + 1.2, w: 0.35, h: 2.4, type: 'cylinder', offsetX: 1.1 });
+            blocks.push({ y: cy + 0.7, w: 4.6, h: 1.4, type: 'box', offsetX: -0.6 }); cy += 1.4;
+            blocks.push({ y: cy + 0.7, w: 3.6, h: 1.4, type: 'box', offsetX: 0.7 }); cy += 1.4;
+            blocks.push({ y: cy + 0.7, w: 4.4, h: 1.4, type: 'box', offsetX: -0.5 }); cy += 1.4;
+            blocks.push({ y: cy + 0.7, w: 3.4, h: 1.4, type: 'box', offsetX: 0.6 }); cy += 1.4;
+            blocks.push({ y: cy + 0.7, w: 4.0, h: 1.4, type: 'box', offsetX: -0.4 }); cy += 1.4;
+            blocks.push({ y: cy + 0.75, w: 2.6, h: 1.5, type: 'box', offsetX: 0.8 }); cy += 1.5;
+            blocks.push({ y: cy + 0.75, w: 1.6, h: 1.5, type: 'box', offsetX: 1.2 }); cy += 1.5;
+            blocks.push({ y: cy + 1.5, w: 0.35, h: 3.0, type: 'cylinder', offsetX: 1.2 });
         } else if (style === 5) {
-            let colH = 1.2;
-            for (let i = 0; i < 5; i++) {
-                blocks.push({ y: cy + colH/2, w: 1.8, d: 1.8, h: colH, type: 'box', offsetX: -1.5 });
-                blocks.push({ y: cy + colH/2, w: 1.8, d: 1.8, h: colH, type: 'box', offsetX: 1.5 });
+            // Style 5: 12-Story Twin Towers with Double Skybridge
+            let colH = 1.3;
+            for (let i = 0; i < 9; i++) {
+                blocks.push({ y: cy + colH/2, w: 2.0, d: 2.0, h: colH, type: 'box', offsetX: -1.7 });
+                blocks.push({ y: cy + colH/2, w: 2.0, d: 2.0, h: colH, type: 'box', offsetX: 1.7 });
+                // Mid-level Skybridge at floor 4
+                if (i === 4) {
+                    blocks.push({ y: cy + colH/2, w: 5.4, d: 1.6, h: 0.8, type: 'box', offsetX: 0 });
+                }
                 cy += colH;
             }
-            blocks.push({ y: cy + 0.6, w: 5.0, d: 2.0, h: 1.2, type: 'box', offsetX: 0 }); cy += 1.2;
-            blocks.push({ y: cy + 0.7, w: 1.2, d: 1.2, h: 1.4, type: 'box', offsetX: -1.5 });
-            blocks.push({ y: cy + 0.7, w: 1.2, d: 1.2, h: 1.4, type: 'box', offsetX: 1.5 }); cy += 1.4;
-            blocks.push({ y: cy + 1.0, w: 0.3, h: 2.0, type: 'cylinder', offsetX: -1.5 });
-            blocks.push({ y: cy + 1.0, w: 0.3, h: 2.0, type: 'cylinder', offsetX: 1.5 });
+            // Upper Skybridge Connecting Both
+            blocks.push({ y: cy + 0.6, w: 5.4, d: 2.2, h: 1.2, type: 'box', offsetX: 0 }); cy += 1.2;
+            blocks.push({ y: cy + 0.8, w: 1.4, d: 1.4, h: 1.6, type: 'box', offsetX: -1.7 });
+            blocks.push({ y: cy + 0.8, w: 1.4, d: 1.4, h: 1.6, type: 'box', offsetX: 1.7 }); cy += 1.6;
+            blocks.push({ y: cy + 1.2, w: 0.35, h: 2.4, type: 'cylinder', offsetX: -1.7 });
+            blocks.push({ y: cy + 1.2, w: 0.35, h: 2.4, type: 'cylinder', offsetX: 1.7 });
         } else if (style === 6) {
-            let jFloors = 6 + Math.floor(Math.random() * 3);
-            let longDim = 4.6, shortDim = 2.2, floorH = 1.2;
+            // Style 6: 12-Tier Jenga / Cross-Cantilevered Staggered Blocks
+            let jFloors = 10 + Math.floor(Math.random() * 4);
+            let longDim = 5.2, shortDim = 2.4, floorH = 1.3;
             for (let i = 0; i < jFloors; i++) {
                 let isX = i % 2 === 0;
-                let shift = (Math.random() - 0.5) * 1.0;
+                let shift = (Math.random() - 0.5) * 1.2;
                 blocks.push({
                     y: cy + floorH/2,
                     w: isX ? longDim : shortDim,
@@ -732,108 +820,136 @@
                     offsetZ: isX ? 0 : shift
                 });
                 cy += floorH;
-                longDim *= 0.94;
-                shortDim *= 0.94;
+                longDim *= 0.95;
+                shortDim *= 0.95;
             }
-            blocks.push({ y: cy + 0.8, w: 1.2, h: 1.6, type: 'cylinder' });
+            blocks.push({ y: cy + 1.0, w: 1.2, h: 2.0, type: 'cylinder' });
         } else if (style === 7) {
-            let bH = 1.3;
-            blocks.push({ y: cy + bH/2, w: 4.8, d: 4.8, h: bH, type: 'box' }); cy += bH;
-            blocks.push({ y: cy + bH/2, w: 3.8, d: 3.8, h: bH, type: 'box' }); cy += bH;
-            blocks.push({ y: cy + 2.5, w: 1.8, d: 1.8, h: 5.0, type: 'box' }); cy += 5.0;
-            blocks.push({ y: cy + 0.8, w: 4.6, d: 4.6, h: 1.6, type: 'box' }); cy += 1.6;
-            blocks.push({ y: cy + 0.6, w: 3.2, d: 3.2, h: 1.2, type: 'cylinder' }); cy += 1.2;
-            blocks.push({ y: cy + 1.2, w: 0.4, h: 2.4, type: 'cylinder' });
+            // Style 7: 15-Story Hourglass Observation Spire
+            let bH = 1.4;
+            blocks.push({ y: cy + bH/2, w: 5.2, d: 5.2, h: bH, type: 'box' }); cy += bH;
+            blocks.push({ y: cy + bH/2, w: 4.2, d: 4.2, h: bH, type: 'box' }); cy += bH;
+            // Tall slender core
+            let coreFloors = 6;
+            for(let i=0; i<coreFloors; i++) {
+                blocks.push({ y: cy + 0.8, w: 2.2, d: 2.2, h: 1.6, type: 'box' });
+                cy += 1.6;
+            }
+            // Multi-deck Revolving Saucers
+            blocks.push({ y: cy + 0.9, w: 5.2, d: 5.2, h: 1.8, type: 'cylinder' }); cy += 1.8;
+            blocks.push({ y: cy + 0.7, w: 3.6, d: 3.6, h: 1.4, type: 'box' }); cy += 1.4;
+            blocks.push({ y: cy + 0.6, w: 2.4, d: 2.4, h: 1.2, type: 'cylinder' }); cy += 1.2;
+            blocks.push({ y: cy + 1.8, w: 0.4, h: 3.6, type: 'cylinder' });
         } else if (style === 8) {
-            let zSteps = 5, curW = 5.6, stepH = 1.3;
+            // Style 8: 9-Tier Cascading Ziggurat Terraces
+            let zSteps = 8, curW = 6.0, stepH = 1.4;
             for (let i = 0; i < zSteps; i++) {
                 blocks.push({ y: cy + stepH/2, w: curW, d: curW, h: stepH, type: 'box' });
                 cy += stepH;
-                curW -= 0.9;
+                curW -= 0.65;
             }
             blocks.push({ y: cy + 1.5, w: 0.4, h: 3.0, type: 'cylinder' });
         } else if (style === 9) {
-            blocks.push({ y: cy + 0.9, w: 5.2, d: 5.2, h: 1.8, type: 'box' }); cy += 1.8;
-            blocks.push({ y: cy + 0.7, w: 4.2, d: 4.2, h: 1.4, type: 'box' }); cy += 1.4;
-            blocks.push({ y: cy + 2.0, w: 3.6, d: 3.6, h: 4.0, type: 'cylinder' }); cy += 4.0;
-            blocks.push({ y: cy + 0.4, w: 4.8, d: 4.8, h: 0.8, type: 'box' }); cy += 0.8;
-            blocks.push({ y: cy + 1.2, w: 2.6, d: 2.6, h: 2.4, type: 'cylinder' }); cy += 2.4;
-            blocks.push({ y: cy + 0.6, w: 1.6, d: 1.6, h: 1.2, type: 'box' }); cy += 1.2;
-            blocks.push({ y: cy + 1.2, w: 0.3, h: 2.4, type: 'cylinder' });
-        } else if (style === 10) {
-            let baseH = 1.4;
-            blocks.push({ y: cy + baseH/2, w: 5.6, d: 5.6, h: baseH, type: 'box' }); cy += baseH;
-            blocks.push({ y: cy + 3.0, w: 2.0, d: 2.0, h: 6.0, type: 'box' });
-            let siloR = 1.2, siloH = 6.0, offset = 1.8;
-            blocks.push({ y: cy + 3.0, w: siloR, d: siloR, h: siloH, type: 'cylinder', offsetX: -offset, offsetZ: -offset });
-            blocks.push({ y: cy + 3.0, w: siloR, d: siloR, h: siloH, type: 'cylinder', offsetX: offset, offsetZ: -offset });
-            blocks.push({ y: cy + 3.0, w: siloR, d: siloR, h: siloH, type: 'cylinder', offsetX: -offset, offsetZ: offset });
-            blocks.push({ y: cy + 3.0, w: siloR, d: siloR, h: siloH, type: 'cylinder', offsetX: offset, offsetZ: offset });
-            cy += 6.0;
+            // Style 9: 14-Story Rotunda & Podium Skyscraper
+            blocks.push({ y: cy + 1.0, w: 5.6, d: 5.6, h: 2.0, type: 'box' }); cy += 2.0;
+            blocks.push({ y: cy + 0.8, w: 4.6, d: 4.6, h: 1.6, type: 'box' }); cy += 1.6;
+            // 4 Drum sections
+            for(let i=0; i<4; i++) {
+                blocks.push({ y: cy + 0.9, w: 3.8, d: 3.8, h: 1.8, type: 'cylinder' }); cy += 1.8;
+            }
             blocks.push({ y: cy + 0.5, w: 5.0, d: 5.0, h: 1.0, type: 'box' }); cy += 1.0;
-            blocks.push({ y: cy + 1.0, w: 2.8, d: 2.8, h: 2.0, type: 'cylinder' }); cy += 2.0;
+            blocks.push({ y: cy + 1.2, w: 2.8, d: 2.8, h: 2.4, type: 'cylinder' }); cy += 2.4;
+            blocks.push({ y: cy + 0.8, w: 1.8, d: 1.8, h: 1.6, type: 'box' }); cy += 1.6;
+            blocks.push({ y: cy + 1.5, w: 0.35, h: 3.0, type: 'cylinder' });
+        } else if (style === 10) {
+            // Style 10: 10-Story 4-Silo Industrial Compound
+            let baseH = 1.6;
+            blocks.push({ y: cy + baseH/2, w: 6.0, d: 6.0, h: baseH, type: 'box' }); cy += baseH;
+            // Central core + 4 tall silos
+            let siloH = 8.0, siloR = 1.4, offset = 1.9;
+            blocks.push({ y: cy + siloH/2, w: 2.2, d: 2.2, h: siloH, type: 'box' });
+            blocks.push({ y: cy + siloH/2, w: siloR, d: siloR, h: siloH, type: 'cylinder', offsetX: -offset, offsetZ: -offset });
+            blocks.push({ y: cy + siloH/2, w: siloR, d: siloR, h: siloH, type: 'cylinder', offsetX: offset, offsetZ: -offset });
+            blocks.push({ y: cy + siloH/2, w: siloR, d: siloR, h: siloH, type: 'cylinder', offsetX: -offset, offsetZ: offset });
+            blocks.push({ y: cy + siloH/2, w: siloR, d: siloR, h: siloH, type: 'cylinder', offsetX: offset, offsetZ: offset });
+            cy += siloH;
+            // Upper Catwalk Bridge & Towers
+            blocks.push({ y: cy + 0.6, w: 5.4, d: 5.4, h: 1.2, type: 'box' }); cy += 1.2;
+            blocks.push({ y: cy + 1.2, w: 3.2, d: 3.2, h: 2.4, type: 'cylinder' }); cy += 2.4;
             blocks.push({ y: cy + 1.5, w: 0.4, h: 3.0, type: 'cylinder' });
         } else if (style === 11) {
-            let pFloors = 5, curW = 3.6, curDisc = 5.4;
+            // Style 11: 8-Tier Pagoda High-Rise
+            let pFloors = 8, curW = 4.2, curDisc = 6.0;
             for (let i = 0; i < pFloors; i++) {
-                blocks.push({ y: cy + 0.6, w: curW, d: curW, h: 1.2, type: 'box' }); cy += 1.2;
+                blocks.push({ y: cy + 0.65, w: curW, d: curW, h: 1.3, type: 'box' }); cy += 1.3;
                 blocks.push({ y: cy + 0.2, w: curDisc, d: curDisc, h: 0.4, type: 'cylinder' }); cy += 0.4;
-                curW *= 0.86;
-                curDisc *= 0.86;
+                curW *= 0.90;
+                curDisc *= 0.90;
             }
-            blocks.push({ y: cy + 1.5, w: 0.4, h: 3.0, type: 'cylinder' });
+            blocks.push({ y: cy + 1.6, w: 0.4, h: 3.2, type: 'cylinder' });
         } else if (style === 12) {
-            blocks.push({ y: cy + 0.8, w: 4.8, d: 4.8, h: 1.6, type: 'box' }); cy += 1.6;
-            blocks.push({ y: cy + 3.5, w: 1.6, d: 1.6, h: 7.0, type: 'cylinder' }); cy += 7.0;
-            blocks.push({ y: cy + 0.6, w: 5.4, d: 5.4, h: 1.2, type: 'cylinder' }); cy += 1.2;
-            blocks.push({ y: cy + 0.6, w: 3.4, d: 3.4, h: 1.2, type: 'box' }); cy += 1.2;
-            blocks.push({ y: cy + 0.5, w: 2.2, d: 2.2, h: 1.0, type: 'cylinder' }); cy += 1.0;
-            blocks.push({ y: cy + 1.8, w: 0.3, h: 3.6, type: 'cylinder' });
+            // Style 12: 18-Story Space Needle / Orbit Tower
+            blocks.push({ y: cy + 1.0, w: 5.2, d: 5.2, h: 2.0, type: 'box' }); cy += 2.0;
+            // Slender Column
+            let shaftFloors = 6;
+            for(let i=0; i<shaftFloors; i++) {
+                blocks.push({ y: cy + 0.9, w: 1.8, d: 1.8, h: 1.8, type: 'cylinder' }); cy += 1.8;
+            }
+            // Revolving Saucer
+            blocks.push({ y: cy + 0.7, w: 5.8, d: 5.8, h: 1.4, type: 'cylinder' }); cy += 1.4;
+            blocks.push({ y: cy + 0.7, w: 3.8, d: 3.8, h: 1.4, type: 'box' }); cy += 1.4;
+            blocks.push({ y: cy + 0.6, w: 2.4, d: 2.4, h: 1.2, type: 'cylinder' }); cy += 1.2;
+            blocks.push({ y: cy + 2.0, w: 0.35, h: 4.0, type: 'cylinder' });
         } else if (style === 13) {
-            let coreH = 8.5;
-            blocks.push({ y: cy + 0.7, w: 4.4, d: 4.4, h: 1.4, type: 'box' }); cy += 1.4;
-            blocks.push({ y: cy + coreH/2, w: 2.0, d: 2.0, h: coreH, type: 'box' });
-            for (let i = 0; i < 5; i++) {
-                let podY = cy + (i * 1.6) + 0.8;
+            // Style 13: 14-Story Nakagin Modular Capsule Tower
+            let coreFloors = 8;
+            blocks.push({ y: cy + 0.8, w: 4.8, d: 4.8, h: 1.6, type: 'box' }); cy += 1.6;
+            for (let i = 0; i < coreFloors; i++) {
+                blocks.push({ y: cy + 0.8, w: 2.2, d: 2.2, h: 1.6, type: 'box' });
                 let isCyl = i % 2 === 1;
                 let side = i % 4;
-                let ox = side === 0 ? 1.8 : (side === 1 ? -1.8 : 0);
-                let oz = side === 2 ? 1.8 : (side === 3 ? -1.8 : 0);
+                let ox = side === 0 ? 1.85 : (side === 1 ? -1.85 : 0);
+                let oz = side === 2 ? 1.85 : (side === 3 ? -1.85 : 0);
                 blocks.push({
-                    y: podY,
-                    w: 1.4,
-                    d: 1.4,
-                    h: 1.2,
+                    y: cy + 0.8,
+                    w: 1.5,
+                    d: 1.5,
+                    h: 1.3,
                     type: isCyl ? 'cylinder' : 'box',
                     offsetX: ox,
                     offsetZ: oz
                 });
+                cy += 1.6;
             }
-            cy += coreH;
-            blocks.push({ y: cy + 0.6, w: 2.6, d: 2.6, h: 1.2, type: 'box' }); cy += 1.2;
-            blocks.push({ y: cy + 1.0, w: 0.35, h: 2.0, type: 'cylinder' });
+            blocks.push({ y: cy + 0.7, w: 2.8, d: 2.8, h: 1.4, type: 'box' }); cy += 1.4;
+            blocks.push({ y: cy + 1.2, w: 0.35, h: 2.4, type: 'cylinder' });
         } else if (style === 14) {
-            blocks.push({ y: cy + 1.0, w: 5.4, d: 5.4, h: 2.0, type: 'box' }); cy += 2.0;
-            blocks.push({ y: cy + 1.2, w: 3.4, d: 3.4, h: 2.4, type: 'box' });
-            let tR = 0.8, tH = 2.4, tOff = 2.1;
-            blocks.push({ y: cy + 1.2, w: tR, d: tR, h: tH, type: 'cylinder', offsetX: -tOff, offsetZ: -tOff });
-            blocks.push({ y: cy + 1.2, w: tR, d: tR, h: tH, type: 'cylinder', offsetX: tOff, offsetZ: -tOff });
-            blocks.push({ y: cy + 1.2, w: tR, d: tR, h: tH, type: 'cylinder', offsetX: -tOff, offsetZ: tOff });
-            blocks.push({ y: cy + 1.2, w: tR, d: tR, h: tH, type: 'cylinder', offsetX: tOff, offsetZ: tOff });
-            cy += 2.4;
+            // Style 14: 12-Story Art Deco Crown with Corner Turrets
+            blocks.push({ y: cy + 1.1, w: 5.6, d: 5.6, h: 2.2, type: 'box' }); cy += 2.2;
+            // Tier 2 Tower
+            blocks.push({ y: cy + 1.5, w: 3.8, d: 3.8, h: 3.0, type: 'box' });
+            let tR = 0.9, tH = 3.0, tOff = 2.2;
+            blocks.push({ y: cy + 1.5, w: tR, d: tR, h: tH, type: 'cylinder', offsetX: -tOff, offsetZ: -tOff });
+            blocks.push({ y: cy + 1.5, w: tR, d: tR, h: tH, type: 'cylinder', offsetX: tOff, offsetZ: -tOff });
+            blocks.push({ y: cy + 1.5, w: tR, d: tR, h: tH, type: 'cylinder', offsetX: -tOff, offsetZ: tOff });
+            blocks.push({ y: cy + 1.5, w: tR, d: tR, h: tH, type: 'cylinder', offsetX: tOff, offsetZ: tOff });
+            cy += 3.0;
 
-            blocks.push({ y: cy + 0.6, w: 2.6, d: 2.6, h: 1.2, type: 'cylinder' }); cy += 1.2;
-            blocks.push({ y: cy + 0.4, w: 1.6, d: 1.6, h: 0.8, type: 'cylinder' }); cy += 0.8;
-            blocks.push({ y: cy + 1.5, w: 0.35, h: 3.0, type: 'cylinder' });
+            // Tier 3
+            blocks.push({ y: cy + 1.2, w: 2.8, d: 2.8, h: 2.4, type: 'cylinder' }); cy += 2.4;
+            blocks.push({ y: cy + 0.6, w: 1.8, d: 1.8, h: 1.2, type: 'cylinder' }); cy += 1.2;
+            blocks.push({ y: cy + 1.6, w: 0.35, h: 3.2, type: 'cylinder' });
         }
 
         spawnBuildingStack(cx, cz, blocks, color, 'Skyscraper');
     }
 
+    // High-Density Urban Grid Spawner with Multi-Building Parcels
     function spawnCity(startX, startZ) {
         const downtowns = [];
         for(let i=0; i<6; i++) downtowns.push({ x: (Math.random()-0.5)*WORLD_SIZE*0.7, z: (Math.random()-0.5)*WORLD_SIZE*0.7 });
 
+        // Perimeter fence
         const inset = 1.8; 
         for (let i = 0; i < polygon.length; i++) {
             const p1 = polygon[i], p2 = polygon[(i + 1) % polygon.length];
@@ -853,47 +969,133 @@
             }
         }
 
-        const GRID_SIZE = 6.5; 
-        for (let x = -WORLD_SIZE/2; x < WORLD_SIZE/2; x += GRID_SIZE) {
-            for (let z = -WORLD_SIZE/2; z < WORLD_SIZE/2; z += GRID_SIZE) {
-                if (!isPointInPolygon(x, z, polygon)) continue; 
-                
-                let minDistToDt = Infinity;
-                downtowns.forEach(dt => { minDistToDt = Math.min(minDistToDt, Math.sqrt((x - dt.x)**2 + (z - dt.z)**2)); });
-                const distToSpawn = Math.sqrt((x - startX)**2 + (z - startZ)**2);
-                
-                const coastDist = getPolygonRadius(Math.atan2(z, x));
-                const distToCenter = Math.sqrt(x*x + z*z);
-                
-                if (coastDist - distToCenter < 8) continue; 
+        // Tighter Urban Grid for Maximum City Density
+        const BLOCK_SIZE = 16;
+        const ROAD_WIDTH = 4.5;
+        const CELL_STEP = BLOCK_SIZE + ROAD_WIDTH;
 
-                const cx = x + (Math.random() - 0.5);
-                const cz = z + (Math.random() - 0.5);
-                const color = colors[Math.floor(Math.random() * colors.length)];
+        const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0x9e9e9e, roughness: 0.85 });
+        applyHoleShader(sidewalkMat);
+
+        const roadMat = new THREE.MeshStandardMaterial({ 
+            map: roadTexture, 
+            roughness: 0.7, 
+            metalness: 0.1 
+        });
+        applyHoleShader(roadMat);
+
+        // Spawn Urban Road Grid & Dense Sidewalk Blocks
+        for (let x = -WORLD_SIZE/2; x < WORLD_SIZE/2; x += CELL_STEP) {
+            for (let z = -WORLD_SIZE/2; z < WORLD_SIZE/2; z += CELL_STEP) {
+                const cx = x + BLOCK_SIZE / 2;
+                const cz = z + BLOCK_SIZE / 2;
                 
-                if (distToSpawn < 12) {
-                    if (Math.random() > 0.3) createSimpleEntity(cx, 0.4, cz, 0.8, 0.8, 0.8, 0xffff00, 'box', 0, 'Small Box'); 
-                    if (Math.random() > 0.5) createSimpleEntity(cx+1.5, 0.4, cz-1.5, 0.6, 0.8, 0.6, 0x4caf50, 'cylinder', 0, 'Bush');
+                // Check all 4 corners of the sidewalk block to ensure strict containment on the island
+                const halfB = BLOCK_SIZE / 2;
+                const blockCorners = [
+                    { x: cx - halfB, z: cz - halfB },
+                    { x: cx + halfB, z: cz - halfB },
+                    { x: cx - halfB, z: cz + halfB },
+                    { x: cx + halfB, z: cz + halfB },
+                    { x: cx, z: cz }
+                ];
+                
+                let blockValid = true;
+                for (const pt of blockCorners) {
+                    const d = Math.sqrt(pt.x*pt.x + pt.z*pt.z);
+                    const r = getPolygonRadius(Math.atan2(pt.z, pt.x));
+                    if (r - d < 3.2 || !isPointInPolygon(pt.x, pt.z, polygon)) {
+                        blockValid = false;
+                        break;
+                    }
+                }
+                if (!blockValid) continue;
+
+                // 1. Concrete Sidewalk Block Curb
+                const swGeom = new THREE.BoxGeometry(BLOCK_SIZE, 0.08, BLOCK_SIZE);
+                const swMesh = new THREE.Mesh(swGeom, sidewalkMat);
+                swMesh.position.set(cx, 0.04, cz);
+                swMesh.receiveShadow = true;
+                scene.add(swMesh);
+                mapMeshes.push(swMesh);
+
+                // 2. Asphalt Road Segments (Bounded strictly within the island coastline)
+                const rz_pos = z - ROAD_WIDTH / 2;
+                if (isRoadInside(cx - CELL_STEP/2, rz_pos, cx + CELL_STEP/2, rz_pos)) {
+                    const roadXGeom = new THREE.PlaneGeometry(CELL_STEP, ROAD_WIDTH);
+                    const roadXMesh = new THREE.Mesh(roadXGeom, roadMat);
+                    roadXMesh.rotation.x = -Math.PI / 2;
+                    roadXMesh.position.set(cx, 0.005, rz_pos);
+                    roadXMesh.receiveShadow = true;
+                    scene.add(roadXMesh);
+                    mapMeshes.push(roadXMesh);
+                }
+
+                const rx_pos = x - ROAD_WIDTH / 2;
+                if (isRoadInside(rx_pos, cz - CELL_STEP/2, rx_pos, cz + CELL_STEP/2)) {
+                    const roadZGeom = new THREE.PlaneGeometry(ROAD_WIDTH, CELL_STEP);
+                    const roadZMesh = new THREE.Mesh(roadZGeom, roadMat);
+                    roadZMesh.rotation.x = -Math.PI / 2;
+                    roadZMesh.position.set(rx_pos, 0.006, cz);
+                    roadZMesh.receiveShadow = true;
+                    scene.add(roadZMesh);
+                    mapMeshes.push(roadZMesh);
+                }
+
+                // District Zoning & Building Population
+                let minDistToDt = Infinity;
+                downtowns.forEach(dt => { minDistToDt = Math.min(minDistToDt, Math.sqrt((cx - dt.x)**2 + (cz - dt.z)**2)); });
+                const distToSpawn = Math.sqrt((cx - startX)**2 + (cz - startZ)**2);
+                const color = colors[Math.floor(Math.random() * colors.length)];
+
+                // Starter Spawn Zone
+                if (distToSpawn < 15) {
+                    createSimpleEntity(cx, 0.4, cz, 0.8, 0.8, 0.8, 0xffff00, 'box', 0, 'Small Box'); 
+                    spawnTree(cx + 4, cz - 4);
+                    spawnTree(cx - 4, cz + 4);
+                    spawnBench(cx + 4, cz + 2, 0);
+                    spawnHydrant(cx + 6, cz + 6);
+                    spawnCar(cx - 6.2, cz - 4, 0x3498db, Math.PI / 2);
                     continue; 
                 }
 
-                if (minDistToDt < 15 && Math.random() > 0.3) {
-                    buildSkyscraper(cx, cz, color, Math.floor(Math.random() * 15));
-                } else if (minDistToDt < 30 && Math.random() > 0.4) {
-                    let oType = Math.floor(Math.random() * 3);
-                    if (oType === 0) {
-                        spawnBuildingStack(cx, cz, [
+                // A. Downtown District (Multi-Tower Parcels & High-Rise Skyscraper Clusters)
+                if (minDistToDt < 24) {
+                    let layout = Math.random();
+                    if (layout > 0.4) {
+                        // 1 Giant Centerpiece Skyscraper
+                        buildSkyscraper(cx, cz, color, Math.floor(Math.random() * 15));
+                    } else {
+                        // 2 Clustered Twin Towers in the same block
+                        buildSkyscraper(cx - 3.2, cz, color, Math.floor(Math.random() * 15));
+                        buildSkyscraper(cx + 3.2, cz, colors[(colors.indexOf(color)+3)%colors.length], Math.floor(Math.random() * 15));
+                    }
+                    
+                    // Dense sidewalk furniture & traffic
+                    spawnStreetlight(cx + 6.8, cz + 6.8, 0);
+                    spawnStreetlight(cx - 6.8, cz - 6.8, Math.PI);
+                    if (Math.random() > 0.25) spawnCar(cx + 6.8, cz - 2.5, 0xffeb3b, Math.PI / 2);
+                    if (Math.random() > 0.35) spawnCar(cx - 6.8, cz + 2.5, 0xe74c3c, Math.PI / 2);
+                    if (Math.random() > 0.45) spawnHydrant(cx + 6.8, cz - 6.8);
+                } 
+                // B. Commercial / Mid-Rise District (2-4 Office Buildings & Plazas per Block)
+                else if (minDistToDt < 46) {
+                    let oLayout = Math.random();
+                    if (oLayout > 0.45) {
+                        // Dual Office Towers
+                        spawnBuildingStack(cx - 3.2, cz, [
                             { y: 1.5, w: 3.2, h: 3.0, type: 'box' },
                             { y: 3.6, w: 2.2, h: 1.2, type: 'cylinder' },
                             { y: 4.5, w: 0.3, h: 1.0, type: 'cylinder' }
                         ], color, 'Office Building');
-                    } else if (oType === 1) {
-                        spawnBuildingStack(cx, cz, [
+
+                        spawnBuildingStack(cx + 3.2, cz, [
                             { y: 1.3, w: 3.0, d: 3.0, h: 2.6, type: 'box' },
                             { y: 1.3, w: 1.6, d: 1.6, h: 2.6, type: 'cylinder', offsetX: 2.35 },
                             { y: 3.1, w: 2.4, d: 2.4, h: 1.0, type: 'box' }
-                        ], color, 'Office Building');
+                        ], colors[(colors.indexOf(color)+2)%colors.length], 'Office Building');
                     } else {
+                        // 1 Wide Corporate Complex
                         spawnBuildingStack(cx, cz, [
                             { y: 1.2, w: 2.0, d: 2.0, h: 2.4, type: 'cylinder', offsetX: -1.75 },
                             { y: 1.2, w: 2.0, d: 2.0, h: 2.4, type: 'cylinder', offsetX: 1.75 },
@@ -901,25 +1103,54 @@
                             { y: 2.8, w: 4.6, d: 2.4, h: 0.8, type: 'box' }
                         ], color, 'Office Building');
                     }
-                } else if (Math.random() > 0.3) {
-                    let hType = Math.floor(Math.random() * 3);
-                    if (hType === 0) {
-                        spawnBuildingStack(cx, cz, [
+                    spawnTree(cx - 6.0, cz - 6.0);
+                    spawnTree(cx + 6.0, cz + 6.0);
+                    spawnBench(cx - 6.0, cz + 3, Math.PI / 2);
+                    spawnCar(cx + 6.8, cz, 0x2ecc71, Math.PI / 2);
+                } 
+                // C. Residential / Suburban District (2 to 4 Houses & Villas per Block)
+                else {
+                    let isPark = Math.random() > 0.85;
+                    if (isPark) {
+                        // Green Plaza
+                        spawnTree(cx - 4, cz - 4);
+                        spawnTree(cx + 4, cz - 4);
+                        spawnTree(cx - 4, cz + 4);
+                        spawnTree(cx + 4, cz + 4);
+                        spawnBench(cx, cz - 3, 0);
+                        spawnBench(cx, cz + 3, Math.PI);
+                        createSimpleEntity(cx, 0.6, cz, 1.4, 1.2, 1.4, 0x95a5a6, 'cylinder', 0, 'Small Box');
+                    } else {
+                        // Multi-House Residential Cluster (Up to 4 houses per block)
+                        spawnBuildingStack(cx - 3.2, cz - 3.2, [
                             { y: 1.0, w: 2.2, h: 2.0, type: 'box' },
                             { y: 2.5, w: 1.6, h: 1.0, type: 'box' }
                         ], color, 'House');
-                    } else if (hType === 1) {
-                        spawnBuildingStack(cx, cz, [
-                            { y: 0.9, w: 2.2, d: 2.0, h: 1.8, type: 'box' },
-                            { y: 0.9, w: 1.4, d: 1.4, h: 1.8, type: 'cylinder', offsetX: 1.85 },
-                            { y: 2.2, w: 1.8, d: 1.6, h: 0.8, type: 'box' }
-                        ], color, 'House');
-                    } else {
-                        spawnBuildingStack(cx, cz, [
-                            { y: 0.9, w: 2.0, h: 1.8, type: 'cylinder' },
-                            { y: 1.9, w: 1.4, h: 0.8, type: 'box' },
-                            { y: 2.5, w: 0.3, h: 0.8, type: 'cylinder' }
-                        ], color, 'House');
+
+                        spawnBuildingStack(cx + 3.2, cz + 3.2, [
+                            { y: 1.0, w: 2.2, h: 2.0, type: 'box' },
+                            { y: 2.5, w: 1.6, h: 1.0, type: 'box' }
+                        ], colors[(colors.indexOf(color)+1)%colors.length], 'House');
+
+                        if (Math.random() > 0.3) {
+                            spawnBuildingStack(cx - 3.2, cz + 3.2, [
+                                { y: 0.9, w: 2.2, d: 2.0, h: 1.8, type: 'box' },
+                                { y: 0.9, w: 1.4, d: 1.4, h: 1.8, type: 'cylinder', offsetX: 1.85 },
+                                { y: 2.2, w: 1.8, d: 1.6, h: 0.8, type: 'box' }
+                            ], colors[(colors.indexOf(color)+3)%colors.length], 'House');
+                        }
+
+                        if (Math.random() > 0.4) {
+                            spawnBuildingStack(cx + 3.2, cz - 3.2, [
+                                { y: 0.9, w: 2.0, h: 1.8, type: 'cylinder' },
+                                { y: 1.9, w: 1.4, h: 0.8, type: 'box' },
+                                { y: 2.5, w: 0.3, h: 0.8, type: 'cylinder' }
+                            ], colors[(colors.indexOf(color)+4)%colors.length], 'House');
+                        }
+
+                        spawnTree(cx - 6.5, cz + 6.5);
+                        spawnCar(cx + 6.8, cz - 2, 0x9b59b6, Math.PI / 2);
+                        spawnStreetlight(cx - 6.8, cz - 6.8, 0);
                     }
                 }
             }
@@ -1194,7 +1425,6 @@
     const timeStep = 1 / 60;
     let lastCallTime = performance.now() / 1000;
     
-    // Pure Void Collision Masks
     const maskGroundOnly = CG_GROUND | CG_ALL_OBJS; 
     const maskVoidFall   = CG_ALL_OBJS;            
     
@@ -1229,7 +1459,7 @@
             return;
         }
 
-        // --- Smooth 2-Second Hole Growth Animation ---
+        // Smooth 2-Second Hole Growth Animation
         if (Math.abs(holeRadius - targetHoleRadius) > 0.001) {
             holeRadius += (targetHoleRadius - holeRadius) * (1 - Math.exp(-2.2 * dt));
             updateHoleVisuals(holeRadius);
@@ -1326,7 +1556,7 @@
         for (let i = items.length - 1; i >= 0; i--) {
             const item = items[i];
             
-            // --- Exponential Vertical Speed Reduction & Jump Height Clamping ---
+            // Exponential Vertical Speed Reduction & Jump Height Clamping
             if (item.body.velocity.y > 0) {
                 const vy = item.body.velocity.y;
                 const decay = Math.exp(-6.0 * vy * dt);
@@ -1391,7 +1621,6 @@
                     
                     holePoints += item.mass;
                     
-                    // Trigger level-up target expansion
                     while (holePoints >= targetHolePoints) {
                         holePoints -= targetHolePoints;
                         holeLevel++;
@@ -1403,7 +1632,9 @@
                         targetHolePoints = getNextTargetPoints(holeLevel);
                     }
                     
-                    updateGrowthUI();
+                    if (leveledUp) {
+                        updateGrowthUI();
+                    }
                 }
                 
                 if (items.length === 0) levelComplete(); 

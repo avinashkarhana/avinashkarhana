@@ -352,6 +352,7 @@
             left: 50%;
         }
 
+        /* Mobile Viewport Optimizations */
         @media (max-width: 600px) {
             #ui-overlay { padding: 8px; }
             .top-bar { gap: 4px; }
@@ -833,7 +834,11 @@
         holeTarget.set(startX, 0, startZ);
         cameraTarget.set(startX, 0, startZ);
         groundUniforms.holePos.value.set(startX, 0, startZ);
-        camera.position.set(startX, 7 + (1.6 * 1.5), startZ + 8 + (1.6 * 2.5));
+        
+        // Responsive adaptive initial camera placement
+        const aspect = window.innerWidth / window.innerHeight;
+        const aspectMultiplier = aspect < 1.4 ? Math.min(2.6, 1.4 / Math.max(0.45, aspect)) : 1.0;
+        camera.position.set(startX, (7 + 1.6 * 1.5) * aspectMultiplier, startZ + (8 + 1.6 * 2.5) * aspectMultiplier);
         camera.lookAt(cameraTarget);
         
         spawnCity(startX, startZ);
@@ -1221,10 +1226,12 @@
         spawnBuildingStack(cx, cz, blocks, color, 'Skyscraper');
     }
 
+    // High-Density Urban Grid Spawner with Multi-Building Parcels
     function spawnCity(startX, startZ) {
         const downtowns = [];
         for(let i=0; i<6; i++) downtowns.push({ x: (Math.random()-0.5)*WORLD_SIZE*0.7, z: (Math.random()-0.5)*WORLD_SIZE*0.7 });
 
+        // Perimeter fence
         const inset = 1.8; 
         for (let i = 0; i < polygon.length; i++) {
             const p1 = polygon[i], p2 = polygon[(i + 1) % polygon.length];
@@ -1244,6 +1251,7 @@
             }
         }
 
+        // Tighter Urban Grid for Maximum City Density
         const BLOCK_SIZE = 16;
         const ROAD_WIDTH = 4.5;
         const CELL_STEP = BLOCK_SIZE + ROAD_WIDTH;
@@ -1258,6 +1266,7 @@
         });
         applyHoleShader(roadMat);
 
+        // Spawn Urban Road Grid & Dense Sidewalk Blocks
         for (let x = -WORLD_SIZE/2; x < WORLD_SIZE/2; x += CELL_STEP) {
             for (let z = -WORLD_SIZE/2; z < WORLD_SIZE/2; z += CELL_STEP) {
                 const cx = x + BLOCK_SIZE / 2;
@@ -1795,15 +1804,19 @@
         holeGroup.position.copy(holeTarget);
         groundUniforms.holePos.value.copy(holeTarget);
 
-        const camDist = 8 + (holeRadius * 2.5); 
-        const camHeight = 7 + (holeRadius * 1.5);
+        // Real-Time Aspect-Adaptive Dynamic Camera Zoom (Ensures hole size is always proportional across phones & desktop)
+        const aspect = window.innerWidth / window.innerHeight;
+        const aspectMultiplier = aspect < 1.4 ? Math.min(2.6, 1.4 / Math.max(0.45, aspect)) : 1.0;
+
+        const camDist = (8 + (holeRadius * 2.5)) * aspectMultiplier; 
+        const camHeight = (7 + (holeRadius * 1.5)) * aspectMultiplier;
         camera.position.lerp(new THREE.Vector3(holeTarget.x, camHeight, holeTarget.z + camDist), 0.08);
         
         cameraTarget.lerp(holeTarget, 0.15);
         camera.lookAt(cameraTarget);
         
         scene.fog.near = camDist + 5; 
-        scene.fog.far = camDist + 70 + (holeRadius * 8);
+        scene.fog.far = camDist + (75 + (holeRadius * 8)) * aspectMultiplier;
 
         world.step(timeStep, dt, 3);
         
@@ -1935,7 +1948,9 @@
     }
 
     window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth / window.innerHeight; 
+        camera.updateProjectionMatrix(); 
+        renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
     startLevel(currentLevel);

@@ -62,7 +62,7 @@
         button:hover { background: #2980b9; transform: translateY(-2px); }
         button.success { background: #2ecc71; }
         
-        #instructions { position: absolute; bottom: 20px; width: 100%; text-align: center; opacity: 0.8; font-weight: bold; pointer-events: none; font-size: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,1);}
+        #instructions { position: absolute; bottom: 20px; width: 100%; text-align: center; opacity: 0.8; font-weight: bold; pointer-events: none; font-size: 18px; text-shadow: 2px 2px 4px rgba(0,0,0,1);}
         
         #joystick-base {
             position: absolute; border-radius: 50%; width: 100px; height: 100px;
@@ -99,26 +99,26 @@
             <div id="btn-settings" onclick="showSettingsModal()">⚙️ Pause (ESC)</div>
         </div>
     </div>
-    <div id="instructions">Desktop: Mouse or WASD/Arrows | Mobile: Drag anywhere</div>
+    <div id="instructions">Move mouse from center to steer | WASD / Arrows | Touch drag</div>
 </div>
 
 <div id="settings-modal" class="modal">
     <div class="modal-content">
         <h2 style="margin-top: 0; color: #3498db;">Game Paused</h2>
         <div class="slider-row">
-            <label>Mouse Tracking</label>
-            <input type="range" id="sens-mouse" min="1" max="50" value="15">
-            <span class="val-display" id="val-mouse">15</span>
+            <label>Mouse / Trackpad</label>
+            <input type="range" id="sens-mouse" min="5" max="50" value="20">
+            <span class="val-display" id="val-mouse">20</span>
         </div>
         <div class="slider-row">
             <label>Touch Drag</label>
-            <input type="range" id="sens-touch" min="1" max="50" value="15">
-            <span class="val-display" id="val-touch">15</span>
+            <input type="range" id="sens-touch" min="5" max="50" value="20">
+            <span class="val-display" id="val-touch">20</span>
         </div>
         <div class="slider-row">
             <label>Keyboard (WASD)</label>
-            <input type="range" id="sens-key" min="1" max="50" value="25">
-            <span class="val-display" id="val-key">25</span>
+            <input type="range" id="sens-key" min="5" max="50" value="20">
+            <span class="val-display" id="val-key">20</span>
         </div>
         <button onclick="resumeGame('settings-modal')">Resume Game</button>
     </div>
@@ -164,17 +164,17 @@
     let totalWorldPoints = 0;
     let score = 0;
     
-    // Growth Logic Variables
+    // Growth Logic
     let holeLevel = 1;
     let holePoints = 0;
     let targetHolePoints = 100;
     let holeRadius = 1.6;
     let scoreMultiplier = 1.6; 
     
-    // Independent Control Sensitivities
-    let mouseSpeed = 15;
-    let touchSpeed = 15;
-    let keySpeed = 25;
+    // Sensitivities
+    let mouseSpeed = 20;
+    let touchSpeed = 20;
+    let keySpeed = 20;
     
     let timeLeft = GAME_TIME;
     let gameActive = false;
@@ -200,7 +200,7 @@
     const wallMat = new CANNON.Material();
 
     world.addContactMaterial(new CANNON.ContactMaterial(staticMat, objMat, { friction: 0.7, restitution: 0.0 }));
-    world.addContactMaterial(new CANNON.ContactMaterial(objMat, objMat, { friction: 0.5, restitution: 0.0 }));
+    world.addContactMaterial(new CANNON.ContactMaterial(objMat, objMat, { friction: 0.6, restitution: 0.0 }));
     world.addContactMaterial(new CANNON.ContactMaterial(rimMat, objMat, { friction: 0.0, restitution: 0.0, contactEquationStiffness: 1e6 }));
     world.addContactMaterial(new CANNON.ContactMaterial(wallMat, objMat, { friction: 1.0, restitution: 0.0, contactEquationStiffness: 1e8, contactEquationRelaxation: 5 }));
 
@@ -258,23 +258,32 @@
         snapCamera.lookAt(0, 0, 0);
         
         snapRenderer.render(snapScene, snapCamera);
-        return snapCanvas.toDataURL();
+        const dataUrl = snapCanvas.toDataURL();
+
+        snapScene.remove(clone);
+        clone.traverse(c => {
+            if (c.isMesh) {
+                c.geometry?.dispose();
+                if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+                else c.material?.dispose();
+            }
+        });
+        return dataUrl;
     }
 
     const groundUniforms = { holePos: { value: new THREE.Vector3(0, 0, 0) }, holeRadius: { value: holeRadius } };
-    function applyHoleShader(material, isWater = false) {
+    function applyHoleShader(material) {
         material.onBeforeCompile = (shader) => {
             shader.uniforms.holePos = groundUniforms.holePos;
             shader.uniforms.holeRadius = groundUniforms.holeRadius;
-            shader.vertexShader = `varying vec3 vCustomWorldPos;\n${shader.vertexShader}`.replace('#include <project_vertex>', `#include <project_vertex>\n vCustomWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;`);
+            shader.vertexShader = `varying vec3 vCustomWorldPos;\n${shader.vertexShader}`.replace(
+                '#include <project_vertex>', 
+                `#include <project_vertex>\n vCustomWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;`
+            );
             let fragMain = `void main() { \n if (length(vCustomWorldPos.xz - holePos.xz) < holeRadius) discard;\n`;
             shader.fragmentShader = `uniform vec3 holePos;\nuniform float holeRadius;\nvarying vec3 vCustomWorldPos;\n${shader.fragmentShader}`.replace('void main() {', fragMain);
         };
     }
-
-    const raycastPlane = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshBasicMaterial({ visible: false }));
-    raycastPlane.rotation.x = -Math.PI / 2;
-    scene.add(raycastPlane);
 
     // STATIC WATER
     const waterCanvas = document.createElement('canvas');
@@ -289,7 +298,7 @@
     waterTex.wrapS = waterTex.wrapT = THREE.RepeatWrapping; waterTex.repeat.set(30, 30);
     const waterGeom = new THREE.PlaneGeometry(2000, 2000);
     const waterMat = new THREE.MeshStandardMaterial({ color: 0x006994, roughness: 0.1, metalness: 0.2, map: waterTex });
-    applyHoleShader(waterMat, true);
+    applyHoleShader(waterMat);
     const waterMesh = new THREE.Mesh(waterGeom, waterMat);
     waterMesh.rotation.x = -Math.PI / 2;
     waterMesh.position.y = -1.5; 
@@ -382,7 +391,7 @@
             if(item.mesh.isGroup) {
                 item.mesh.traverse(child => { if (child.isMesh) { child.geometry.dispose(); child.material.dispose(); } });
             } else {
-                item.mesh.geometry.dispose(); item.mesh.material.dispose();
+                item.mesh.geometry?.dispose(); item.mesh.material?.dispose();
             }
             world.removeBody(item.body); 
         });
@@ -391,7 +400,8 @@
         groundUniforms.holeRadius.value = 1.6;
         holeLevel = 1; holePoints = 0; targetHolePoints = getNextTargetPoints(1);
         updateGrowthUI();
-        inputVelocity.set(0,0);
+        inputVelocity.set(0, 0);
+        mouseDir.set(0, 0);
         updateHolePhysics(holeRadius);
     }
 
@@ -427,6 +437,7 @@
         
         holeTarget.set(startX, 0, startZ);
         cameraTarget.set(startX, 0, startZ);
+        groundUniforms.holePos.value.set(startX, 0, startZ);
         camera.position.set(startX, 7 + (1.6 * 1.5), startZ + 8 + (1.6 * 2.5));
         camera.lookAt(cameraTarget);
         
@@ -452,7 +463,7 @@
         islandGeom.computeVertexNormals();
 
         const islandMat = new THREE.MeshStandardMaterial({ color: 0x4aa651, roughness: 0.9 });
-        applyHoleShader(islandMat, false);
+        applyHoleShader(islandMat);
         const islandMesh = new THREE.Mesh(islandGeom, islandMat);
         islandMesh.position.y = -0.01; 
         islandMesh.receiveShadow = true;
@@ -487,14 +498,18 @@
         
         const tubeGeom = new THREE.TubeGeometry(edgePath, 150, 0.8, 8, true);
         const tubeMat = new THREE.MeshStandardMaterial({ color: 0x3d8c43, roughness: 1 });
-        applyHoleShader(tubeMat, false);
+        applyHoleShader(tubeMat);
         const edgeMesh = new THREE.Mesh(tubeGeom, tubeMat);
         scene.add(edgeMesh);
         mapMeshes.push(edgeMesh);
     }
 
     function buildRandomHoleTop() {
-        if (holeTopMesh) holeGroup.remove(holeTopMesh);
+        if (holeTopMesh) {
+            holeGroup.remove(holeTopMesh);
+            holeTopMesh.geometry.dispose();
+            holeTopMesh.material.dispose();
+        }
         const rColor = new THREE.Color().setHSL(Math.random(), 0.8, 0.5);
         const type = Math.floor(Math.random() * 3);
         let geom;
@@ -511,6 +526,7 @@
 
     const colors = [0xff5722, 0x4caf50, 0x2196f3, 0xffeb3b, 0x9c27b0, 0xffffff, 0x607d8b, 0x795548];
 
+    // Every block/floor is its own individual entity in physics and graphics
     function createSimpleEntity(x, y, z, w, h, d, color, visualType, rotY = 0, category = 'Block') {
         const meshGeom = visualType === 'cylinder' ? new THREE.CylinderGeometry(w/2, d/2, h, 16) : new THREE.BoxGeometry(w, h, d);
         const meshMat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, transparent: true, opacity: 1.0 });
@@ -549,91 +565,61 @@
         items.push({ mesh, body, radius: Math.max(w, d)/2, initialY: y, targetOpacity: 1.0, mass, cat: category, color, previewObj: mesh });
     }
 
-    function createCompoundEntity(cx, cz, blocksData, color, category) {
-        const group = new THREE.Group();
-        let totalMass = 0; 
-        let maxRadius = 0;
-
-        // Compute true center of mass / geometric Y center
-        let weightedYSum = 0;
+    // Multi-block stack: Spawns discrete independent physics blocks that balance & tumble realistically
+    function spawnBuildingStack(cx, cz, blocksData, color, category) {
         blocksData.forEach(b => {
             const depth = b.d || b.w;
-            const mass = Math.floor(b.w * b.h * depth * 5);
-            totalMass += mass;
-            weightedYSum += b.y * mass;
-            const rad = Math.max(b.w, depth) / 2;
-            if (rad > maxRadius) maxRadius = rad;
+            const x = cx + (b.offsetX || 0);
+            const y = b.y;
+            const z = cz + (b.offsetZ || 0);
+            createSimpleEntity(x, y, z, b.w, b.h, depth, color, b.type || 'box', b.rotY || 0, category);
         });
-        const centerY = totalMass > 0 ? weightedYSum / totalMass : 0;
-
-        const body = new CANNON.Body({ 
-            mass: totalMass, 
-            material: objMat, 
-            position: new CANNON.Vec3(cx, centerY, cz), 
-            linearDamping: 0.3, 
-            angularDamping: 0.3 
-        });
-        
-        blocksData.forEach(b => {
-            const depth = b.d || b.w;
-            const geom = b.type === 'cylinder' ? new THREE.CylinderGeometry(b.w/2, b.w/2, b.h, 16) : new THREE.BoxGeometry(b.w, b.h, depth);
-            const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, transparent: true, opacity: 1.0 });
-            const mesh = new THREE.Mesh(geom, mat);
-            
-            const relY = b.y - centerY;
-            mesh.position.set(b.offsetX || 0, relY, b.offsetZ || 0);
-            mesh.rotation.y = b.rotY || 0;
-            mesh.castShadow = mesh.receiveShadow = true;
-            group.add(mesh);
-
-            let shape;
-            let quat = new CANNON.Quaternion();
-            if (b.type === 'cylinder') {
-                shape = new CANNON.Cylinder(b.w/2, b.w/2, b.h, 16);
-                const qRotX = new CANNON.Quaternion();
-                qRotX.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
-                const qRotY = new CANNON.Quaternion();
-                qRotY.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), b.rotY || 0);
-                quat = qRotY.mult(qRotX);
-            } else {
-                shape = new CANNON.Box(new CANNON.Vec3(b.w/2, b.h/2, depth/2));
-                quat.setFromEuler(0, b.rotY || 0, 0);
-            }
-            body.addShape(shape, new CANNON.Vec3(b.offsetX || 0, relY, b.offsetZ || 0), quat);
-        });
-
-        body.updateMassProperties();
-        body.collisionFilterGroup = CG_ALL_OBJS; 
-        body.collisionFilterMask = CG_GROUND | CG_ALL_OBJS;
-        world.addBody(body); 
-        body.sleep();
-
-        group.position.set(cx, centerY, cz);
-        scene.add(group); 
-        totalWorldPoints += totalMass; 
-        group.userData.radius = maxRadius;
-
-        items.push({ mesh: group, body, radius: maxRadius, initialY: centerY, targetOpacity: 1.0, mass: totalMass, cat: category, color, previewObj: group });
     }
 
     function buildSkyscraper(cx, cz, color, style) {
-        let blocks = []; let cy = 0;
+        let cy = 0;
         if (style === 0) {
-            let floors = 5 + Math.floor(Math.random() * 4); let w = 4.0 + Math.random() * 2.0;
-            for (let i = 0; i < floors; i++) { let h = 1.2 + Math.random() * 0.5; blocks.push({ y: cy + h/2, w: w, h: h, type: 'box' }); cy += h; w *= 0.82; }
+            let floors = 5 + Math.floor(Math.random() * 4); 
+            let w = 4.0 + Math.random() * 2.0;
+            for (let i = 0; i < floors; i++) { 
+                let h = 1.2 + Math.random() * 0.5; 
+                createSimpleEntity(cx, cy + h/2, cz, w, h, w, color, 'box', 0, 'Skyscraper');
+                cy += h; 
+                w *= 0.82; 
+            }
         } else if (style === 1) {
-            let h = 2.0 + Math.random(), w = 4.5; blocks.push({ y: cy + h/2, w: w, h: h, type: 'box' }); cy += h;
-            h = 6 + Math.random() * 4; w = 1.8; blocks.push({ y: cy + h/2, w: w, h: h, type: 'box' }); cy += h;
-            h = 1.5; w = 3.5; blocks.push({ y: cy + h/2, w: w, h: h, type: 'box' }); cy += h;
-            h = 4; w = 0.5; blocks.push({ y: cy + h/2, w: w, h: h, type: 'cylinder' });
+            let h = 2.0 + Math.random(), w = 4.5; 
+            createSimpleEntity(cx, cy + h/2, cz, w, h, w, color, 'box', 0, 'Skyscraper');
+            cy += h;
+
+            h = 6 + Math.random() * 4; w = 1.8; 
+            createSimpleEntity(cx, cy + h/2, cz, w, h, w, color, 'box', 0, 'Skyscraper');
+            cy += h;
+
+            h = 1.5; w = 3.5; 
+            createSimpleEntity(cx, cy + h/2, cz, w, h, w, color, 'box', 0, 'Skyscraper');
+            cy += h;
+
+            h = 4; w = 0.5; 
+            createSimpleEntity(cx, cy + h/2, cz, w, h, w, color, 'cylinder', 0, 'Skyscraper');
         } else if (style === 2) {
-            let floors = 7 + Math.floor(Math.random() * 4); let w = 3.5, h = 1.2, rot = 0;
-            for(let i = 0; i < floors; i++) { blocks.push({ y: cy + h/2, w: w, h: h, type: 'box', rotY: rot }); cy += h; rot += 0.25; }
+            let floors = 7 + Math.floor(Math.random() * 4); 
+            let w = 3.5, h = 1.2, rot = 0;
+            for(let i = 0; i < floors; i++) { 
+                createSimpleEntity(cx, cy + h/2, cz, w, h, w, color, 'box', rot, 'Skyscraper');
+                cy += h; 
+                rot += 0.25; 
+            }
         } else if (style === 3) {
-            let floors = 7 + Math.floor(Math.random() * 4); let w = 3.5, h = 1.1;
-            for(let i = 0; i < floors; i++) { let offsetX = Math.sin(i * 0.7) * (w * 0.2); blocks.push({ y: cy + h/2, w: w, h: h, type: 'box', offsetX }); cy += h; w *= 0.96; }
+            let floors = 7 + Math.floor(Math.random() * 4); 
+            let w = 3.5, h = 1.1;
+            for(let i = 0; i < floors; i++) { 
+                let offsetX = Math.sin(i * 0.7) * (w * 0.2); 
+                createSimpleEntity(cx + offsetX, cy + h/2, cz, w, h, w, color, 'box', 0, 'Skyscraper');
+                cy += h; 
+                w *= 0.96; 
+            }
         }
-        createCompoundEntity(cx, cz, blocks, color, 'Skyscraper');
     }
 
     function spawnCity(startX, startZ) {
@@ -685,9 +671,9 @@
                 if (minDistToDt < 15 && Math.random() > 0.3) {
                     buildSkyscraper(cx, cz, color, Math.floor(Math.random() * 4));
                 } else if (minDistToDt < 30 && Math.random() > 0.4) {
-                    createCompoundEntity(cx, cz, [ { y: 1.5, w: 3.0, h: 3.0, type: 'box' }, { y: 3.5, w: 2.0, h: 1.0, type: 'box' } ], color, 'Office Building');
+                    spawnBuildingStack(cx, cz, [ { y: 1.5, w: 3.0, h: 3.0, type: 'box' }, { y: 3.5, w: 2.0, h: 1.0, type: 'box' } ], color, 'Office Building');
                 } else if (Math.random() > 0.3) {
-                    createCompoundEntity(cx, cz, [ { y: 1.0, w: 2.0, h: 2.0, type: 'box' }, { y: 2.5, w: 1.5, h: 1.0, type: 'box' } ], color, 'House');
+                    spawnBuildingStack(cx, cz, [ { y: 1.0, w: 2.0, h: 2.0, type: 'box' }, { y: 2.5, w: 1.5, h: 1.0, type: 'box' } ], color, 'House');
                 }
             }
         }
@@ -716,8 +702,8 @@
             if (validGroups.length > 0) {
                 const group = validGroups.pop();
                 const baseRadius = group.previewObj.userData.radius;
-                let maxCount = baseRadius > 2.0 ? 2 : (baseRadius > 1.2 ? 3 : 5);
-                const reqCount = Math.min(group.count, Math.floor(Math.random() * maxCount) + 1); 
+                let maxCount = baseRadius > 2.0 ? 5 : (baseRadius > 1.2 ? 8 : 12);
+                const reqCount = Math.min(group.count, Math.floor(Math.random() * maxCount) + 2); 
                 
                 let hasTimeLimit = Math.random() > 0.5;
                 let limit = null;
@@ -729,7 +715,7 @@
                     if (limit > GAME_TIME - 15) limit = null; 
                 }
                 
-                let desc = `Eat ${reqCount} ${group.cat}${reqCount>1?'s':''}`;
+                let desc = `Eat ${reqCount} ${group.cat} block${reqCount>1?'s':''}`;
                 if (limit) desc += ` in first ${limit}s`;
 
                 objectives.push({
@@ -768,15 +754,24 @@
         document.getElementById('score-text').style.color = obj0.achieved ? '#2ecc71' : '#fff';
     }
 
-    window.showSettingsModal = () => { isPaused = true; document.getElementById('settings-modal').style.display = 'flex'; };
+    window.showSettingsModal = () => { 
+        isPaused = true; 
+        document.getElementById('sens-mouse').value = mouseSpeed;
+        document.getElementById('val-mouse').innerText = mouseSpeed;
+        document.getElementById('sens-touch').value = touchSpeed;
+        document.getElementById('val-touch').innerText = touchSpeed;
+        document.getElementById('sens-key').value = keySpeed;
+        document.getElementById('val-key').innerText = keySpeed;
+        document.getElementById('settings-modal').style.display = 'flex'; 
+    };
     window.showObjectivesModal = () => { isPaused = true; populateObjectiveModal(); document.getElementById('obj-modal').style.display = 'flex'; };
     window.resumeGame = (modalId) => { isPaused = false; document.getElementById(modalId).style.display = 'none'; lastCallTime = performance.now() / 1000; };
     window.nextLevel = () => startLevel(currentLevel + 1);
     window.retryLevel = () => startLevel(currentLevel);
 
-    document.getElementById('sens-mouse').oninput = (e) => { mouseSpeed = e.target.value; document.getElementById('val-mouse').innerText = e.target.value; };
-    document.getElementById('sens-touch').oninput = (e) => { touchSpeed = e.target.value; document.getElementById('val-touch').innerText = e.target.value; };
-    document.getElementById('sens-key').oninput = (e) => { keySpeed = e.target.value; document.getElementById('val-key').innerText = e.target.value; };
+    document.getElementById('sens-mouse').oninput = (e) => { mouseSpeed = parseFloat(e.target.value); document.getElementById('val-mouse').innerText = e.target.value; };
+    document.getElementById('sens-touch').oninput = (e) => { touchSpeed = parseFloat(e.target.value); document.getElementById('val-touch').innerText = e.target.value; };
+    document.getElementById('sens-key').oninput = (e) => { keySpeed = parseFloat(e.target.value); document.getElementById('val-key').innerText = e.target.value; };
 
     function updateUI() {
         document.getElementById('level-text').innerText = `Level ${currentLevel} - ${difficultyConfig.name}`;
@@ -812,7 +807,7 @@
         const modal = document.getElementById('end-modal');
         const title = document.getElementById('end-title');
         modal.style.display = 'flex';
-        document.getElementById('end-stats').innerText = `Final Score: ${score} Points\nMass Reached: ${scoreMultiplier.toFixed(1)}m`;
+        document.getElementById('end-stats').innerText = `Final Score: ${score} Points\nHole Diameter: ${(holeRadius * 2).toFixed(1)}m`;
         
         let starsHtml = '';
         let passed = objectives[0].achieved; 
@@ -824,7 +819,7 @@
     }
     document.getElementById('stars-container').addEventListener('click', showObjectivesModal);
 
-    // --- Core Inputs ---
+    // --- Inputs ---
     const activeKeys = new Set();
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -835,12 +830,14 @@
         }
     });
     window.addEventListener('keyup', (e) => { activeKeys.delete(e.key.toLowerCase()); });
+    window.addEventListener('blur', () => { 
+        activeKeys.clear(); 
+        inputVelocity.set(0, 0);
+        mouseDir.set(0, 0);
+    });
 
     let lastPointerType = 'mouse';
-    let mouseMoved = false;
-    const mouse = new THREE.Vector2();
-    const raycaster = new THREE.Raycaster();
-    
+    const mouseDir = new THREE.Vector2(0, 0);
     let inputVelocity = new THREE.Vector2(0, 0);
     let isDragging = false;
     let dragStart = new THREE.Vector2();
@@ -864,9 +861,17 @@
     window.addEventListener('pointermove', (e) => {
         lastPointerType = e.pointerType;
         if(e.pointerType === 'mouse') {
-            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-            mouseMoved = true;
+            const nx = (e.clientX / window.innerWidth) * 2 - 1;
+            const ny = (e.clientY / window.innerHeight) * 2 - 1;
+            const dist = Math.sqrt(nx * nx + ny * ny);
+            const deadzone = 0.05;
+            
+            if (dist < deadzone) {
+                mouseDir.set(0, 0);
+            } else {
+                const strength = Math.min(1.0, (dist - deadzone) / 0.7);
+                mouseDir.set((nx / dist) * strength, (ny / dist) * strength);
+            }
         } else {
             if(!isDragging || isPaused) return;
             let dx = e.clientX - dragStart.x;
@@ -882,11 +887,15 @@
         }
     });
 
-    window.addEventListener('pointerup', (e) => { 
+    const stopTouch = (e) => {
         if (e.pointerType === 'mouse') return;
         isDragging = false; 
         joystickBase.style.display = 'none';
-    });
+        inputVelocity.set(0, 0);
+    };
+    window.addEventListener('pointerup', stopTouch);
+    window.addEventListener('pointercancel', stopTouch);
+    window.addEventListener('pointerleave', stopTouch);
 
     function updateHolePhysics(radius) {
         if (holeBody) world.removeBody(holeBody);
@@ -905,22 +914,6 @@
         world.addBody(holeBody);
     }
 
-    const timerInterval = setInterval(() => {
-        if (!gameActive || isPaused) return;
-        timeLeft--;
-        const mins = Math.floor(Math.max(0, timeLeft) / 60); const secs = Math.max(0, timeLeft) % 60;
-        document.getElementById('timer').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        
-        let elapsed = GAME_TIME - timeLeft;
-        objectives.forEach(obj => {
-            if (obj.timeLimit && !obj.achieved && !obj.failed && elapsed >= obj.timeLimit) { 
-                obj.failed = true; 
-                document.getElementById(`ui-star-${obj.id}`).classList.add('failed'); 
-            }
-        });
-        if (timeLeft <= 0) levelComplete();
-    }, 1000);
-
     const timeStep = 1 / 60;
     let lastCallTime = performance.now() / 1000;
     const maskNormal = CG_GROUND | CG_ALL_OBJS, maskFalling = CG_HOLE_RIM | CG_ALL_OBJS; 
@@ -933,12 +926,31 @@
         const dt = Math.min(time - lastCallTime, 0.1); 
         lastCallTime = time;
 
+        timeLeft -= dt;
+        const mins = Math.floor(Math.max(0, timeLeft) / 60); 
+        const secs = Math.floor(Math.max(0, timeLeft) % 60);
+        document.getElementById('timer').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        
+        let elapsed = GAME_TIME - timeLeft;
+        objectives.forEach(obj => {
+            if (obj.timeLimit && !obj.achieved && !obj.failed && elapsed >= obj.timeLimit) { 
+                obj.failed = true; 
+                document.getElementById(`ui-star-${obj.id}`).classList.add('failed'); 
+            }
+        });
+        if (timeLeft <= 0) {
+            levelComplete();
+            return;
+        }
+
         if (holeTopMesh) holeTopMesh.rotation.z += 0.02;
 
         let currentMode = 'mouse';
         if (activeKeys.size > 0) currentMode = 'keyboard';
         else if (lastPointerType !== 'mouse' && isDragging) currentMode = 'touch';
         else if (lastPointerType !== 'mouse' && !isDragging) currentMode = 'touch-inertia';
+
+        const baseSpeed = (20 + holeRadius * 2);
 
         if (currentMode === 'keyboard') {
             let kx = 0, ky = 0;
@@ -950,44 +962,21 @@
             let vec = new THREE.Vector2(kx, ky);
             if(vec.lengthSq() > 0) vec.normalize();
             
-            const kSpeed = (20 + holeRadius * 2) * (keySpeed / 10);
+            const kSpeed = baseSpeed * (keySpeed / 20);
             holeTarget.x += vec.x * kSpeed * dt;
             holeTarget.z += vec.y * kSpeed * dt;
             
         } else if (currentMode === 'touch' || currentMode === 'touch-inertia') {
-            if (currentMode === 'touch-inertia') inputVelocity.multiplyScalar(0.92);
+            if (currentMode === 'touch-inertia') inputVelocity.multiplyScalar(0.90);
 
-            const tSpeed = (40 + holeRadius * 2) * (touchSpeed / 10);
+            const tSpeed = baseSpeed * (touchSpeed / 20);
             holeTarget.x += inputVelocity.x * tSpeed * dt;
             holeTarget.z += inputVelocity.y * tSpeed * dt;
 
         } else if (currentMode === 'mouse') {
-            if (mouseMoved) {
-                raycaster.setFromCamera(mouse, camera);
-                const intersect = raycaster.intersectObject(raycastPlane);
-                if (intersect.length > 0) {
-                    const rt = intersect[0].point;
-                    
-                    const maxTargetDist = 30 + holeRadius * 2;
-                    const distToRt = Math.sqrt((rt.x - holeTarget.x)**2 + (rt.z - holeTarget.z)**2);
-                    if (distToRt > maxTargetDist) {
-                        rt.x = holeTarget.x + ((rt.x - holeTarget.x) / distToRt) * maxTargetDist;
-                        rt.z = holeTarget.z + ((rt.z - holeTarget.z) / distToRt) * maxTargetDist;
-                    }
-                    
-                    const angle = Math.atan2(rt.z, rt.x);
-                    const maxR = getPolygonRadius(angle) - holeRadius;
-                    const dist = Math.sqrt(rt.x*rt.x + rt.z*rt.z);
-                    
-                    if (dist > maxR && maxR > 0) {
-                        rt.x = (rt.x / dist) * maxR;
-                        rt.z = (rt.z / dist) * maxR;
-                    }
-
-                    const lerpFactor = (mouseSpeed / 100) * (dt * 60); 
-                    holeTarget.lerp(rt, Math.min(lerpFactor, 1.0));
-                }
-            }
+            const mSpeed = baseSpeed * (mouseSpeed / 20);
+            holeTarget.x += mouseDir.x * mSpeed * dt;
+            holeTarget.z += mouseDir.y * mSpeed * dt;
         }
 
         const targetAngle = Math.atan2(holeTarget.z, holeTarget.x);
@@ -1005,13 +994,15 @@
         groundUniforms.holePos.value.copy(holeTarget);
         if (holeBody) holeBody.position.set(holeTarget.x, 0, holeTarget.z);
 
-        const camDist = 8 + (holeRadius * 2.5); const camHeight = 7 + (holeRadius * 1.5);
+        const camDist = 8 + (holeRadius * 2.5); 
+        const camHeight = 7 + (holeRadius * 1.5);
         camera.position.lerp(new THREE.Vector3(holeTarget.x, camHeight, holeTarget.z + camDist), 0.08);
         
         cameraTarget.lerp(holeTarget, 0.15);
         camera.lookAt(cameraTarget);
         
-        scene.fog.near = camDist + 5; scene.fog.far = camDist + 70 + (holeRadius * 8);
+        scene.fog.near = camDist + 5; 
+        scene.fog.far = camDist + 70 + (holeRadius * 8);
 
         world.step(timeStep, dt, 3);
         const camToHole = new THREE.Vector3().subVectors(holeTarget, camera.position).normalize();
@@ -1023,8 +1014,8 @@
             const dz = item.body.position.z - holeTarget.z;
             const dist = Math.sqrt(dx * dx + dz * dz);
             
-            // Dynamic threshold based on initial elevation: centers dropping into the hole are immediately swallowed
-            const isSubmerged = item.body.position.y < Math.min(item.initialY - 0.5, 0.2);
+            // Submerged / swallow criteria for individual blocks
+            const isSubmerged = item.body.position.y < Math.min(item.initialY - 0.4, 0.2);
             const swallowed = isSubmerged && (dist < holeRadius * 1.25);
             
             if (!swallowed && item.body.position.y > -2.0) {
@@ -1049,13 +1040,7 @@
             const blockingAngle = Math.min(0.3, 0.05 + (item.radius / Math.max(1, distToItem)));
             
             item.targetOpacity = (distToItem < distToHole - 5 && item.body.position.y > 0 && camToHole.angleTo(camToItem) < blockingAngle) ? 0.2 : 1.0;
-            if (item.mesh.isGroup) { 
-                item.mesh.traverse((c) => { 
-                    if (c.isMesh && Math.abs(c.material.opacity - item.targetOpacity) > 0.01) {
-                        c.material.opacity += (item.targetOpacity - c.material.opacity) * 0.15; 
-                    }
-                }); 
-            } else if (Math.abs(item.mesh.material.opacity - item.targetOpacity) > 0.01) {
+            if (Math.abs(item.mesh.material.opacity - item.targetOpacity) > 0.01) {
                 item.mesh.material.opacity += (item.targetOpacity - item.mesh.material.opacity) * 0.15;
             }
 
@@ -1067,12 +1052,8 @@
 
             if (item.body.position.y < -6 || item.mesh.scale.x < 0.08) {
                 scene.remove(item.mesh);
-                if (item.mesh.isGroup) {
-                    item.mesh.traverse(c => { if(c.isMesh) { c.geometry.dispose(); c.material.dispose(); } });
-                } else { 
-                    item.mesh.geometry.dispose(); 
-                    item.mesh.material.dispose(); 
-                }
+                item.mesh.geometry?.dispose(); 
+                item.mesh.material?.dispose(); 
                 world.removeBody(item.body);
                 items.splice(i, 1);
                 
@@ -1109,7 +1090,7 @@
             }
 
             if (!swallowed) {
-                const fallThreshold = Math.max(holeRadius * 0.9, holeRadius + (item.radius * 0.4));
+                const fallThreshold = Math.max(holeRadius * 0.9, holeRadius + (item.radius * 0.3));
                 if (dist < fallThreshold) { 
                     if (item.body.collisionFilterMask !== maskFalling) { 
                         item.body.collisionFilterMask = maskFalling; 

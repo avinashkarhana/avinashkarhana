@@ -212,7 +212,6 @@
             box-sizing: border-box;
         }
 
-        /* Cyberpunk Main Menu Title & Badges */
         .main-menu-title {
             font-family: 'Orbitron', sans-serif;
             font-size: 32px;
@@ -337,7 +336,7 @@
             color: var(--neon-green); 
             background: linear-gradient(135deg, rgba(0, 255, 102, 0.2), rgba(0, 255, 102, 0.05));
         }
-        button.success:hover {
+        button.success:hover { 
             background: var(--neon-green); 
             color: #05070d; 
             box-shadow: 0 0 20px rgba(0, 255, 102, 0.6);
@@ -348,8 +347,8 @@
             background: linear-gradient(135deg, rgba(255, 0, 85, 0.2), rgba(255, 0, 85, 0.05));
         }
         button.danger:hover {
-            background: var(--neon-pink);
-            color: #ffffff;
+            background: var(--neon-pink); 
+            color: #ffffff; 
             box-shadow: 0 0 20px rgba(255, 0, 85, 0.6);
         }
         button:disabled {
@@ -402,7 +401,6 @@
             left: 50%;
         }
 
-        /* Mobile Viewport Optimizations */
         @media (max-width: 600px) {
             #ui-overlay { padding: 8px; }
             .top-bar { gap: 4px; }
@@ -467,9 +465,9 @@
         <h1 class="main-menu-title">// HOLE.IO //</h1>
         <div class="main-menu-sub">CYBERPUNK SINGULARITY</div>
         <div id="main-menu-save-info" class="save-badge" style="display: none;"></div>
-        <button id="btn-menu-resume" class="success" onclick="handleResumeGame()">RESUME MISSION</button>
-        <button id="btn-menu-new" onclick="handleNewGame()">NEW GAME</button>
-        <button onclick="showSettingsModal()">SETTINGS</button>
+        <button id="btn-menu-resume" class="success">RESUME MISSION</button>
+        <button id="btn-menu-new">NEW GAME</button>
+        <button id="btn-menu-settings">SETTINGS</button>
     </div>
 </div>
 
@@ -492,7 +490,7 @@
             <input type="range" id="sens-key" min="5" max="50" value="20">
             <span class="val-display" id="val-key">20</span>
         </div>
-        <button class="success" onclick="resumeGame('settings-modal')">RESUME</button>
+        <button id="btn-settings-resume" class="success" onclick="resumeGame('settings-modal')">RESUME</button>
         <button class="danger" onclick="returnToMainMenu('settings-modal')">MAIN MENU</button>
     </div>
 </div>
@@ -686,9 +684,9 @@
             updateUI();
 
             document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+            inMainMenu = false;
             gameActive = true; 
             isPaused = false;
-            inMainMenu = false;
             lastCallTime = performance.now() / 1000;
             return true;
         } catch (e) {
@@ -711,17 +709,17 @@
             if (saved) {
                 const state = JSON.parse(saved);
                 if (state && state.currentLevel && state.items && state.items.length > 0) {
-                    resumeBtn.disabled = false;
                     const mins = Math.floor(Math.max(0, state.timeLeft) / 60);
                     const secs = Math.floor(Math.max(0, state.timeLeft) % 60);
                     infoBadge.style.display = 'block';
                     infoBadge.innerHTML = `SAVED DATA: <strong>SECTOR ${state.currentLevel}</strong> // SCORE: <strong>${state.score} PTS</strong> // TIME: <strong>${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}</strong>`;
+                    resumeBtn.innerHTML = "RESUME MISSION";
                     return;
                 }
             }
         } catch(e) {}
-        resumeBtn.disabled = true;
         infoBadge.style.display = 'none';
+        resumeBtn.innerHTML = "START MISSION";
     }
 
     // --- Physics Setup (Pure Void Hole Architecture) ---
@@ -768,7 +766,7 @@
     scene.background = new THREE.Color(0x87ceeb);
     scene.fog = new THREE.Fog(0x87ceeb, 20, 160);
 
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1500);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.8, 500);
     let cameraTarget = new THREE.Vector3(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -879,7 +877,7 @@
     waterMesh.position.y = -1.5; 
     scene.add(waterMesh);
 
-    // Procedural Asphalt Road Texture with Dashed Center Markings
+    // Procedural Asphalt Road Texture
     const roadCanvas = document.createElement('canvas');
     roadCanvas.width = 64; roadCanvas.height = 64;
     const rCtx = roadCanvas.getContext('2d');
@@ -892,6 +890,21 @@
     rCtx.fillRect(16, 30, 32, 4);
     const roadTexture = new THREE.CanvasTexture(roadCanvas);
     roadTexture.wrapS = roadTexture.wrapT = THREE.RepeatWrapping;
+
+    // Procedural Crosswalk / Intersection Junction Texture
+    const interCanvas = document.createElement('canvas');
+    interCanvas.width = 64; interCanvas.height = 64;
+    const iCtx = interCanvas.getContext('2d');
+    iCtx.fillStyle = '#262626';
+    iCtx.fillRect(0, 0, 64, 64);
+    iCtx.fillStyle = '#ffffff';
+    for (let k = 8; k < 56; k += 10) {
+        iCtx.fillRect(k, 2, 6, 8);   
+        iCtx.fillRect(k, 54, 6, 8);  
+        iCtx.fillRect(2, k, 8, 6);   
+        iCtx.fillRect(54, k, 8, 6);  
+    }
+    const intersectionTexture = new THREE.CanvasTexture(interCanvas);
 
     const holeGroup = new THREE.Group();
     const pitWall = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 40, 32, 1, true), new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.BackSide }));
@@ -1025,6 +1038,7 @@
     }
 
     function startLevel(levelNum) {
+        inMainMenu = false;
         currentLevel = levelNum;
         difficultyConfig = getDifficultyConfig(currentLevel);
         GAME_TIME = difficultyConfig.time;
@@ -1080,7 +1094,6 @@
         document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
         gameActive = true; 
         isPaused = false;
-        inMainMenu = false;
         lastCallTime = performance.now() / 1000;
     }
 
@@ -1170,18 +1183,17 @@
         const mass = Math.max(1, Math.floor(w * h * d * 5)); 
         totalWorldPoints += mass;
         
-        let shape;
-        let shapeQuat = new CANNON.Quaternion();
-        if (visualType === 'cylinder') {
-            shape = new CANNON.Cylinder(w/2, d/2, h, 16);
-            shapeQuat.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
-        } else {
-            shape = new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2));
-        }
+        const shape = new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2));
 
-        const body = new CANNON.Body({ mass, material: objMat, position: new CANNON.Vec3(x, y, z), linearDamping: 0.3, angularDamping: 0.3 });
+        const body = new CANNON.Body({ 
+            mass, 
+            material: objMat, 
+            position: new CANNON.Vec3(x, y, z), 
+            linearDamping: 0.35, 
+            angularDamping: 0.4 
+        });
         body.quaternion.setFromEuler(0, rotY, 0);
-        body.addShape(shape, new CANNON.Vec3(0, 0, 0), shapeQuat);
+        body.addShape(shape);
         body.collisionFilterGroup = CG_ALL_OBJS;
         body.collisionFilterMask = CG_GROUND | CG_ALL_OBJS; 
         world.addBody(body);
@@ -1294,7 +1306,7 @@
                 blocks.push({ y: cy + h/2, w: w, h: h, type: 'box', rotY: rot }); 
                 cy += h; 
                 rot += 0.22; 
-                w *= 0.96;
+                w *= 0.96; 
             }
             blocks.push({ y: cy + 1.2, w: 0.35, h: 2.4, type: 'cylinder' });
         } else if (style === 3) {
@@ -1457,7 +1469,7 @@
         spawnBuildingStack(cx, cz, blocks, color, 'Skyscraper');
     }
 
-    // High-Density Urban Grid Spawner with Multi-Building Parcels
+    // High-Density Non-Overlapping Urban Grid with Modular Blocks & Road Junctions
     function spawnCity(startX, startZ) {
         const downtowns = [];
         for(let i=0; i<6; i++) downtowns.push({ x: (Math.random()-0.5)*WORLD_SIZE*0.7, z: (Math.random()-0.5)*WORLD_SIZE*0.7 });
@@ -1496,6 +1508,14 @@
         });
         applyHoleShader(roadMat);
 
+        const interMat = new THREE.MeshStandardMaterial({ 
+            map: intersectionTexture, 
+            roughness: 0.7, 
+            metalness: 0.1 
+        });
+        applyHoleShader(interMat);
+
+        // Spawn Disjoint Urban Road Grid & Sidewalk Blocks (Zero overlap)
         for (let x = -WORLD_SIZE/2; x < WORLD_SIZE/2; x += CELL_STEP) {
             for (let z = -WORLD_SIZE/2; z < WORLD_SIZE/2; z += CELL_STEP) {
                 const cx = x + BLOCK_SIZE / 2;
@@ -1521,7 +1541,7 @@
                 }
                 if (!blockValid) continue;
 
-                // Concrete Sidewalk Block Curb
+                // 1. Concrete Sidewalk Block Curb (y = 0.04)
                 const swGeom = new THREE.BoxGeometry(BLOCK_SIZE, 0.08, BLOCK_SIZE);
                 const swMesh = new THREE.Mesh(swGeom, sidewalkMat);
                 swMesh.position.set(cx, 0.04, cz);
@@ -1529,10 +1549,10 @@
                 scene.add(swMesh);
                 mapMeshes.push(swMesh);
 
-                // Asphalt Road Segments
+                // 2. Non-Overlapping Straight Horizontal Road Segment (length = BLOCK_SIZE)
                 const rz_pos = z - ROAD_WIDTH / 2;
-                if (isRoadInside(cx - CELL_STEP/2, rz_pos, cx + CELL_STEP/2, rz_pos)) {
-                    const roadXGeom = new THREE.PlaneGeometry(CELL_STEP, ROAD_WIDTH);
+                if (isRoadInside(x, rz_pos, x + BLOCK_SIZE, rz_pos)) {
+                    const roadXGeom = new THREE.PlaneGeometry(BLOCK_SIZE, ROAD_WIDTH);
                     const roadXMesh = new THREE.Mesh(roadXGeom, roadMat);
                     roadXMesh.rotation.x = -Math.PI / 2;
                     roadXMesh.position.set(cx, 0.005, rz_pos);
@@ -1541,15 +1561,27 @@
                     mapMeshes.push(roadXMesh);
                 }
 
+                // 3. Non-Overlapping Straight Vertical Road Segment (length = BLOCK_SIZE)
                 const rx_pos = x - ROAD_WIDTH / 2;
-                if (isRoadInside(rx_pos, cz - CELL_STEP/2, rx_pos, cz + CELL_STEP/2)) {
-                    const roadZGeom = new THREE.PlaneGeometry(ROAD_WIDTH, CELL_STEP);
+                if (isRoadInside(rx_pos, z, rx_pos, z + BLOCK_SIZE)) {
+                    const roadZGeom = new THREE.PlaneGeometry(ROAD_WIDTH, BLOCK_SIZE);
                     const roadZMesh = new THREE.Mesh(roadZGeom, roadMat);
                     roadZMesh.rotation.x = -Math.PI / 2;
-                    roadZMesh.position.set(rx_pos, 0.006, cz);
+                    roadZMesh.position.set(rx_pos, 0.005, cz);
                     roadZMesh.receiveShadow = true;
                     scene.add(roadZMesh);
                     mapMeshes.push(roadZMesh);
+                }
+
+                // 4. Non-Overlapping Intersection Crosswalk Square Tile (size = ROAD_WIDTH x ROAD_WIDTH)
+                if (isRoadInside(rx_pos, rz_pos, rx_pos, rz_pos)) {
+                    const interGeom = new THREE.PlaneGeometry(ROAD_WIDTH, ROAD_WIDTH);
+                    const interMesh = new THREE.Mesh(interGeom, interMat);
+                    interMesh.rotation.x = -Math.PI / 2;
+                    interMesh.position.set(rx_pos, 0.005, rz_pos);
+                    interMesh.receiveShadow = true;
+                    scene.add(interMesh);
+                    mapMeshes.push(interMesh);
                 }
 
                 let minDistToDt = Infinity;
@@ -1568,7 +1600,7 @@
                     continue; 
                 }
 
-                // Downtown District
+                // Downtown District (High-Density Multi-Tower Clusters)
                 if (minDistToDt < 24) {
                     let layout = Math.random();
                     if (layout > 0.4) {
@@ -1779,6 +1811,7 @@
 
     // --- Window Handlers for UI & Menus ---
     window.handleResumeGame = () => {
+        inMainMenu = false;
         if (!loadGameState()) {
             startLevel(1);
         }
@@ -1786,6 +1819,7 @@
     };
 
     window.handleNewGame = () => {
+        inMainMenu = false;
         clearSavedGame();
         startLevel(1);
         document.getElementById('main-menu-modal').style.display = 'none';
@@ -1793,7 +1827,7 @@
 
     window.returnToMainMenu = (modalId) => {
         saveGameState();
-        document.getElementById(modalId).style.display = 'none';
+        if (modalId) document.getElementById(modalId).style.display = 'none';
         document.getElementById('main-menu-modal').style.display = 'flex';
         inMainMenu = true;
         gameActive = false;
@@ -1845,6 +1879,11 @@
         document.getElementById('val-key').innerText = e.target.value; 
         saveSettings();
     };
+
+    // Direct event listener bindings
+    document.getElementById('btn-menu-new')?.addEventListener('click', window.handleNewGame);
+    document.getElementById('btn-menu-resume')?.addEventListener('click', window.handleResumeGame);
+    document.getElementById('btn-menu-settings')?.addEventListener('click', window.showSettingsModal);
 
     function updateUI() {
         document.getElementById('level-text').innerText = `LVL ${currentLevel} // ${difficultyConfig.name ? difficultyConfig.name.toUpperCase() : 'INTRO'}`;
@@ -2007,7 +2046,7 @@
     function animate() {
         requestAnimationFrame(animate);
 
-        // Smooth 3D background camera orbit while in Main Menu
+        // Smooth 3D background camera orbit while on Main Menu
         if (inMainMenu) {
             menuOrbitAngle += 0.003;
             const aspect = window.innerWidth / window.innerHeight;

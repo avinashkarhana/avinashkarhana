@@ -2,76 +2,381 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Hole.io Clone - Smooth Tracking</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pro Hole.io Clone - Cyberpunk Edition</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; overflow: hidden; background: #222; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none;}
-        
-        #ui-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
-            padding: 20px; box-sizing: border-box; color: white;
+        :root {
+            --neon-cyan: #00f0ff;
+            --neon-pink: #ff0055;
+            --neon-yellow: #fcee0a;
+            --neon-green: #00ff66;
+            --bg-glass: rgba(8, 12, 20, 0.75);
+            --border-cyan: rgba(0, 240, 255, 0.35);
+        }
+
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #05070d; 
+            font-family: 'Rajdhani', sans-serif; 
+            touch-action: none; 
+            user-select: none; 
+            -webkit-user-select: none;
         }
         
-        .top-bar { display: flex; justify-content: space-between; align-items: flex-start; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+        #ui-overlay {
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            pointer-events: none; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between;
+            padding: 14px; 
+            box-sizing: border-box; 
+            color: white;
+            z-index: 10;
+        }
         
-        #stars-container { display: flex; gap: 5px; pointer-events: all; cursor: pointer; transition: transform 0.2s; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 10px; border: 1px solid #777;}
-        #stars-container:hover { transform: scale(1.05); }
-        .star { font-size: 32px; color: #666; transition: color 0.3s, text-shadow 0.3s; }
-        .star.achieved { color: #ffd700; text-shadow: 0 0 10px #ffaa00; }
-        .star.failed { color: #ff3333; opacity: 0.5; }
+        .top-bar { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start; 
+            gap: 8px;
+        }
+
+        .cyber-card {
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-cyan);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.15), inset 0 0 10px rgba(0, 240, 255, 0.05);
+            clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+        }
         
-        #center-info { text-align: center; font-size: 24px; font-weight: bold; background: rgba(0,0,0,0.6); padding: 12px 20px; border-radius: 12px; pointer-events: all; border: 1px solid #555;}
-        #level-text { font-size: 18px; color: #aaa; margin-bottom: 5px; text-transform: uppercase;}
-        #score-text { color: #4caf50; }
+        #stars-container { 
+            display: flex; 
+            align-items: center;
+            gap: 4px; 
+            pointer-events: all; 
+            cursor: pointer; 
+            transition: transform 0.2s, box-shadow 0.2s; 
+            padding: 6px 12px; 
+        }
+        #stars-container:hover { 
+            transform: scale(1.04); 
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.35);
+        }
+        .star { 
+            font-size: 20px; 
+            color: #334155; 
+            transition: color 0.3s, text-shadow 0.3s; 
+            line-height: 1;
+        }
+        .star.achieved { 
+            color: var(--neon-yellow); 
+            text-shadow: 0 0 10px var(--neon-yellow), 0 0 20px rgba(252, 238, 10, 0.6); 
+        }
+        .star.failed { 
+            color: var(--neon-pink); 
+            opacity: 0.5; 
+        }
         
-        #growth-container { margin-top: 10px; font-size: 14px; width: 260px; text-align: center;}
-        #growth-text { color: #ddd; margin-bottom: 4px; font-weight: bold; letter-spacing: 1px; font-size: 13px;}
-        .progress-bg { width: 100%; height: 16px; background: rgba(0,0,0,0.8); border: 2px solid #666; border-radius: 8px; overflow: hidden; box-shadow: inset 0 0 5px black; }
-        #growth-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #3498db, #2ecc71); transition: width 0.2s ease-out, background 0.4s ease;}
+        #center-info { 
+            text-align: center; 
+            padding: 8px 16px; 
+            pointer-events: all; 
+            min-width: 140px;
+        }
+        #level-text { 
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px; 
+            letter-spacing: 1.5px;
+            color: var(--neon-cyan); 
+            margin-bottom: 2px; 
+            text-transform: uppercase;
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+        }
+        #score-text { 
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffffff; 
+            letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+        }
         
-        .right-hud { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; pointer-events: all; }
-        #timer { font-size: 36px; font-weight: bold; color: #ffeb3b; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 10px; border: 1px solid #555;}
-        #btn-settings { cursor: pointer; background: rgba(0,0,0,0.8); padding: 8px 15px; border-radius: 8px; border: 1px solid #999; color: white; font-weight: bold; transition: 0.2s; }
-        #btn-settings:hover { background: rgba(50,50,50,1); }
+        #growth-container { 
+            margin-top: 6px; 
+            width: 100%; 
+            max-width: 200px;
+            text-align: center;
+        }
+        #growth-text { 
+            color: #94a3b8; 
+            margin-bottom: 3px; 
+            font-weight: 600; 
+            letter-spacing: 1px; 
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        .progress-bg { 
+            width: 100%; 
+            height: 6px; 
+            background: rgba(0, 0, 0, 0.7); 
+            border: 1px solid rgba(0, 240, 255, 0.3); 
+            border-radius: 2px;
+            overflow: hidden; 
+            box-shadow: inset 0 0 6px rgba(0,0,0,0.9); 
+        }
+        #growth-bar { 
+            width: 0%; 
+            height: 100%; 
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-green)); 
+            box-shadow: 0 0 10px var(--neon-cyan);
+            transition: width 0.2s ease-out, background 0.4s ease;
+        }
+        
+        .right-hud { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: flex-end; 
+            gap: 6px; 
+            pointer-events: all; 
+        }
+        #timer { 
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px; 
+            font-weight: 900; 
+            color: var(--neon-yellow); 
+            padding: 6px 12px; 
+            letter-spacing: 1.5px;
+            text-shadow: 0 0 10px rgba(252, 238, 10, 0.6);
+        }
+        #btn-settings { 
+            cursor: pointer; 
+            padding: 6px 10px; 
+            color: #cbd5e1; 
+            font-weight: 700; 
+            font-size: 12px;
+            letter-spacing: 1px;
+            transition: 0.2s; 
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        #btn-settings:hover { 
+            color: var(--neon-cyan);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+        }
 
         .modal {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); display: none; flex-direction: column;
-            align-items: center; justify-content: center; color: white; z-index: 100; pointer-events: all;
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            background: rgba(4, 7, 13, 0.85); 
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: none; 
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center; 
+            color: white; 
+            z-index: 100; 
+            pointer-events: all;
+            padding: 15px;
+            box-sizing: border-box;
         }
         
         .modal-content {
-            background: #222; border: 2px solid #555; border-radius: 15px;
-            padding: 30px; width: 500px; max-width: 90%; text-align: center; display: flex; flex-direction: column; gap: 15px;
+            background: rgba(10, 15, 26, 0.95); 
+            border: 1px solid var(--neon-cyan); 
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.25), inset 0 0 20px rgba(0, 240, 255, 0.08);
+            clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+            padding: 24px; 
+            width: 440px; 
+            max-width: 95vw; 
+            max-height: 88vh;
+            overflow-y: auto;
+            text-align: center; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px;
+            box-sizing: border-box;
         }
         
-        .obj-row { display: flex; align-items: center; justify-content: flex-start; gap: 20px; background: #333; margin: 10px 0; padding: 15px; border-radius: 10px; text-align: left; }
-        .obj-row img { width: 80px; height: 80px; background: #111; border-radius: 8px; border: 1px solid #666; object-fit: contain; }
+        .obj-row { 
+            display: flex; 
+            align-items: center; 
+            justify-content: flex-start; 
+            gap: 14px; 
+            background: rgba(15, 23, 42, 0.8); 
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            margin: 6px 0; 
+            padding: 10px 12px; 
+            text-align: left; 
+            clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+        }
+        .obj-row img { 
+            width: 60px; 
+            height: 60px; 
+            background: #0b111e; 
+            border: 1px solid var(--border-cyan); 
+            object-fit: contain; 
+        }
         .obj-details { flex-grow: 1; }
-        .obj-desc { font-weight: bold; font-size: 18px; margin-bottom: 5px; }
-        .obj-prog { font-size: 14px; color: #aaa; }
-        .obj-status { font-size: 24px; font-weight: bold; }
+        .obj-desc { 
+            font-weight: 700; 
+            font-size: 15px; 
+            color: #f1f5f9;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px; 
+        }
+        .obj-prog { font-size: 12px; color: var(--neon-cyan); }
+        .obj-status { 
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px; 
+            font-weight: 700; 
+            color: var(--neon-yellow);
+        }
         
-        .slider-row { display: flex; justify-content: space-between; align-items: center; background: #333; padding: 12px 15px; border-radius: 10px; gap: 10px;}
-        .slider-row label { font-weight: bold; font-size: 14px; width: 35%; text-align: left;}
-        input[type=range] { width: 45%; }
-        .val-display { background: #111; padding: 2px 8px; border-radius: 5px; border: 1px solid #555; font-family: monospace; font-size: 16px; min-width: 25px; text-align: center; }
+        .slider-row { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: rgba(15, 23, 42, 0.8); 
+            border: 1px solid rgba(0, 240, 255, 0.15);
+            padding: 10px 14px; 
+            gap: 8px;
+        }
+        .slider-row label { 
+            font-weight: 700; 
+            font-size: 13px; 
+            width: 38%; 
+            text-align: left;
+            letter-spacing: 0.5px;
+            color: #cbd5e1;
+        }
+        input[type=range] { 
+            width: 44%; 
+            accent-color: var(--neon-cyan);
+            cursor: pointer;
+        }
+        .val-display { 
+            background: #090d16; 
+            color: var(--neon-cyan);
+            padding: 2px 6px; 
+            border: 1px solid var(--border-cyan); 
+            font-family: 'Orbitron', monospace; 
+            font-size: 13px; 
+            min-width: 25px; 
+            text-align: center; 
+        }
 
-        button { cursor: pointer; padding: 12px 24px; background: #3498db; border: none; color: white; border-radius: 5px; font-weight: bold; font-size: 18px; transition: 0.2s; margin: 5px; }
-        button:hover { background: #2980b9; transform: translateY(-2px); }
-        button.success { background: #2ecc71; }
+        button { 
+            cursor: pointer; 
+            padding: 10px 20px; 
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(0, 240, 255, 0.05)); 
+            border: 1px solid var(--neon-cyan); 
+            color: var(--neon-cyan); 
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700; 
+            font-size: 14px; 
+            letter-spacing: 1.5px;
+            transition: 0.2s; 
+            margin: 4px; 
+            clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+        }
+        button:hover { 
+            background: var(--neon-cyan); 
+            color: #05070d; 
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.6);
+            transform: translateY(-1px); 
+        }
+        button.success { 
+            border-color: var(--neon-green); 
+            color: var(--neon-green); 
+            background: linear-gradient(135deg, rgba(0, 255, 102, 0.2), rgba(0, 255, 102, 0.05));
+        }
+        button.success:hover {
+            background: var(--neon-green);
+            color: #05070d;
+            box-shadow: 0 0 20px rgba(0, 255, 102, 0.6);
+        }
         
-        #instructions { position: absolute; bottom: 20px; width: 100%; text-align: center; opacity: 0.8; font-weight: bold; pointer-events: none; font-size: 18px; text-shadow: 2px 2px 4px rgba(0,0,0,1);}
+        #instructions { 
+            position: absolute; 
+            bottom: 12px; 
+            width: 100%; 
+            left: 0;
+            text-align: center; 
+            opacity: 0.6; 
+            font-weight: 600; 
+            pointer-events: none; 
+            font-size: 13px; 
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-shadow: 0 0 6px black;
+        }
         
         #joystick-base {
-            position: absolute; border-radius: 50%; width: 100px; height: 100px;
-            background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3);
-            transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 50;
+            position: absolute; 
+            border-radius: 50%; 
+            width: 90px; 
+            height: 90px;
+            background: rgba(0, 240, 255, 0.06); 
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.2), inset 0 0 15px rgba(0, 240, 255, 0.1);
+            transform: translate(-50%, -50%); 
+            pointer-events: none; 
+            display: none; 
+            z-index: 50;
         }
         #joystick-knob {
-            position: absolute; border-radius: 50%; width: 40px; height: 40px;
-            background: rgba(255,255,255,0.5); transform: translate(-50%, -50%); top: 50%; left: 50%;
+            position: absolute; 
+            border-radius: 50%; 
+            width: 36px; 
+            height: 36px;
+            background: radial-gradient(circle, var(--neon-cyan) 0%, rgba(0, 240, 255, 0.2) 80%); 
+            border: 1px solid var(--neon-cyan);
+            box-shadow: 0 0 15px var(--neon-cyan);
+            transform: translate(-50%, -50%); 
+            top: 50%; 
+            left: 50%;
+        }
+
+        @media (max-width: 600px) {
+            #ui-overlay { padding: 8px; }
+            .top-bar { gap: 4px; }
+            #stars-container { padding: 4px 8px; gap: 2px; }
+            .star { font-size: 16px; }
+            #center-info { padding: 4px 10px; min-width: 110px; }
+            #level-text { font-size: 9px; letter-spacing: 1px; }
+            #score-text { font-size: 13px; }
+            #growth-container { margin-top: 4px; max-width: 140px; }
+            #growth-text { font-size: 8px; margin-bottom: 2px; }
+            .progress-bg { height: 5px; }
+            #timer { font-size: 15px; padding: 4px 8px; }
+            #btn-settings { font-size: 11px; padding: 4px 6px; }
+            #instructions { font-size: 10px; bottom: 8px; }
+            .modal-content { padding: 16px; gap: 8px; }
+            .obj-row { padding: 6px 8px; gap: 8px; }
+            .obj-row img { width: 45px; height: 45px; }
+            .obj-desc { font-size: 13px; }
+        }
+
+        @media (max-height: 500px) {
+            #ui-overlay { padding: 6px 12px; }
+            #growth-container { display: none; }
+            #center-info { padding: 4px 8px; }
+            .modal-content { max-height: 94vh; padding: 12px; }
         }
     </style>
 </head>
@@ -81,65 +386,65 @@
 
 <div id="ui-overlay">
     <div class="top-bar">
-        <div id="stars-container" title="Click to view Objectives">
+        <div id="stars-container" class="cyber-card" title="Click to view Objectives">
             <span class="star" id="ui-star-0">★</span>
             <span class="star" id="ui-star-1">★</span>
             <span class="star" id="ui-star-2">★</span>
         </div>
-        <div id="center-info">
-            <div id="level-text">Level 1 - Intro</div>
-            <div id="score-text">0 / 0 pts</div>
+        <div id="center-info" class="cyber-card">
+            <div id="level-text">LVL 1 // INTRO</div>
+            <div id="score-text">0 / 0 PTS</div>
             <div id="growth-container">
-                <div id="growth-text">NEXT SIZE: 0 / 100</div>
+                <div id="growth-text">NEXT: 0 / 100</div>
                 <div class="progress-bg"><div id="growth-bar"></div></div>
             </div>
         </div>
         <div class="right-hud">
-            <div id="timer">02:30</div>
-            <div id="btn-settings" onclick="showSettingsModal()">⚙️ Pause (ESC)</div>
+            <div id="timer" class="cyber-card">02:30</div>
+            <div id="btn-settings" class="cyber-card" onclick="showSettingsModal()">⚙ PAUSE</div>
         </div>
     </div>
-    <div id="instructions">Move mouse from center to steer | WASD / Arrows | Touch drag</div>
+    <div id="instructions">DRAG TO STEER // WASD / ARROWS // AVOID EDGES</div>
 </div>
 
 <div id="settings-modal" class="modal">
     <div class="modal-content">
-        <h2 style="margin-top: 0; color: #3498db;">Game Paused</h2>
+        <h2 style="margin: 0; color: var(--neon-cyan); font-family: 'Orbitron', sans-serif; font-size: 18px; letter-spacing: 2px;">// SYSTEM PAUSED //</h2>
         <div class="slider-row">
-            <label>Mouse / Trackpad</label>
+            <label>MOUSE / TRACK</label>
             <input type="range" id="sens-mouse" min="5" max="50" value="20">
             <span class="val-display" id="val-mouse">20</span>
         </div>
         <div class="slider-row">
-            <label>Touch Drag</label>
+            <label>TOUCH DRAG</label>
             <input type="range" id="sens-touch" min="5" max="50" value="20">
             <span class="val-display" id="val-touch">20</span>
         </div>
         <div class="slider-row">
-            <label>Keyboard (WASD)</label>
+            <label>KEYBOARD</label>
             <input type="range" id="sens-key" min="5" max="50" value="20">
             <span class="val-display" id="val-key">20</span>
         </div>
-        <button onclick="resumeGame('settings-modal')">Resume Game</button>
+        <button onclick="resumeGame('settings-modal')">RESUME</button>
     </div>
 </div>
 
 <div id="obj-modal" class="modal">
     <div class="modal-content">
-        <h2 style="margin-top: 0; color: #ffeb3b;">Level Objectives</h2>
+        <h2 style="margin: 0; color: var(--neon-yellow); font-family: 'Orbitron', sans-serif; font-size: 18px; letter-spacing: 2px;">// MISSION OBJECTIVES //</h2>
         <div id="obj-list"></div>
-        <button onclick="resumeGame('obj-modal')">Resume Game</button>
+        <button onclick="resumeGame('obj-modal')">RESUME MISSION</button>
     </div>
 </div>
 
 <div id="end-modal" class="modal">
     <div class="modal-content">
-        <h1 id="end-title" style="font-size: 40px; margin-top: 0;">TIME'S UP!</h1>
-        <p id="end-stats" style="font-size: 20px; color: #ccc;">Final Score: 0</p>
-        <div style="font-size: 50px; margin: 20px 0;" id="end-stars"></div>
+        <h1 id="end-title" style="font-size: 28px; margin: 0; font-family: 'Orbitron', sans-serif; letter-spacing: 2px;">MISSION EXPIRED</h1>
+        <p id="end-stats" style="font-size: 15px; color: #94a3b8; margin: 6px 0;">Final Score: 0</p>
+        <div style="font-size: 36px; margin: 10px 0;" id="end-stars"></div>
         <div id="end-buttons">
-            <button id="btn-next" class="success" style="display:none;" onclick="nextLevel()">Next Level</button>
-            <button id="btn-retry" onclick="retryLevel()">Retry Level</button>
+            <button id="btn-next" class="success" style="display:none;" onclick="nextLevel()">NEXT SECTOR</button>
+            <button id="btn-retry" onclick="retryLevel()">RETRY MISSION</button>
         </div>
     </div>
 </div>
@@ -397,7 +702,6 @@
         return r1 * (1 - t) + r2 * t; 
     }
 
-    // Strict Boundary Check for Roads and Sidewalks to prevent any water clipping
     function isRoadInside(x1, z1, x2, z2) {
         const mx = (x1 + x2) / 2, mz = (z1 + z2) / 2;
         const d1 = Math.sqrt(x1*x1 + z1*z1);
@@ -413,11 +717,11 @@
     }
 
     function getDifficultyConfig(level) {
-        if (level === 1) return { name: "Intro", min: 0.08, max: 0.12, time: 150, color: '#4caf50' };
-        if (level <= 3)  return { name: "Easy",  min: 0.15, max: 0.22, time: 140, color: '#4caf50' };
-        if (level <= 6)  return { name: "Medium",min: 0.25, max: 0.35, time: 130, color: '#ffeb3b' };
-        if (level <= 12) return { name: "Hard",  min: 0.35, max: 0.45, time: 120, color: '#ff9800' };
-        return { name: "Very Hard", min: 0.48, max: 0.58, time: 110, color: '#ff3333' };
+        if (level === 1) return { name: "Intro", min: 0.08, max: 0.12, time: 150, color: '#00f0ff' };
+        if (level <= 3)  return { name: "Easy",  min: 0.15, max: 0.22, time: 140, color: '#00ff66' };
+        if (level <= 6)  return { name: "Medium",min: 0.25, max: 0.35, time: 130, color: '#fcee0a' };
+        if (level <= 12) return { name: "Hard",  min: 0.35, max: 0.45, time: 120, color: '#ff7700' };
+        return { name: "Very Hard", min: 0.48, max: 0.58, time: 110, color: '#ff0055' };
     }
 
     function getNextTargetPoints(level) {
@@ -441,17 +745,18 @@
         const text = document.getElementById('growth-text');
         const bar = document.getElementById('growth-bar');
         if (text && bar) {
-            text.innerText = `NEXT SIZE: ${Math.floor(holePoints)} / ${targetHolePoints}`;
+            text.innerText = `NEXT: ${Math.floor(holePoints)} / ${targetHolePoints}`;
             const pct = Math.min(100, (holePoints / targetHolePoints) * 100);
             bar.style.width = `${pct}%`;
             
-            let c1 = '#3498db', c2 = '#2ecc71'; 
-            if (holeLevel === 3) { c1 = '#f1c40f'; c2 = '#f39c12'; } 
-            else if (holeLevel === 4) { c1 = '#e67e22'; c2 = '#d35400'; } 
-            else if (holeLevel === 5) { c1 = '#e74c3c'; c2 = '#c0392b'; } 
-            else if (holeLevel >= 6) { c1 = '#9b59b6'; c2 = '#8e44ad'; } 
+            let c1 = 'var(--neon-cyan)', c2 = 'var(--neon-green)'; 
+            if (holeLevel === 3) { c1 = 'var(--neon-yellow)'; c2 = '#ff7700'; } 
+            else if (holeLevel === 4) { c1 = '#ff7700'; c2 = 'var(--neon-pink)'; } 
+            else if (holeLevel === 5) { c1 = 'var(--neon-pink)'; c2 = '#9b59b6'; } 
+            else if (holeLevel >= 6) { c1 = '#00f0ff'; c2 = '#ff007f'; } 
             
             bar.style.background = `linear-gradient(90deg, ${c1}, ${c2})`;
+            bar.style.boxShadow = `0 0 10px ${c1}`;
         }
     }
 
@@ -719,13 +1024,12 @@
         createSimpleEntity(cx, 0.4, cz, 0.5, 0.8, 0.5, 0xee2222, 'cylinder', 0, 'Hydrant');
     }
 
-    // 15 Taller (8 to 18 Story) Architectural Skyscraper Styles
+    // 15 Taller Architectural Skyscraper Styles
     function buildSkyscraper(cx, cz, color, style) {
         let blocks = []; 
         let cy = 0;
 
         if (style === 0) {
-            // Style 0: Grand 10-14 Story Stepped Pyramid Tower
             let floors = 9 + Math.floor(Math.random() * 5); 
             let w = 5.2 + Math.random() * 1.5;
             for (let i = 0; i < floors; i++) { 
@@ -736,22 +1040,18 @@
             }
             blocks.push({ y: cy + 1.5, w: 0.35, h: 3.0, type: 'cylinder' });
         } else if (style === 1) {
-            // Style 1: Mega Corporate High-Rise with Spire (28-35m tall)
             let h = 2.4 + Math.random(), w = 5.2; 
             blocks.push({ y: cy + h/2, w: w, h: h, type: 'box' }); cy += h;
-            // Tall column
             let midFloors = 8 + Math.floor(Math.random() * 4);
             let colW = 2.4;
             for(let i=0; i<midFloors; i++) {
                 blocks.push({ y: cy + 0.8, w: colW, h: 1.6, type: 'box' });
                 cy += 1.6;
             }
-            // Observation Crown & Spire
             blocks.push({ y: cy + 0.8, w: 4.2, h: 1.6, type: 'box' }); cy += 1.6;
             blocks.push({ y: cy + 0.6, w: 2.8, h: 1.2, type: 'cylinder' }); cy += 1.2;
             blocks.push({ y: cy + 2.0, w: 0.4, h: 4.0, type: 'cylinder' });
         } else if (style === 2) {
-            // Style 2: 12-16 Story Twisted Spiral Tower
             let floors = 12 + Math.floor(Math.random() * 4); 
             let w = 4.2, h = 1.3, rot = 0;
             for(let i = 0; i < floors; i++) { 
@@ -762,7 +1062,6 @@
             }
             blocks.push({ y: cy + 1.2, w: 0.35, h: 2.4, type: 'cylinder' });
         } else if (style === 3) {
-            // Style 3: 12-Story Serpentine Wave Tower
             let floors = 12 + Math.floor(Math.random() * 4); 
             let w = 4.2, h = 1.3;
             for(let i = 0; i < floors; i++) { 
@@ -774,7 +1073,6 @@
             }
             blocks.push({ y: cy + 1.2, w: 0.4, h: 2.4, type: 'cylinder' });
         } else if (style === 4) {
-            // Style 4: Asymmetric Stepped Cantilever (Upgraded 10-Tier Edition)
             let baseH = 1.6, baseW = 5.6;
             blocks.push({ y: cy + baseH/2, w: baseW, h: baseH, type: 'box', offsetX: 0 }); cy += baseH;
             blocks.push({ y: cy + 0.7, w: 4.6, h: 1.4, type: 'box', offsetX: -0.6 }); cy += 1.4;
@@ -786,25 +1084,21 @@
             blocks.push({ y: cy + 0.75, w: 1.6, h: 1.5, type: 'box', offsetX: 1.2 }); cy += 1.5;
             blocks.push({ y: cy + 1.5, w: 0.35, h: 3.0, type: 'cylinder', offsetX: 1.2 });
         } else if (style === 5) {
-            // Style 5: 12-Story Twin Towers with Double Skybridge
             let colH = 1.3;
             for (let i = 0; i < 9; i++) {
                 blocks.push({ y: cy + colH/2, w: 2.0, d: 2.0, h: colH, type: 'box', offsetX: -1.7 });
                 blocks.push({ y: cy + colH/2, w: 2.0, d: 2.0, h: colH, type: 'box', offsetX: 1.7 });
-                // Mid-level Skybridge at floor 4
                 if (i === 4) {
                     blocks.push({ y: cy + colH/2, w: 5.4, d: 1.6, h: 0.8, type: 'box', offsetX: 0 });
                 }
                 cy += colH;
             }
-            // Upper Skybridge Connecting Both
             blocks.push({ y: cy + 0.6, w: 5.4, d: 2.2, h: 1.2, type: 'box', offsetX: 0 }); cy += 1.2;
             blocks.push({ y: cy + 0.8, w: 1.4, d: 1.4, h: 1.6, type: 'box', offsetX: -1.7 });
             blocks.push({ y: cy + 0.8, w: 1.4, d: 1.4, h: 1.6, type: 'box', offsetX: 1.7 }); cy += 1.6;
             blocks.push({ y: cy + 1.2, w: 0.35, h: 2.4, type: 'cylinder', offsetX: -1.7 });
             blocks.push({ y: cy + 1.2, w: 0.35, h: 2.4, type: 'cylinder', offsetX: 1.7 });
         } else if (style === 6) {
-            // Style 6: 12-Tier Jenga / Cross-Cantilevered Staggered Blocks
             let jFloors = 10 + Math.floor(Math.random() * 4);
             let longDim = 5.2, shortDim = 2.4, floorH = 1.3;
             for (let i = 0; i < jFloors; i++) {
@@ -825,23 +1119,19 @@
             }
             blocks.push({ y: cy + 1.0, w: 1.2, h: 2.0, type: 'cylinder' });
         } else if (style === 7) {
-            // Style 7: 15-Story Hourglass Observation Spire
             let bH = 1.4;
             blocks.push({ y: cy + bH/2, w: 5.2, d: 5.2, h: bH, type: 'box' }); cy += bH;
             blocks.push({ y: cy + bH/2, w: 4.2, d: 4.2, h: bH, type: 'box' }); cy += bH;
-            // Tall slender core
             let coreFloors = 6;
             for(let i=0; i<coreFloors; i++) {
                 blocks.push({ y: cy + 0.8, w: 2.2, d: 2.2, h: 1.6, type: 'box' });
                 cy += 1.6;
             }
-            // Multi-deck Revolving Saucers
             blocks.push({ y: cy + 0.9, w: 5.2, d: 5.2, h: 1.8, type: 'cylinder' }); cy += 1.8;
             blocks.push({ y: cy + 0.7, w: 3.6, d: 3.6, h: 1.4, type: 'box' }); cy += 1.4;
             blocks.push({ y: cy + 0.6, w: 2.4, d: 2.4, h: 1.2, type: 'cylinder' }); cy += 1.2;
             blocks.push({ y: cy + 1.8, w: 0.4, h: 3.6, type: 'cylinder' });
         } else if (style === 8) {
-            // Style 8: 9-Tier Cascading Ziggurat Terraces
             let zSteps = 8, curW = 6.0, stepH = 1.4;
             for (let i = 0; i < zSteps; i++) {
                 blocks.push({ y: cy + stepH/2, w: curW, d: curW, h: stepH, type: 'box' });
@@ -850,10 +1140,8 @@
             }
             blocks.push({ y: cy + 1.5, w: 0.4, h: 3.0, type: 'cylinder' });
         } else if (style === 9) {
-            // Style 9: 14-Story Rotunda & Podium Skyscraper
             blocks.push({ y: cy + 1.0, w: 5.6, d: 5.6, h: 2.0, type: 'box' }); cy += 2.0;
             blocks.push({ y: cy + 0.8, w: 4.6, d: 4.6, h: 1.6, type: 'box' }); cy += 1.6;
-            // 4 Drum sections
             for(let i=0; i<4; i++) {
                 blocks.push({ y: cy + 0.9, w: 3.8, d: 3.8, h: 1.8, type: 'cylinder' }); cy += 1.8;
             }
@@ -862,10 +1150,8 @@
             blocks.push({ y: cy + 0.8, w: 1.8, d: 1.8, h: 1.6, type: 'box' }); cy += 1.6;
             blocks.push({ y: cy + 1.5, w: 0.35, h: 3.0, type: 'cylinder' });
         } else if (style === 10) {
-            // Style 10: 10-Story 4-Silo Industrial Compound
             let baseH = 1.6;
             blocks.push({ y: cy + baseH/2, w: 6.0, d: 6.0, h: baseH, type: 'box' }); cy += baseH;
-            // Central core + 4 tall silos
             let siloH = 8.0, siloR = 1.4, offset = 1.9;
             blocks.push({ y: cy + siloH/2, w: 2.2, d: 2.2, h: siloH, type: 'box' });
             blocks.push({ y: cy + siloH/2, w: siloR, d: siloR, h: siloH, type: 'cylinder', offsetX: -offset, offsetZ: -offset });
@@ -873,12 +1159,10 @@
             blocks.push({ y: cy + siloH/2, w: siloR, d: siloR, h: siloH, type: 'cylinder', offsetX: -offset, offsetZ: offset });
             blocks.push({ y: cy + siloH/2, w: siloR, d: siloR, h: siloH, type: 'cylinder', offsetX: offset, offsetZ: offset });
             cy += siloH;
-            // Upper Catwalk Bridge & Towers
             blocks.push({ y: cy + 0.6, w: 5.4, d: 5.4, h: 1.2, type: 'box' }); cy += 1.2;
             blocks.push({ y: cy + 1.2, w: 3.2, d: 3.2, h: 2.4, type: 'cylinder' }); cy += 2.4;
             blocks.push({ y: cy + 1.5, w: 0.4, h: 3.0, type: 'cylinder' });
         } else if (style === 11) {
-            // Style 11: 8-Tier Pagoda High-Rise
             let pFloors = 8, curW = 4.2, curDisc = 6.0;
             for (let i = 0; i < pFloors; i++) {
                 blocks.push({ y: cy + 0.65, w: curW, d: curW, h: 1.3, type: 'box' }); cy += 1.3;
@@ -888,20 +1172,16 @@
             }
             blocks.push({ y: cy + 1.6, w: 0.4, h: 3.2, type: 'cylinder' });
         } else if (style === 12) {
-            // Style 12: 18-Story Space Needle / Orbit Tower
             blocks.push({ y: cy + 1.0, w: 5.2, d: 5.2, h: 2.0, type: 'box' }); cy += 2.0;
-            // Slender Column
             let shaftFloors = 6;
             for(let i=0; i<shaftFloors; i++) {
                 blocks.push({ y: cy + 0.9, w: 1.8, d: 1.8, h: 1.8, type: 'cylinder' }); cy += 1.8;
             }
-            // Revolving Saucer
             blocks.push({ y: cy + 0.7, w: 5.8, d: 5.8, h: 1.4, type: 'cylinder' }); cy += 1.4;
             blocks.push({ y: cy + 0.7, w: 3.8, d: 3.8, h: 1.4, type: 'box' }); cy += 1.4;
             blocks.push({ y: cy + 0.6, w: 2.4, d: 2.4, h: 1.2, type: 'cylinder' }); cy += 1.2;
             blocks.push({ y: cy + 2.0, w: 0.35, h: 4.0, type: 'cylinder' });
         } else if (style === 13) {
-            // Style 13: 14-Story Nakagin Modular Capsule Tower
             let coreFloors = 8;
             blocks.push({ y: cy + 0.8, w: 4.8, d: 4.8, h: 1.6, type: 'box' }); cy += 1.6;
             for (let i = 0; i < coreFloors; i++) {
@@ -924,9 +1204,7 @@
             blocks.push({ y: cy + 0.7, w: 2.8, d: 2.8, h: 1.4, type: 'box' }); cy += 1.4;
             blocks.push({ y: cy + 1.2, w: 0.35, h: 2.4, type: 'cylinder' });
         } else if (style === 14) {
-            // Style 14: 12-Story Art Deco Crown with Corner Turrets
             blocks.push({ y: cy + 1.1, w: 5.6, d: 5.6, h: 2.2, type: 'box' }); cy += 2.2;
-            // Tier 2 Tower
             blocks.push({ y: cy + 1.5, w: 3.8, d: 3.8, h: 3.0, type: 'box' });
             let tR = 0.9, tH = 3.0, tOff = 2.2;
             blocks.push({ y: cy + 1.5, w: tR, d: tR, h: tH, type: 'cylinder', offsetX: -tOff, offsetZ: -tOff });
@@ -935,7 +1213,6 @@
             blocks.push({ y: cy + 1.5, w: tR, d: tR, h: tH, type: 'cylinder', offsetX: tOff, offsetZ: tOff });
             cy += 3.0;
 
-            // Tier 3
             blocks.push({ y: cy + 1.2, w: 2.8, d: 2.8, h: 2.4, type: 'cylinder' }); cy += 2.4;
             blocks.push({ y: cy + 0.6, w: 1.8, d: 1.8, h: 1.2, type: 'cylinder' }); cy += 1.2;
             blocks.push({ y: cy + 1.6, w: 0.35, h: 3.2, type: 'cylinder' });
@@ -944,12 +1221,10 @@
         spawnBuildingStack(cx, cz, blocks, color, 'Skyscraper');
     }
 
-    // High-Density Urban Grid Spawner with Multi-Building Parcels
     function spawnCity(startX, startZ) {
         const downtowns = [];
         for(let i=0; i<6; i++) downtowns.push({ x: (Math.random()-0.5)*WORLD_SIZE*0.7, z: (Math.random()-0.5)*WORLD_SIZE*0.7 });
 
-        // Perimeter fence
         const inset = 1.8; 
         for (let i = 0; i < polygon.length; i++) {
             const p1 = polygon[i], p2 = polygon[(i + 1) % polygon.length];
@@ -969,7 +1244,6 @@
             }
         }
 
-        // Tighter Urban Grid for Maximum City Density
         const BLOCK_SIZE = 16;
         const ROAD_WIDTH = 4.5;
         const CELL_STEP = BLOCK_SIZE + ROAD_WIDTH;
@@ -984,13 +1258,11 @@
         });
         applyHoleShader(roadMat);
 
-        // Spawn Urban Road Grid & Dense Sidewalk Blocks
         for (let x = -WORLD_SIZE/2; x < WORLD_SIZE/2; x += CELL_STEP) {
             for (let z = -WORLD_SIZE/2; z < WORLD_SIZE/2; z += CELL_STEP) {
                 const cx = x + BLOCK_SIZE / 2;
                 const cz = z + BLOCK_SIZE / 2;
                 
-                // Check all 4 corners of the sidewalk block to ensure strict containment on the island
                 const halfB = BLOCK_SIZE / 2;
                 const blockCorners = [
                     { x: cx - halfB, z: cz - halfB },
@@ -1011,7 +1283,7 @@
                 }
                 if (!blockValid) continue;
 
-                // 1. Concrete Sidewalk Block Curb
+                // Concrete Sidewalk Block Curb
                 const swGeom = new THREE.BoxGeometry(BLOCK_SIZE, 0.08, BLOCK_SIZE);
                 const swMesh = new THREE.Mesh(swGeom, sidewalkMat);
                 swMesh.position.set(cx, 0.04, cz);
@@ -1019,7 +1291,7 @@
                 scene.add(swMesh);
                 mapMeshes.push(swMesh);
 
-                // 2. Asphalt Road Segments (Bounded strictly within the island coastline)
+                // Asphalt Road Segments (Bounded strictly within island perimeter)
                 const rz_pos = z - ROAD_WIDTH / 2;
                 if (isRoadInside(cx - CELL_STEP/2, rz_pos, cx + CELL_STEP/2, rz_pos)) {
                     const roadXGeom = new THREE.PlaneGeometry(CELL_STEP, ROAD_WIDTH);
@@ -1042,7 +1314,6 @@
                     mapMeshes.push(roadZMesh);
                 }
 
-                // District Zoning & Building Population
                 let minDistToDt = Infinity;
                 downtowns.forEach(dt => { minDistToDt = Math.min(minDistToDt, Math.sqrt((cx - dt.x)**2 + (cz - dt.z)**2)); });
                 const distToSpawn = Math.sqrt((cx - startX)**2 + (cz - startZ)**2);
@@ -1059,30 +1330,26 @@
                     continue; 
                 }
 
-                // A. Downtown District (Multi-Tower Parcels & High-Rise Skyscraper Clusters)
+                // Downtown District (High-Density Multi-Tower Clusters)
                 if (minDistToDt < 24) {
                     let layout = Math.random();
                     if (layout > 0.4) {
-                        // 1 Giant Centerpiece Skyscraper
                         buildSkyscraper(cx, cz, color, Math.floor(Math.random() * 15));
                     } else {
-                        // 2 Clustered Twin Towers in the same block
                         buildSkyscraper(cx - 3.2, cz, color, Math.floor(Math.random() * 15));
                         buildSkyscraper(cx + 3.2, cz, colors[(colors.indexOf(color)+3)%colors.length], Math.floor(Math.random() * 15));
                     }
                     
-                    // Dense sidewalk furniture & traffic
                     spawnStreetlight(cx + 6.8, cz + 6.8, 0);
                     spawnStreetlight(cx - 6.8, cz - 6.8, Math.PI);
                     if (Math.random() > 0.25) spawnCar(cx + 6.8, cz - 2.5, 0xffeb3b, Math.PI / 2);
                     if (Math.random() > 0.35) spawnCar(cx - 6.8, cz + 2.5, 0xe74c3c, Math.PI / 2);
                     if (Math.random() > 0.45) spawnHydrant(cx + 6.8, cz - 6.8);
                 } 
-                // B. Commercial / Mid-Rise District (2-4 Office Buildings & Plazas per Block)
+                // Commercial / Mid-Rise District
                 else if (minDistToDt < 46) {
                     let oLayout = Math.random();
                     if (oLayout > 0.45) {
-                        // Dual Office Towers
                         spawnBuildingStack(cx - 3.2, cz, [
                             { y: 1.5, w: 3.2, h: 3.0, type: 'box' },
                             { y: 3.6, w: 2.2, h: 1.2, type: 'cylinder' },
@@ -1095,7 +1362,6 @@
                             { y: 3.1, w: 2.4, d: 2.4, h: 1.0, type: 'box' }
                         ], colors[(colors.indexOf(color)+2)%colors.length], 'Office Building');
                     } else {
-                        // 1 Wide Corporate Complex
                         spawnBuildingStack(cx, cz, [
                             { y: 1.2, w: 2.0, d: 2.0, h: 2.4, type: 'cylinder', offsetX: -1.75 },
                             { y: 1.2, w: 2.0, d: 2.0, h: 2.4, type: 'cylinder', offsetX: 1.75 },
@@ -1108,11 +1374,10 @@
                     spawnBench(cx - 6.0, cz + 3, Math.PI / 2);
                     spawnCar(cx + 6.8, cz, 0x2ecc71, Math.PI / 2);
                 } 
-                // C. Residential / Suburban District (2 to 4 Houses & Villas per Block)
+                // Residential / Suburban District
                 else {
                     let isPark = Math.random() > 0.85;
                     if (isPark) {
-                        // Green Plaza
                         spawnTree(cx - 4, cz - 4);
                         spawnTree(cx + 4, cz - 4);
                         spawnTree(cx - 4, cz + 4);
@@ -1121,7 +1386,6 @@
                         spawnBench(cx, cz + 3, Math.PI);
                         createSimpleEntity(cx, 0.6, cz, 1.4, 1.2, 1.4, 0x95a5a6, 'cylinder', 0, 'Small Box');
                     } else {
-                        // Multi-House Residential Cluster (Up to 4 houses per block)
                         spawnBuildingStack(cx - 3.2, cz - 3.2, [
                             { y: 1.0, w: 2.2, h: 2.0, type: 'box' },
                             { y: 2.5, w: 1.6, h: 1.0, type: 'box' }
@@ -1270,8 +1534,8 @@
             obj0.achieved = true;
             document.getElementById(`ui-star-0`).classList.add('achieved');
         }
-        document.getElementById('score-text').innerText = `${score} / ${obj0.target} pts`;
-        document.getElementById('score-text').style.color = obj0.achieved ? '#2ecc71' : '#fff';
+        document.getElementById('score-text').innerText = `${score} / ${obj0.target} PTS`;
+        document.getElementById('score-text').style.color = obj0.achieved ? 'var(--neon-green)' : '#fff';
     }
 
     window.showSettingsModal = () => { 
@@ -1294,8 +1558,9 @@
     document.getElementById('sens-key').oninput = (e) => { keySpeed = parseFloat(e.target.value); document.getElementById('val-key').innerText = e.target.value; };
 
     function updateUI() {
-        document.getElementById('level-text').innerText = `Level ${currentLevel} - ${difficultyConfig.name}`;
+        document.getElementById('level-text').innerText = `LVL ${currentLevel} // ${difficultyConfig.name.toUpperCase()}`;
         document.getElementById('level-text').style.color = difficultyConfig.color;
+        document.getElementById('level-text').style.textShadow = `0 0 10px ${difficultyConfig.color}`;
         for (let i=0; i<3; i++) {
             const el = document.getElementById(`ui-star-${i}`);
             el.className = 'star'; 
@@ -1310,12 +1575,12 @@
         const list = document.getElementById('obj-list');
         list.innerHTML = '';
         objectives.forEach(obj => {
-            let imgHtml = obj.thumb ? `<img src="${obj.thumb}">` : `<div style="width:80px; height:80px; background:#444; border-radius:8px; display:flex; align-items:center; justify-content:center; border:1px solid #777;">★</div>`;
-            let statusStr = obj.achieved ? '<span style="color:#2ecc71">DONE</span>' : (obj.failed ? '<span style="color:#e74c3c">FAILED</span>' : `${obj.current}/${obj.target}`);
+            let imgHtml = obj.thumb ? `<img src="${obj.thumb}">` : `<div style="width:60px; height:60px; background:#0b111e; display:flex; align-items:center; justify-content:center; border:1px solid var(--border-cyan); color: var(--neon-cyan);">★</div>`;
+            let statusStr = obj.achieved ? '<span style="color:var(--neon-green)">COMPLETE</span>' : (obj.failed ? '<span style="color:var(--neon-pink)">FAILED</span>' : `${obj.current}/${obj.target}`);
             let div = document.createElement('div');
             div.className = 'obj-row';
-            if(obj.achieved) div.style.border = "1px solid #2ecc71";
-            if(obj.failed) div.style.border = "1px solid #e74c3c";
+            if(obj.achieved) div.style.borderColor = "var(--neon-green)";
+            if(obj.failed) div.style.borderColor = "var(--neon-pink)";
             
             div.innerHTML = `${imgHtml}<div class="obj-details"><div class="obj-desc">${obj.desc}</div>${obj.timeLimit ? `<div class="obj-prog">Time Limit: ${obj.timeLimit}s</div>` : ''}</div><div class="obj-status">${statusStr}</div>`;
             list.appendChild(div);
@@ -1327,15 +1592,24 @@
         const modal = document.getElementById('end-modal');
         const title = document.getElementById('end-title');
         modal.style.display = 'flex';
-        document.getElementById('end-stats').innerText = `Final Score: ${score} Points\nHole Diameter: ${(targetHoleRadius * 2).toFixed(1)}m`;
+        document.getElementById('end-stats').innerText = `Final Score: ${score} Points | Singularity Size: ${(targetHoleRadius * 2).toFixed(1)}m`;
         
         let starsHtml = '';
         let passed = objectives[0].achieved; 
-        for(let i=0; i<3; i++) starsHtml += objectives[i].achieved ? '<span style="color:#ffd700; text-shadow:0 0 15px #ffaa00;">★</span>' : '<span style="color:#444;">★</span>';
+        for(let i=0; i<3; i++) starsHtml += objectives[i].achieved ? '<span style="color:var(--neon-yellow); text-shadow:0 0 15px var(--neon-yellow);">★</span>' : '<span style="color:#1e293b;">★</span>';
         document.getElementById('end-stars').innerHTML = starsHtml;
 
-        if (passed) { title.innerText = "LEVEL PASSED!"; title.style.color = "#2ecc71"; document.getElementById('btn-next').style.display = 'inline-block'; document.getElementById('btn-retry').style.display = 'none'; } 
-        else { title.innerText = "LEVEL FAILED"; title.style.color = "#e74c3c"; document.getElementById('btn-next').style.display = 'none'; document.getElementById('btn-retry').style.display = 'inline-block'; }
+        if (passed) { 
+            title.innerText = "SECTOR SECURED"; 
+            title.style.color = "var(--neon-green)"; 
+            document.getElementById('btn-next').style.display = 'inline-block'; 
+            document.getElementById('btn-retry').style.display = 'none'; 
+        } else { 
+            title.innerText = "MISSION FAILED"; 
+            title.style.color = "var(--neon-pink)"; 
+            document.getElementById('btn-next').style.display = 'none'; 
+            document.getElementById('btn-retry').style.display = 'inline-block'; 
+        }
     }
     document.getElementById('stars-container').addEventListener('click', showObjectivesModal);
 
@@ -1398,7 +1672,7 @@
             let dy = e.clientY - dragStart.y;
             
             const dist = Math.sqrt(dx*dx + dy*dy);
-            const maxDist = 60;
+            const maxDist = 55;
             if(dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; }
             
             joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
@@ -1407,11 +1681,11 @@
         }
     });
 
+    // Touch Inertia Release: Preserves velocity for smooth momentum glide
     const stopTouch = (e) => {
         if (e.pointerType === 'mouse') return;
         isDragging = false; 
         joystickBase.style.display = 'none';
-        inputVelocity.set(0, 0);
     };
     window.addEventListener('pointerup', stopTouch);
     window.addEventListener('pointercancel', stopTouch);
@@ -1491,7 +1765,12 @@
             holeTarget.z += vec.y * kSpeed * dt;
             
         } else if (currentMode === 'touch' || currentMode === 'touch-inertia') {
-            if (currentMode === 'touch-inertia') inputVelocity.multiplyScalar(0.90);
+            // Delta-Time Friction Glide
+            if (currentMode === 'touch-inertia') {
+                const glideFriction = Math.exp(-2.8 * dt);
+                inputVelocity.multiplyScalar(glideFriction);
+                if (inputVelocity.lengthSq() < 0.0001) inputVelocity.set(0, 0);
+            }
 
             const tSpeed = baseSpeed * (touchSpeed / 20);
             holeTarget.x += inputVelocity.x * tSpeed * dt;
@@ -1556,7 +1835,7 @@
         for (let i = items.length - 1; i >= 0; i--) {
             const item = items[i];
             
-            // Exponential Vertical Speed Reduction & Jump Height Clamping
+            // Exponential Vertical Velocity Suppression & Jump Height Ceiling
             if (item.body.velocity.y > 0) {
                 const vy = item.body.velocity.y;
                 const decay = Math.exp(-6.0 * vy * dt);
@@ -1632,9 +1911,7 @@
                         targetHolePoints = getNextTargetPoints(holeLevel);
                     }
                     
-                    if (leveledUp) {
-                        updateGrowthUI();
-                    }
+                    updateGrowthUI();
                 }
                 
                 if (items.length === 0) levelComplete(); 

@@ -202,10 +202,38 @@
     const rimMat = new CANNON.Material();
     const wallMat = new CANNON.Material();
 
-    world.addContactMaterial(new CANNON.ContactMaterial(staticMat, objMat, { friction: 0.7, restitution: 0.0 }));
-    world.addContactMaterial(new CANNON.ContactMaterial(objMat, objMat, { friction: 0.6, restitution: 0.0 }));
-    world.addContactMaterial(new CANNON.ContactMaterial(rimMat, objMat, { friction: 0.0, restitution: 0.0, contactEquationStiffness: 1e6 }));
-    world.addContactMaterial(new CANNON.ContactMaterial(wallMat, objMat, { friction: 1.0, restitution: 0.0, contactEquationStiffness: 1e8, contactEquationRelaxation: 5 }));
+    // Absolute zero elastic collision & smooth sliding contacts
+    world.defaultContactMaterial.restitution = 0.0;
+    world.defaultContactMaterial.friction = 0.4;
+    
+    world.addContactMaterial(new CANNON.ContactMaterial(staticMat, objMat, { 
+        friction: 0.7, 
+        restitution: 0.0, 
+        contactEquationStiffness: 1e6, 
+        contactEquationRelaxation: 3 
+    }));
+    
+    world.addContactMaterial(new CANNON.ContactMaterial(objMat, objMat, { 
+        friction: 0.6, 
+        restitution: 0.0, 
+        contactEquationStiffness: 1e6, 
+        contactEquationRelaxation: 3 
+    }));
+    
+    // Zero-friction, zero-bounce, energy-absorbing rim slide
+    world.addContactMaterial(new CANNON.ContactMaterial(rimMat, objMat, { 
+        friction: 0.0, 
+        restitution: 0.0, 
+        contactEquationStiffness: 1e5, 
+        contactEquationRelaxation: 4 
+    }));
+    
+    world.addContactMaterial(new CANNON.ContactMaterial(wallMat, objMat, { 
+        friction: 0.8, 
+        restitution: 0.0, 
+        contactEquationStiffness: 1e6, 
+        contactEquationRelaxation: 4 
+    }));
 
     const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: staticMat });
     groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
@@ -338,6 +366,7 @@
     
     let holeTopMesh, holeBody;
     let holeTarget = new THREE.Vector3(0, 0, 0);
+    let prevHoleTarget = new THREE.Vector3(0, 0, 0);
 
     function isPointInPolygon(x, z, poly) {
         if (!poly || poly.length < 3) return true;
@@ -477,6 +506,7 @@
         }
         
         holeTarget.set(startX, 0, startZ);
+        prevHoleTarget.set(startX, 0, startZ);
         cameraTarget.set(startX, 0, startZ);
         groundUniforms.holePos.value.set(startX, 0, startZ);
         camera.position.set(startX, 7 + (1.6 * 1.5), startZ + 8 + (1.6 * 2.5));
@@ -1166,19 +1196,53 @@
     window.addEventListener('pointercancel', stopTouch);
     window.addEventListener('pointerleave', stopTouch);
 
+    // Beveled / Funneled Inward Ramp Physics Rim
     function updateHolePhysics(radius) {
         if (holeBody) world.removeBody(holeBody);
-        holeBody = new CANNON.Body({ type: CANNON.Body.KINEMATIC, position: new CANNON.Vec3(holeTarget.x, 0, holeTarget.z), material: rimMat });
-        holeBody.collisionFilterGroup = CG_HOLE_RIM; holeBody.collisionFilterMask = CG_ALL_OBJS; 
+        holeBody = new CANNON.Body({ 
+            type: CANNON.Body.KINEMATIC, 
+            position: new CANNON.Vec3(holeTarget.x, 0, holeTarget.z), 
+            material: rimMat 
+        });
+        holeBody.collisionFilterGroup = CG_HOLE_RIM; 
+        holeBody.collisionFilterMask = CG_ALL_OBJS; 
         
-        const numSegments = 32; const boxThickness = 40; const distance = (radius + 0.1) + boxThickness / 2;
-        const boxWidth = 2 * distance * Math.tan(Math.PI / numSegments) + 0.5;
+        const numSegments = 32; 
+        const boxThickness = 30; 
+        const boxHeight = 6;
+        const tiltAngle = 0.28; // ~16 degrees inward bevel slide
         
+        const cosT = Math.cos(tiltAngle);
+        const sinT = Math.sin(tiltAngle);
+        const halfThick = boxThickness / 2;
+        const halfH = boxHeight / 2;
+        
+        const localInnerTopX = -halfThick * cosT - halfH * sinT;
+        const localInnerTopY = halfThick * sinT + halfH * cosT;
+        
+        const distance = (radius + 0.05) - localInnerTopX;
+        const posY = -localInnerTopY;
+        const boxWidth = 2 * (radius + 0.05 + halfThick) * Math.tan(Math.PI / numSegments) + 0.5;
+
         for (let i = 0; i < numSegments; i++) {
             const angle = i * ((Math.PI * 2) / numSegments);
-            const shape = new CANNON.Box(new CANNON.Vec3(boxThickness/2, 4/2, boxWidth/2));
-            const quat = new CANNON.Quaternion(); quat.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), -angle);
-            holeBody.addShape(shape, new CANNON.Vec3(Math.cos(angle) * distance, -2, Math.sin(angle) * distance), quat);
+            const shape = new CANNON.Box(new CANNON.Vec3(halfThick, halfH, boxWidth / 2));
+            
+            const qYaw = new CANNON.Quaternion();
+            qYaw.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), -angle);
+            
+            const qTilt = new CANNON.Quaternion();
+            qTilt.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), -tiltAngle);
+            
+            const quat = qYaw.mult(qTilt);
+            
+            const shapePos = new CANNON.Vec3(
+                Math.cos(angle) * distance,
+                posY,
+                Math.sin(angle) * distance
+            );
+            
+            holeBody.addShape(shape, shapePos, quat);
         }
         world.addBody(holeBody);
     }
@@ -1264,10 +1328,22 @@
             inputVelocity.set(0, 0); 
         }
 
+        // Continuous Kinematic Velocity Calculation
+        let velX = 0, velZ = 0;
+        if (dt > 0.0001) {
+            velX = (holeTarget.x - prevHoleTarget.x) / dt;
+            velZ = (holeTarget.z - prevHoleTarget.z) / dt;
+        }
+        prevHoleTarget.copy(holeTarget);
+
         holeGroup.position.copy(holeTarget);
         holeGroup.scale.set(holeRadius, 1, holeRadius);
         groundUniforms.holePos.value.copy(holeTarget);
-        if (holeBody) holeBody.position.set(holeTarget.x, 0, holeTarget.z);
+        
+        if (holeBody) {
+            holeBody.position.set(holeTarget.x, 0, holeTarget.z);
+            holeBody.velocity.set(velX, 0, velZ);
+        }
 
         const camDist = 8 + (holeRadius * 2.5); 
         const camHeight = 7 + (holeRadius * 1.5);

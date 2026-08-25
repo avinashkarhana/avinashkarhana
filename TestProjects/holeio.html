@@ -527,6 +527,47 @@
     }
 </script>
 
+<script>
+    window.__holeioBooted = false;
+    window.__holeioBootErrorShown = false;
+
+    function showBootError(message) {
+        if (window.__holeioBootErrorShown) return;
+        window.__holeioBootErrorShown = true;
+        const el = document.createElement('div');
+        el.style.position = 'fixed';
+        el.style.left = '16px';
+        el.style.right = '16px';
+        el.style.bottom = '16px';
+        el.style.zIndex = '1000';
+        el.style.background = 'rgba(35, 10, 16, 0.95)';
+        el.style.border = '1px solid #ff0055';
+        el.style.boxShadow = '0 0 20px rgba(255, 0, 85, 0.35)';
+        el.style.color = '#ffd3df';
+        el.style.padding = '12px 14px';
+        el.style.fontFamily = "'Rajdhani', sans-serif";
+        el.style.fontSize = '14px';
+        el.style.letterSpacing = '0.4px';
+        el.textContent = message;
+        document.body.appendChild(el);
+    }
+
+    window.addEventListener('unhandledrejection', (event) => {
+        const msg = String(event?.reason?.message || event?.reason || '');
+        if (msg.toLowerCase().includes('failed') && msg.toLowerCase().includes('import')) {
+            showBootError('Game failed to start: required engine scripts could not be loaded. Check network access and reload.');
+        }
+    });
+
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            if (!window.__holeioBooted) {
+                showBootError('Game initialization did not complete. If you are offline or behind a restricted network, external dependencies may be blocked.');
+            }
+        }, 3000);
+    });
+</script>
+
 <script type="module">
     import * as THREE from 'three';
     import * as CANNON from 'cannon-es';
@@ -2480,6 +2521,7 @@
     document.getElementById('main-menu-modal').style.display = 'flex';
     refreshMainMenuUI();
 
+    window.__holeioBooted = true;
     animate();
 </script>
 </body>

@@ -527,6 +527,47 @@
     }
 </script>
 
+<script>
+    window.__holeioBooted = false;
+    window.__holeioBootErrorShown = false;
+
+    function showBootError(message) {
+        if (window.__holeioBootErrorShown) return;
+        window.__holeioBootErrorShown = true;
+        const el = document.createElement('div');
+        el.style.position = 'fixed';
+        el.style.left = '16px';
+        el.style.right = '16px';
+        el.style.bottom = '16px';
+        el.style.zIndex = '1000';
+        el.style.background = 'rgba(35, 10, 16, 0.95)';
+        el.style.border = '1px solid #ff0055';
+        el.style.boxShadow = '0 0 20px rgba(255, 0, 85, 0.35)';
+        el.style.color = '#ffd3df';
+        el.style.padding = '12px 14px';
+        el.style.fontFamily = "'Rajdhani', sans-serif";
+        el.style.fontSize = '14px';
+        el.style.letterSpacing = '0.4px';
+        el.textContent = message;
+        document.body.appendChild(el);
+    }
+
+    window.addEventListener('unhandledrejection', (event) => {
+        const msg = String(event?.reason?.message || event?.reason || '');
+        if (msg.toLowerCase().includes('failed') && msg.toLowerCase().includes('import')) {
+            showBootError('Game failed to start: required engine scripts could not be loaded. Check network access and reload.');
+        }
+    });
+
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            if (!window.__holeioBooted) {
+                showBootError('Game initialization did not complete. If you are offline or behind a restricted network, external dependencies may be blocked.');
+            }
+        }, 3000);
+    });
+</script>
+
 <script type="module">
     import * as THREE from 'three';
     import * as CANNON from 'cannon-es';
@@ -566,6 +607,178 @@
     
     let nextBuildingId = 1;
     let buildingMap = {};
+    let buildingStates = {};
+    let removalQueue = [];
+
+    // Gameplay tuning: COM trigger sensitivity, below-ground removal line, and visual fade-out timing.
+    const HOLE_COM_MARGIN = 0.98;
+    const REMOVAL_Y_THRESHOLD = -0.35;
+    const FINAL_FADE_MS = 160;
+
+    function disposeMeshResources(mesh) {
+        if (!mesh) return;
+        if (mesh.isGroup) {
+            mesh.traverse(child => {
+                if (!child.isMesh) return;
+                child.geometry?.dispose();
+                if (Array.isArray(child.material)) child.material.forEach(m => m?.dispose?.());
+                else child.material?.dispose?.();
+            });
+            return;
+        }
+        mesh.geometry?.dispose?.();
+        if (Array.isArray(mesh.material)) mesh.material.forEach(m => m?.dispose?.());
+        else mesh.material?.dispose?.();
+    }
+
+    function getItemHalfHeight(item) {
+        const params = item?.mesh?.geometry?.parameters;
+        const baseHeight = params?.height ?? (item.radius ? item.radius * 2 : 1);
+        return Math.max(0.05, baseHeight * 0.5 * (item?.mesh?.scale?.y ?? 1));
+    }
+
+    function getItemTopY(item) {
+        return item.body.position.y + getItemHalfHeight(item);
+    }
+
+    function getPartsOfBuilding(buildingId) {
+        return items.filter(it => it.buildingId === buildingId && !it._scheduledForRemoval);
+    }
+
+    function computeBuildingCOM(buildingId) {
+        const parts = getPartsOfBuilding(buildingId);
+        if (!parts.length) return null;
+        let totalMass = 0;
+        let sumX = 0, sumY = 0, sumZ = 0;
+        for (const part of parts) {
+            const m = Math.max(0.001, part.mass || part.body.mass || 1);
+            totalMass += m;
+            sumX += part.body.position.x * m;
+            sumY += part.body.position.y * m;
+            sumZ += part.body.position.z * m;
+        }
+        if (totalMass <= 0) return null;
+        return { x: sumX / totalMass, y: sumY / totalMass, z: sumZ / totalMass };
+    }
+
+    function startBuildingFall(buildingId) {
+        if (!buildingId) return;
+        const state = buildingStates[buildingId];
+        if (state?.falling) return;
+
+        const parts = getPartsOfBuilding(buildingId);
+        if (!parts.length) return;
+
+        buildingStates[buildingId] = { falling: true, startedAt: performance.now() };
+
+        for (const part of parts) {
+            const body = part.body;
+            if (!body) continue;
+            if (body.type !== CANNON.Body.DYNAMIC) {
+                body.type = CANNON.Body.DYNAMIC;
+                if (body.mass <= 0) body.mass = Math.max(0.5, part.mass || 1);
+                body.updateMassProperties?.();
+            }
+            body.collisionFilterMask = maskVoidFall;
+            body.wakeUp?.();
+            part._fallTriggered = true;
+        }
+    }
+
+    function applyItemRewards(item) {
+        if (!item || item._rewardGranted) return;
+        item._rewardGranted = true;
+        score += item.mass;
+        updateScoreObjective();
+        checkItemObjective(item);
+
+        holePoints += item.mass;
+        while (holePoints >= targetHolePoints) {
+            holePoints -= targetHolePoints;
+            holeLevel++;
+            const percent = getGrowthPercent(holeLevel);
+            targetHoleRadius *= (1 + percent);
+            scoreMultiplier *= (1 + percent);
+            targetHolePoints = getNextTargetPoints(holeLevel);
+        }
+        updateGrowthUI();
+        saveGameState();
+    }
+
+    function scheduleRemoval(item, now) {
+        if (!item || item._scheduledForRemoval) return;
+        item._scheduledForRemoval = true;
+        const body = item.body;
+        if (body) {
+            body.collisionFilterMask = 0;
+            body.type = CANNON.Body.KINEMATIC;
+            body.velocity.set(0, 0, 0);
+            body.angularVelocity.set(0, 0, 0);
+            body.updateMassProperties?.();
+            body.wakeUp?.();
+        }
+        removalQueue.push({
+            item,
+            startedAt: now,
+            removeAt: now + FINAL_FADE_MS
+        });
+    }
+
+    function processRemovals(now) {
+        if (!removalQueue.length) return;
+        const pending = [];
+        let removedAny = false;
+
+        for (const entry of removalQueue) {
+            const item = entry.item;
+            if (!item) continue;
+            const t = Math.min(1, Math.max(0, (now - entry.startedAt) / FINAL_FADE_MS));
+            const scale = 1 - (0.96 * t);
+            const opacity = 1 - t;
+            if (item.mesh) {
+                item.mesh.scale.setScalar(Math.max(0.04, scale));
+                if (item.mesh.material) item.mesh.material.opacity = Math.max(0, opacity);
+            }
+
+            if (now < entry.removeAt) {
+                pending.push(entry);
+                continue;
+            }
+
+            applyItemRewards(item);
+            world.removeBody(item.body);
+            scene.remove(item.mesh);
+            disposeMeshResources(item.mesh);
+            const idx = items.indexOf(item);
+            if (idx >= 0) items.splice(idx, 1);
+            removedAny = true;
+        }
+
+        removalQueue = pending;
+        if (removedAny && items.length === 0) levelComplete();
+    }
+
+    function finalizeFallenBuildings(now) {
+        for (const item of items) {
+            if (item._scheduledForRemoval || item.buildingId || !item._fallTriggered) continue;
+            if (getItemTopY(item) < REMOVAL_Y_THRESHOLD) scheduleRemoval(item, now);
+        }
+
+        for (const id of Object.keys(buildingStates)) {
+            const buildingId = Number(id);
+            const state = buildingStates[buildingId];
+            if (!state?.falling) continue;
+            const parts = getPartsOfBuilding(buildingId);
+            if (!parts.length) {
+                delete buildingStates[buildingId];
+                continue;
+            }
+            const allBelowThreshold = parts.every(part => getItemTopY(part) < REMOVAL_Y_THRESHOLD);
+            if (!allBelowThreshold) continue;
+            for (const part of parts) scheduleRemoval(part, now);
+            delete buildingStates[buildingId];
+        }
+    }
 
     // --- LocalStorage State & Settings Management ---
     function saveSettings() {
@@ -611,7 +824,7 @@
                 objectives,
                 buildingMap,
                 nextBuildingId,
-                items: items.map(it => ({
+                items: items.filter(it => !it._scheduledForRemoval).map(it => ({
                     x: it.body.position.x,
                     y: it.body.position.y,
                     z: it.body.position.z,
@@ -1005,14 +1218,12 @@
         mapMeshes = [];
         wallBodies.forEach(b => world.removeBody(b));
         wallBodies = [];
+        buildingStates = {};
+        removalQueue = [];
         
         items.forEach(item => { 
             scene.remove(item.mesh);
-            if(item.mesh.isGroup) {
-                item.mesh.traverse(child => { if (child.isMesh) { child.geometry?.dispose(); child.material?.dispose(); } });
-            } else {
-                item.mesh.geometry?.dispose(); item.mesh.material?.dispose();
-            }
+            disposeMeshResources(item.mesh);
             world.removeBody(item.body); 
         });
         items = [];
@@ -2151,6 +2362,21 @@
         holeGroup.position.copy(holeTarget);
         groundUniforms.holePos.value.copy(holeTarget);
 
+        // Buildings only start falling once their whole-building COM projection enters the hole.
+        const visitedBuildingIds = new Set();
+        for (const item of items) {
+            if (!item.buildingId || item._scheduledForRemoval || visitedBuildingIds.has(item.buildingId)) continue;
+            visitedBuildingIds.add(item.buildingId);
+            if (buildingStates[item.buildingId]?.falling) continue;
+            const com = computeBuildingCOM(item.buildingId);
+            if (!com) continue;
+            const dx = com.x - holeTarget.x;
+            const dz = com.z - holeTarget.z;
+            if ((dx * dx + dz * dz) <= ((holeRadius * HOLE_COM_MARGIN) ** 2)) {
+                startBuildingFall(item.buildingId);
+            }
+        }
+
         const aspect = window.innerWidth / window.innerHeight;
         const aspectMultiplier = aspect < 1.4 ? Math.min(2.6, 1.4 / Math.max(0.45, aspect)) : 1.0;
 
@@ -2165,6 +2391,9 @@
         scene.fog.far = camDist + (75 + (holeRadius * 8)) * aspectMultiplier;
 
         world.step(timeStep, dt, 3);
+        const nowMs = performance.now();
+        finalizeFallenBuildings(nowMs);
+        processRemovals(nowMs);
         
         _camToHole.subVectors(holeTarget, camera.position);
         const distToHole = _camToHole.length();
@@ -2193,6 +2422,7 @@
 
         for (let i = items.length - 1; i >= 0; i--) {
             const item = items[i];
+            if (item._scheduledForRemoval) continue;
             
             // Exponential Vertical Velocity Suppression & Jump Height Ceiling
             if (item.body.velocity.y > 0) {
@@ -2210,12 +2440,9 @@
             const dx = item.body.position.x - holeTarget.x; 
             const dz = item.body.position.z - holeTarget.z;
             const dist = Math.sqrt(dx * dx + dz * dz);
-            
-            const isSubmerged = item.body.position.y < Math.min(item.initialY - 0.4, 0.2);
-            const swallowed = isSubmerged && (dist < holeRadius * 1.25);
-            
+
             // Island containment
-            if (!swallowed && item.body.position.y > -2.0) {
+            if (!item._fallTriggered && item.body.position.y > -2.0) {
                 const itemAngle = Math.atan2(item.body.position.z, item.body.position.x);
                 const maxIslandR = getPolygonRadius(itemAngle) - 0.5; 
                 const itemDist = Math.sqrt(item.body.position.x**2 + item.body.position.z**2);
@@ -2239,56 +2466,18 @@
                 item.mesh.material.opacity += (item.targetOpacity - item.mesh.material.opacity) * 0.18;
             }
 
-            if (swallowed) {
-                if (item.body.collisionFilterMask !== 0) item.body.collisionFilterMask = 0; 
-                item.body.applyForce(new CANNON.Vec3(0, -item.body.mass * 35, 0), item.body.position);
-                item.mesh.scale.multiplyScalar(0.88); 
-            }
-
-            if (item.body.position.y < -6 || item.mesh.scale.x < 0.08) {
-                scene.remove(item.mesh);
-                item.mesh.geometry?.dispose(); 
-                item.mesh.material?.dispose(); 
-                world.removeBody(item.body);
-                items.splice(i, 1);
-                
-                if (item.mesh.scale.x < 0.25 || dist < holeRadius * 2.2) {
-                    score += item.mass; 
-                    updateScoreObjective(); 
-                    checkItemObjective(item);
-                    
-                    holePoints += item.mass;
-                    
-                    while (holePoints >= targetHolePoints) {
-                        holePoints -= targetHolePoints;
-                        holeLevel++;
-                        
-                        let percent = getGrowthPercent(holeLevel);
-                        targetHoleRadius *= (1 + percent);
-                        scoreMultiplier *= (1 + percent);
-                        
-                        targetHolePoints = getNextTargetPoints(holeLevel);
-                    }
-                    
-                    updateGrowthUI();
-                    saveGameState();
-                }
-                
-                if (items.length === 0) levelComplete(); 
-                continue;
-            }
-
             // Pure Void Ingestion: Dropping objects lose ground support without any rim collision
-            if (!swallowed) {
-                const overHole = dist < holeRadius;
-                if (overHole) { 
-                    if (item.body.collisionFilterMask !== maskVoidFall) { 
-                        item.body.collisionFilterMask = maskVoidFall; 
-                        item.body.wakeUp(); 
-                    } 
-                } else if (item.body.position.y > -0.2 && item.body.collisionFilterMask !== maskGroundOnly) {
-                    item.body.collisionFilterMask = maskGroundOnly;
+            const buildingFalling = item.buildingId ? !!buildingStates[item.buildingId]?.falling : false;
+            const overHole = dist < holeRadius;
+            const shouldVoidFall = buildingFalling || (!item.buildingId && overHole);
+            if (shouldVoidFall) {
+                item._fallTriggered = true;
+                if (item.body.collisionFilterMask !== maskVoidFall) {
+                    item.body.collisionFilterMask = maskVoidFall;
+                    item.body.wakeUp();
                 }
+            } else if (!item.buildingId && item.body.position.y > -0.2 && item.body.collisionFilterMask !== maskGroundOnly) {
+                item.body.collisionFilterMask = maskGroundOnly;
             }
         }
         renderer.render(scene, camera);
@@ -2332,6 +2521,7 @@
     document.getElementById('main-menu-modal').style.display = 'flex';
     refreshMainMenuUI();
 
+    window.__holeioBooted = true;
     animate();
 </script>
 </body>

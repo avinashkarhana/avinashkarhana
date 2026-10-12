@@ -1,0 +1,19 @@
+{
+  "name": "Bingo",
+  "short_name": "Bingo",
+  "description": "A pass-and-play Bingo board for people in the same room.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8fafc",
+  "theme_color": "#1e293b",
+  "icons": [
+    {
+      "src": "./bingo-pwa-local-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

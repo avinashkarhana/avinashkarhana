@@ -1,0 +1,2705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#1e293b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="./bingo-pwa-local.webmanifest">
+    <title>Bingo PWA</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --page-start: #e0e7ff;
+            --page-end: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.58);
+            --glass-border: rgba(255, 255, 255, 0.72);
+            --glass-shadow: 0 12px 38px rgba(71, 85, 105, 0.18);
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --text-light: #172033;
+            --text-muted: #475569;
+            --control-bg: rgba(255, 255, 255, 0.5);
+            --cell-bg: rgba(255, 255, 255, 0.45);
+            --cell-empty: rgba(255, 255, 255, 0.25);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --page-start: #0f172a;
+                --page-end: #334155;
+                --glass-bg: rgba(255, 255, 255, 0.1);
+                --glass-border: rgba(255, 255, 255, 0.18);
+                --glass-shadow: 0 12px 38px rgba(0, 0, 0, 0.35);
+                --primary: #6366f1;
+                --primary-hover: #4f46e5;
+                --text-light: #f8fafc;
+                --text-muted: #cbd5e1;
+                --control-bg: rgba(255, 255, 255, 0.08);
+                --cell-bg: rgba(255, 255, 255, 0.08);
+                --cell-empty: rgba(255, 255, 255, 0.04);
+            }
+        }
+        [data-theme="light"] {
+            color-scheme: light;
+            --page-start: #e0e7ff;
+            --page-end: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.58);
+            --glass-border: rgba(255, 255, 255, 0.72);
+            --glass-shadow: 0 12px 38px rgba(71, 85, 105, 0.18);
+            --text-light: #172033;
+            --text-muted: #475569;
+            --control-bg: rgba(255, 255, 255, 0.5);
+            --cell-bg: rgba(255, 255, 255, 0.45);
+            --cell-empty: rgba(255, 255, 255, 0.25);
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary: #eef2ff;
+            --success: #059669;
+            --danger: #dc2626;
+        }
+        [data-theme="dark"] {
+            color-scheme: dark;
+            --page-start: #0f172a;
+            --page-end: #334155;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.18);
+            --glass-shadow: 0 12px 38px rgba(0, 0, 0, 0.35);
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --text-light: #f8fafc;
+            --text-muted: #cbd5e1;
+            --control-bg: rgba(255, 255, 255, 0.08);
+            --cell-bg: rgba(255, 255, 255, 0.08);
+            --cell-empty: rgba(255, 255, 255, 0.04);
+            --secondary: #1e293b;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        html { height: 100%; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--page-start) 0%, var(--page-end) 100%);
+            background-attachment: fixed;
+            color: var(--text-light);
+            line-height: 1.6;
+            height: 100vh;
+            height: 100dvh;
+            padding: max(8px, env(safe-area-inset-top)) 10px max(8px, env(safe-area-inset-bottom));
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        body::before,
+        body::after {
+            content: "";
+            position: fixed;
+            z-index: -1;
+            width: 42vmax;
+            height: 42vmax;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(30px);
+            opacity: 0.36;
+        }
+        body::before {
+            top: -22vmax;
+            right: -16vmax;
+            background: #a5b4fc;
+        }
+        body::after {
+            bottom: -24vmax;
+            left: -18vmax;
+            background: #67e8f9;
+        }
+        .container {
+            max-width: 720px;
+            height: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .app-bar {
+            position: sticky;
+            top: max(8px, env(safe-area-inset-top));
+            z-index: 10;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+            width: min(100%, 560px);
+            margin: 0 auto 14px;
+            padding: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 999px;
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.48), rgba(255,255,255,0.16)),
+                rgba(255,255,255,0.18);
+            backdrop-filter: blur(28px) saturate(180%);
+            -webkit-backdrop-filter: blur(28px) saturate(180%);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.72),
+                inset 0 -1px 0 rgba(255,255,255,0.18),
+                0 10px 28px rgba(51,65,85,0.16),
+                0 2px 6px rgba(51,65,85,0.12);
+            isolation: isolate;
+        }
+        .app-bar::before {
+            content: "";
+            position: absolute;
+            inset: 1px;
+            z-index: -1;
+            border-radius: inherit;
+            background: linear-gradient(105deg, rgba(255,255,255,0.35), transparent 38%, rgba(255,255,255,0.12));
+            pointer-events: none;
+        }
+        .app-bar::after {
+            content: "";
+            position: absolute;
+            top: 2px;
+            left: 14%;
+            width: 34%;
+            height: 2px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.72);
+            filter: blur(1px);
+            opacity: 0.8;
+            pointer-events: none;
+        }
+        .app-bar h1 {
+            margin: 0;
+            font-size: clamp(1rem, 4.5vw, 1.35rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            white-space: nowrap;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.4);
+        }
+        .app-bar-spacer { min-width: 38px; }
+        .app-bar .bar-btn {
+            min-height: 36px;
+            margin: 0;
+            padding: 6px 12px;
+            border: 1px solid rgba(255,255,255,0.36);
+            border-radius: 999px;
+            background: rgba(255,255,255,0.22);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 2px 5px rgba(51,65,85,0.08);
+            font-size: 12px;
+            font-weight: 650;
+            white-space: nowrap;
+        }
+        .app-bar .bar-btn:hover {
+            background: rgba(255,255,255,0.36);
+            transform: translateY(-1px);
+        }
+        .app-bar .bar-btn:active { transform: scale(0.96); }
+        .app-bar .bar-btn:last-child { justify-self: end; }
+        @media (prefers-color-scheme: dark) {
+            body::before { background: #6366f1; }
+            body::after { background: #0891b2; }
+            .app-bar {
+                border-color: rgba(255,255,255,0.2);
+                background:
+                    linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.04)),
+                    rgba(15,23,42,0.34);
+                box-shadow:
+                    inset 0 1px 0 rgba(255,255,255,0.28),
+                    inset 0 -1px 0 rgba(255,255,255,0.08),
+                    0 12px 32px rgba(0,0,0,0.3);
+            }
+            .app-bar .bar-btn {
+                border-color: rgba(255,255,255,0.2);
+                background: rgba(255,255,255,0.1);
+                box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+            }
+        }
+        h1, h2 {
+            text-align: center;
+            margin-bottom: 16px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        h1 { font-size: clamp(1.5rem, 4vmin, 2.2rem); }
+        h2 { font-size: clamp(1.2rem, 3vmin, 1.6rem); }
+        .section {
+            display: none;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: clamp(12px, 2.5vmin, 24px);
+            box-shadow: var(--glass-shadow);
+            margin: 0 auto;
+            width: 100%;
+            overflow: hidden;
+            overscroll-behavior: contain;
+        }
+        .section.active { display: flex; flex-direction: column; min-height: 0; }
+        .section.active:not(#homeScreen) { flex: 1 1 auto; min-height: 0; }
+        #homeScreen { flex: 0 0 auto; overflow: visible; }
+        .section h2 { margin-bottom: 8px; }
+        #homeScreen {
+            max-width: 560px;
+            padding: clamp(24px, 7vmin, 56px) clamp(16px, 5vmin, 40px);
+            text-align: center;
+            justify-content: center;
+        }
+        .home-mark {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 14px;
+            border-radius: 24px;
+            background: linear-gradient(145deg, #818cf8, #4f46e5);
+            box-shadow: 0 14px 28px rgba(79, 70, 229, 0.32), inset 0 1px 0 rgba(255,255,255,0.45);
+            color: #fff;
+            font-size: 1.7rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            object-fit: cover;
+            display: block;
+        }
+        #homeScreen h2 { margin-bottom: 4px; font-size: clamp(1.6rem, 7vmin, 2.35rem); }
+        .home-subtitle { color: var(--text-muted); max-width: 30rem; margin: 0 auto; }
+        .home-actions { display: grid; gap: 10px; max-width: 380px; width: 100%; margin: 24px auto 20px; }
+        .home-actions .btn { min-height: 52px; display: flex; align-items: center; justify-content: space-between; font-size: 16px; text-align: left; padding: 12px 20px; }
+        .appearance-setting {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border: 1px solid var(--glass-border);
+            border-radius: 999px;
+            background: var(--control-bg);
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        .appearance-setting select {
+            border: 0;
+            outline: 0;
+            color: var(--text-light);
+            background: transparent;
+            font: inherit;
+            font-weight: 650;
+        }
+        .back-btn { margin: 0 0 12px; }
+        #playerIdsList { display: grid; gap: 10px; margin: 20px 0; }
+        .player-id-card { padding: 12px; border: 1px solid var(--glass-border); border-radius: 12px; background: var(--control-bg); }
+        .player-id-card > strong {
+            display: block;
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .player-id-entry {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .player-id-entry input {
+            width: 100%;
+            min-width: 0;
+            padding: 10px 12px;
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            outline: none;
+            background: var(--glass-bg);
+            color: var(--text-light);
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+        .player-id-entry input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        .player-id-value {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 8px;
+            padding: 10px 12px;
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            background: var(--glass-bg);
+        }
+        .player-id-value code {
+            color: var(--text-light);
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+            user-select: all;
+        }
+        .copy-id-btn {
+            flex: 0 0 auto;
+            margin: 0;
+            padding: 6px 9px;
+            font-size: 12px;
+        }
+        #regenerateGridContainer { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; width: min(92vw, 36dvh, 440px); margin: 10px auto; padding: 8px; }
+        #regenerateGridContainer .cell { font-size: clamp(1rem, 4vmin, 1.4rem); }
+
+        /* ===== Setup grid: 5-column board sized to fit width AND height ===== */
+        #gridContainer {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: clamp(4px, 1vmin, 8px);
+            width: min(92vw, 36dvh, 440px);
+            margin: 10px auto;
+            padding: clamp(8px, 1.5vmin, 12px);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+        }
+        #gridContainer .cell { font-size: clamp(1rem, 4vmin, 1.4rem); }
+
+        /* ===== Cells: square via aspect-ratio, content centered ===== */
+        .cell {
+            aspect-ratio: 1;
+            display: grid;
+            place-items: center;
+            background: var(--cell-bg);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease, transform 0.1s ease;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
+            color: var(--text-light);
+            font-size: clamp(0.7rem, 2.6vmin, 1rem);
+        }
+        .cell.empty {
+            background: var(--cell-empty);
+            border-style: dashed;
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+        .cell.filled {
+            background: rgba(99, 102, 241, 0.55);
+            border-color: rgba(99, 102, 241, 0.7);
+        }
+        .cell.marked {
+            background: rgba(16, 185, 129, 0.32);
+            border: 3px solid #6ee7b7;
+            color: var(--text-light);
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.22), 0 0 12px rgba(16, 185, 129, 0.45);
+        }
+        .cell:hover:not(.filled):not(.marked) {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .cell:active { transform: scale(0.93); }
+
+        .setup-hint {
+            text-align: center;
+            font-size: clamp(0.85rem, 2.2vmin, 1rem);
+            color: var(--text-muted);
+            margin: 10px 0;
+        }
+        .setup-hint strong { color: #a5b4fc; }
+
+        /* ===== Game screen: one player's board ===== */
+        #playersGridsContainer {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 4px 0;
+        }
+        .player-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            background: var(--glass-bg);
+            border: 2px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 6px;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            max-width: 440px;
+            margin: 0 auto;
+        }
+        .player-card.active-turn {
+            border-color: var(--primary);
+            box-shadow: 0 0 14px rgba(99, 102, 241, 0.5);
+        }
+        .player-card h3 {
+            font-size: clamp(0.95rem, 2.4vmin, 1.15rem);
+        }
+        .player-card .grid {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 4px;
+            width: min(100%, clamp(132px, 34dvh, 320px));
+        }
+        .player-card .grid .cell {
+            position: relative;
+            z-index: 1;
+        }
+        .win-line {
+            position: absolute;
+            z-index: 2;
+            display: block;
+            height: clamp(4px, 1.2vmin, 7px);
+            border-radius: 999px;
+            pointer-events: none;
+            background: linear-gradient(90deg, #fef08a, #facc15, #fef08a);
+            box-shadow: 0 0 5px rgba(250, 204, 21, 0.95), 0 0 14px rgba(250, 204, 21, 0.65);
+            transform-origin: center;
+            animation: line-pop 0.3s ease-out both;
+        }
+        .win-line.horizontal {
+            left: -2%;
+            width: 104%;
+            transform: translateY(-50%);
+        }
+        .win-line.vertical {
+            top: -2%;
+            width: clamp(4px, 1.2vmin, 7px);
+            height: 104%;
+            transform: translateX(-50%);
+        }
+        .win-line.diagonal {
+            top: 50%;
+            left: -7%;
+            width: 114%;
+            transform: translateY(-50%) rotate(45deg);
+        }
+        .win-line.diagonal-reverse {
+            top: 50%;
+            left: -7%;
+            width: 114%;
+            transform: translateY(-50%) rotate(-45deg);
+        }
+        @keyframes line-pop {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .hash-chip {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 1.5px;
+            font-size: clamp(0.7rem, 2vmin, 0.85rem);
+            background: var(--control-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 4px 10px;
+            word-break: break-all;
+        }
+        .bingo-status {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin: 12px 0;
+        }
+        .bingo-letter {
+            min-width: 42px;
+            padding: 6px 8px;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 800;
+            color: var(--text-muted);
+            background: var(--control-bg);
+        }
+        .bingo-letter.lit {
+            color: #fef08a;
+            background: rgba(234, 179, 8, 0.34);
+            border-color: #facc15;
+            box-shadow: 0 0 12px rgba(250, 204, 21, 0.5);
+        }
+        .bingo-message {
+            min-height: 32px;
+            text-align: center;
+            color: #fef08a;
+            font-weight: 800;
+            font-size: clamp(1.2rem, 4vmin, 1.8rem);
+        }
+        .other-ids {
+            width: min(100%, 560px);
+            margin: 18px auto 0;
+            padding: 14px;
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.06);
+        }
+        .other-ids h3 { margin-bottom: 6px; text-align: center; }
+        .other-id-row { display: flex; gap: 8px; margin-top: 8px; }
+        .other-id-row input { min-width: 0; }
+        .id-actions { text-align: center; }
+
+        .btn {
+            background: var(--control-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-light);
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.25s ease;
+            margin: 4px;
+            font-weight: 500;
+            touch-action: manipulation;
+        }
+        .btn:hover { background: rgba(255, 255, 255, 0.22); }
+        .btn:active { transform: scale(0.97); }
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-primary { background: var(--primary); border-color: var(--primary); }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-secondary {
+            background: rgba(15, 23, 42, 0.78);
+            border-color: rgba(15, 23, 42, 0.55);
+            color: #ffffff;
+        }
+        .btn-success { background: var(--success); border-color: var(--success); }
+        .btn-danger { background: var(--danger); border-color: var(--danger); }
+        @media (prefers-color-scheme: dark) {
+            .btn-secondary {
+                background: rgba(255, 255, 255, 0.78);
+                border-color: rgba(255, 255, 255, 0.9);
+                color: #172033;
+            }
+            .btn-secondary:hover {
+                background: rgba(255, 255, 255, 0.92);
+            }
+        }
+        [data-theme="light"] .btn-secondary {
+            background: rgba(15, 23, 42, 0.78);
+            border-color: rgba(15, 23, 42, 0.55);
+            color: #ffffff;
+        }
+        [data-theme="light"] .btn-secondary:hover {
+            background: rgba(15, 23, 42, 0.9);
+        }
+        [data-theme="dark"] .btn-secondary {
+            background: rgba(255, 255, 255, 0.78);
+            border-color: rgba(255, 255, 255, 0.9);
+            color: #172033;
+        }
+        [data-theme="dark"] .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.92);
+        }
+
+        .input-group {
+            margin: 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+        }
+        .input-group input {
+            flex: 1;
+            min-width: 140px;
+            max-width: 320px;
+            padding: 12px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            color: var(--text-light);
+            font-size: 16px;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        .input-group input::placeholder { color: rgba(255, 255, 255, 0.5); }
+        .input-group input:disabled { opacity: 0.5; }
+
+        .hash-display {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+            text-align: center;
+            font-size: clamp(1rem, 2.6vmin, 1.2rem);
+            margin: 12px 0;
+        }
+        .turn-indicator {
+            text-align: center;
+            font-size: clamp(1.1rem, 3vmin, 1.5rem);
+            font-weight: 600;
+            color: #172033;
+            padding: 14px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            margin: 16px 0;
+        }
+        [data-theme="dark"] .turn-indicator {
+            color: #f8fafc;
+        }
+        @media (prefers-color-scheme: dark) {
+            [data-theme="system"] .turn-indicator {
+                color: #f8fafc;
+            }
+        }
+        .move-log {
+            display: none;
+            position: fixed;
+            right: max(16px, env(safe-area-inset-right));
+            bottom: max(84px, calc(env(safe-area-inset-bottom) + 72px));
+            z-index: 12;
+            width: min(320px, calc(100vw - 32px));
+            max-height: 200px;
+            overflow-y: auto;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 14px;
+            margin: 16px 0;
+        }
+        .move-log.open { display: block; }
+        .log-fab {
+            position: fixed;
+            right: max(16px, env(safe-area-inset-right));
+            bottom: max(16px, env(safe-area-inset-bottom));
+            z-index: 13;
+            width: 54px;
+            height: 54px;
+            padding: 0;
+            margin: 0;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-size: 1.35rem;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+        }
+        .log-fab[aria-expanded="true"] {
+            background: var(--primary);
+            transform: scale(1.04);
+        }
+        .move-log h3 { font-size: 1rem; margin-bottom: 8px; }
+        .move-log-entry {
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 14px;
+        }
+        .move-log-entry:last-child { border-bottom: none; }
+        .move-log-entry.current {
+            background: rgba(99, 102, 241, 0.25);
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-weight: 700;
+        }
+        .move-log-entry.current::before { content: "▶"; color: #facc15; margin-right: 6px; }
+        .history-panel {
+            display: none;
+            position: fixed;
+            inset: max(12px, env(safe-area-inset-top)) 12px 12px;
+            z-index: 20;
+            max-width: 640px;
+            margin: auto;
+            padding: 20px;
+            overflow-y: auto;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+            box-shadow: var(--glass-shadow);
+        }
+        .history-panel.open { display: block; }
+        .history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .history-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .history-entry {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            background: var(--control-bg);
+        }
+        .history-entry-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .history-entry small { display: block; color: var(--text-muted); }
+        .history-entry details { margin-top: 8px; }
+        .history-entry summary { cursor: pointer; color: var(--text-muted); }
+        .history-empty { color: var(--text-muted); text-align: center; }
+        .move-log h3 { font-size: 1rem; margin-bottom: 8px; }
+        .move-log-entry {
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 14px;
+        }
+        .move-log-entry:last-child { border-bottom: none; }
+        .move-log-entry.current {
+            background: rgba(99, 102, 241, 0.25);
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-weight: 700;
+        }
+        .move-log-entry.current::before { content: "▶"; color: #facc15; margin-right: 6px; }
+        .replay-controls { text-align: center; margin: 6px 0; }
+        .section .replay-controls { margin: 4px 0; }
+        .speed-control {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: 4px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        .speed-control select {
+            padding: 8px 10px;
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            background: var(--control-bg);
+            color: var(--text-light);
+            font-weight: 600;
+        }
+        /* Layered glass buttons: translucent tint, blur, and a specular edge. */
+        .btn {
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 44px;
+            border: 1px solid rgba(255, 255, 255, 0.48);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.18);
+            color: var(--text-light);
+            box-shadow:
+                inset 1px 1px 0 rgba(255, 255, 255, 0.46),
+                inset -1px -1px 0 rgba(255, 255, 255, 0.12),
+                0 8px 20px rgba(15, 23, 42, 0.14);
+            backdrop-filter: blur(16px) saturate(150%);
+            -webkit-backdrop-filter: blur(16px) saturate(150%);
+        }
+        .btn::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            background: linear-gradient(
+                135deg,
+                rgba(255, 255, 255, 0.34),
+                rgba(255, 255, 255, 0.08) 48%,
+                rgba(255, 255, 255, 0.2)
+            );
+            pointer-events: none;
+        }
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.28);
+            transform: translateY(-1px);
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary,
+        .btn-success,
+        .btn-danger {
+            color: #fff;
+        }
+        .btn-primary { background: rgba(79, 70, 229, 0.32); }
+        .btn-success { background: rgba(16, 185, 129, 0.3); }
+        .btn-danger { background: rgba(239, 68, 68, 0.3); }
+        [data-theme="light"] .btn-secondary,
+        [data-theme="light"] .btn {
+            color: #172033;
+        }
+        [data-theme="light"] .btn-primary,
+        [data-theme="light"] .btn-success,
+        [data-theme="light"] .btn-danger {
+            color: #fff;
+        }
+        [data-theme="dark"] .btn-secondary,
+        [data-theme="dark"] .btn {
+            color: #f8fafc;
+        }
+
+        @media (max-height: 700px) {
+            .app-bar { padding: 5px 7px; }
+            .app-bar { margin-bottom: 8px; }
+            .section { padding: 10px 12px; }
+            #homeScreen { padding: 16px 14px; }
+            .home-mark { width: 56px; height: 56px; border-radius: 18px; font-size: 1.8rem; margin-bottom: 8px; }
+            .home-actions { gap: 8px; margin: 14px auto 10px; }
+            .home-actions .btn { min-height: 46px; }
+            #setupNumPlayers { padding-bottom: 70px; }
+            .turn-indicator { margin: 8px 0; padding: 8px; font-size: 1rem; }
+            .bingo-status { margin: 6px 0; }
+            .bingo-letter { min-width: 34px; padding: 3px 6px; }
+            .bingo-message { min-height: 24px; font-size: 1.25rem; }
+            .player-card { padding: 4px; gap: 3px; }
+            .player-card .grid { width: min(100%, 30dvh); }
+            .section .btn { padding: 8px 12px; }
+        }
+
+        #hashResults {
+            display: grid;
+            grid-template-columns: minmax(0, 380px);
+            justify-content: center;
+            gap: 12px;
+            width: min(100%, 380px);
+            margin: 20px auto;
+        }
+        #hashResults h3 { grid-column: 1 / -1; text-align: center; }
+        .stat-box {
+            width: 100%;
+            box-sizing: border-box;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+        #endScreen {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: clamp(1.3rem, 3.4vmin, 1.8rem);
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .stat-box.ok .stat-value { color: #6ee7b7; }
+        .error-box { border-color: var(--danger); background: rgba(239, 68, 68, 0.12); }
+        .error-box .stat-value { color: #fca5a5; }
+
+        .section > p { text-align: center; margin-bottom: 8px; }
+
+        /* ===== Minimal geometric theme ===== */
+        :root {
+            --page-start: #f7f7f5;
+            --page-end: #ecece8;
+            --glass-bg: rgba(255, 255, 255, 0.88);
+            --glass-border: #d9d9d2;
+            --glass-shadow: 0 12px 32px rgba(35, 35, 30, 0.08);
+            --text-light: #20211e;
+            --text-muted: #686a63;
+            --control-bg: #f5f5f1;
+            --cell-bg: #f7f7f4;
+            --cell-empty: #eeeeea;
+            --primary: #20211e;
+            --primary-hover: #454740;
+            --secondary: rgba(32, 33, 30, 0.88);
+            --success: #167653;
+            --danger: #b83b35;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --page-start: #171815;
+                --page-end: #252722;
+                --glass-bg: rgba(36, 38, 33, 0.94);
+                --glass-border: #45483f;
+                --glass-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+                --text-light: #f2f2ed;
+                --text-muted: #b9bbb2;
+                --control-bg: #2e302b;
+                --cell-bg: #30322d;
+                --cell-empty: #292b27;
+                --primary: #f2f2ed;
+                --primary-hover: #ffffff;
+                --secondary: rgba(242, 242, 237, 0.9);
+                --success: #54c697;
+                --danger: #ef8077;
+            }
+        }
+        [data-theme="light"] {
+            color-scheme: light;
+            --page-start: #f7f7f5;
+            --page-end: #ecece8;
+            --glass-bg: rgba(255, 255, 255, 0.88);
+            --glass-border: #d9d9d2;
+            --glass-shadow: 0 12px 32px rgba(35, 35, 30, 0.08);
+            --text-light: #20211e;
+            --text-muted: #686a63;
+            --control-bg: #f5f5f1;
+            --cell-bg: #f7f7f4;
+            --cell-empty: #eeeeea;
+            --primary: #20211e;
+            --primary-hover: #454740;
+            --secondary: rgba(32, 33, 30, 0.88);
+            --success: #167653;
+            --danger: #b83b35;
+        }
+        [data-theme="dark"] {
+            color-scheme: dark;
+            --page-start: #171815;
+            --page-end: #252722;
+            --glass-bg: rgba(36, 38, 33, 0.94);
+            --glass-border: #45483f;
+            --glass-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+            --text-light: #f2f2ed;
+            --text-muted: #b9bbb2;
+            --control-bg: #2e302b;
+            --cell-bg: #30322d;
+            --cell-empty: #292b27;
+            --primary: #f2f2ed;
+            --primary-hover: #ffffff;
+            --secondary: rgba(242, 242, 237, 0.9);
+            --success: #54c697;
+            --danger: #ef8077;
+        }
+        html {
+            background: var(--page-end);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 80' fill='none' stroke='%2374776e' stroke-opacity='.13' stroke-width='.7'%3E%3Cpath d='M10 18 30 6l20 12v22L30 52 10 40Z'/%3E%3Cpath d='m10 18 20 12 20-12M30 6v24m20-12L30 30 10 18m20 12v22'/%3E%3C/svg%3E");
+            background-position: center;
+            background-size: 280px;
+        }
+        body {
+            background: transparent;
+            color: var(--text-light);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.45;
+        }
+        body::before,
+        body::after { display: none; }
+        .app-bar {
+            position: relative;
+            top: auto;
+            width: min(100%, 560px);
+            margin-bottom: 12px;
+            padding: 10px 14px;
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            background: var(--glass-bg);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            box-shadow: var(--glass-shadow);
+        }
+        .app-bar::before,
+        .app-bar::after { display: none; }
+        .app-bar h1 { color: var(--text-light); text-shadow: none; font-size: 1.05rem; letter-spacing: 0; }
+        .app-bar-spacer { min-width: 18px; }
+        .section {
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            background: var(--glass-bg);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            box-shadow: var(--glass-shadow);
+        }
+        h1, h2 { text-shadow: none; }
+        h2 { color: var(--text-light); font-weight: 700; }
+        .home-mark {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            background: var(--text-light);
+            box-shadow: none;
+            filter: grayscale(1);
+        }
+        .home-actions .btn { min-height: 50px; border-radius: 10px; }
+        .btn {
+            border-radius: 9px;
+            box-shadow: none;
+            transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+        }
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: var(--page-end);
+        }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-secondary {
+            background: var(--secondary);
+            border-color: transparent;
+            color: var(--page-end);
+        }
+        .btn-success { background: var(--success); border-color: var(--success); color: #fff; }
+        .btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+        .appearance-setting,
+        .turn-indicator,
+        .hash-display,
+        .player-id-value,
+        .player-id-card,
+        .other-ids,
+        .move-log,
+        .history-panel {
+            border-color: var(--glass-border);
+            background: var(--control-bg);
+            box-shadow: none;
+        }
+        .player-card { border-color: var(--glass-border); background: var(--control-bg); box-shadow: none; }
+        .cell { border-color: var(--glass-border); border-radius: 6px; }
+        .cell.filled { background: #7c82a8; border-color: #7c82a8; color: #fff; }
+        .cell.marked { background: #3f9b76; border-color: #75d2a7; box-shadow: none; }
+        .bingo-letter { border-color: var(--glass-border); background: var(--control-bg); }
+        .bingo-letter.lit { box-shadow: none; }
+        .win-line { box-shadow: none; }
+        .history-panel { backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+        /* ===== Liquid Glass surface system ===== */
+        :root {
+            --page-start: #dbeafe;
+            --page-end: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.42);
+            --glass-strong: rgba(255, 255, 255, 0.62);
+            --glass-border: rgba(255, 255, 255, 0.72);
+            --glass-highlight: rgba(255, 255, 255, 0.86);
+            --glass-shadow: 0 18px 45px rgba(51, 65, 85, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            --text-light: #172033;
+            --text-muted: #475569;
+            --control-bg: rgba(255, 255, 255, 0.3);
+            --cell-bg: rgba(255, 255, 255, 0.34);
+            --cell-empty: rgba(255, 255, 255, 0.2);
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary: rgba(255, 255, 255, 0.48);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --page-start: #0b1120;
+                --page-end: #1e293b;
+                --glass-bg: rgba(255, 255, 255, 0.1);
+                --glass-strong: rgba(255, 255, 255, 0.16);
+                --glass-border: rgba(255, 255, 255, 0.24);
+                --glass-highlight: rgba(255, 255, 255, 0.38);
+                --glass-shadow: 0 20px 48px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+                --text-light: #f8fafc;
+                --text-muted: #cbd5e1;
+                --control-bg: rgba(255, 255, 255, 0.08);
+                --cell-bg: rgba(255, 255, 255, 0.1);
+                --cell-empty: rgba(255, 255, 255, 0.05);
+                --primary: #818cf8;
+                --primary-hover: #a5b4fc;
+                --secondary: rgba(255, 255, 255, 0.14);
+            }
+        }
+        [data-theme="light"] {
+            color-scheme: light;
+            --page-start: #dbeafe;
+            --page-end: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.42);
+            --glass-strong: rgba(255, 255, 255, 0.62);
+            --glass-border: rgba(255, 255, 255, 0.72);
+            --glass-highlight: rgba(255, 255, 255, 0.86);
+            --glass-shadow: 0 18px 45px rgba(51, 65, 85, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            --text-light: #172033;
+            --text-muted: #475569;
+            --control-bg: rgba(255, 255, 255, 0.3);
+            --cell-bg: rgba(255, 255, 255, 0.34);
+            --cell-empty: rgba(255, 255, 255, 0.2);
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary: rgba(255, 255, 255, 0.48);
+        }
+        [data-theme="dark"] {
+            color-scheme: dark;
+            --page-start: #0b1120;
+            --page-end: #1e293b;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-strong: rgba(255, 255, 255, 0.16);
+            --glass-border: rgba(255, 255, 255, 0.24);
+            --glass-highlight: rgba(255, 255, 255, 0.38);
+            --glass-shadow: 0 20px 48px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+            --text-light: #f8fafc;
+            --text-muted: #cbd5e1;
+            --control-bg: rgba(255, 255, 255, 0.08);
+            --cell-bg: rgba(255, 255, 255, 0.1);
+            --cell-empty: rgba(255, 255, 255, 0.05);
+            --primary: #818cf8;
+            --primary-hover: #a5b4fc;
+            --secondary: rgba(255, 255, 255, 0.14);
+        }
+        html {
+            background: linear-gradient(135deg, var(--page-start), var(--page-end));
+            background-image:
+                radial-gradient(circle at 12% 12%, rgba(129, 140, 248, 0.3), transparent 28%),
+                radial-gradient(circle at 90% 86%, rgba(34, 211, 238, 0.24), transparent 30%),
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 80' fill='none' stroke='%2374776e' stroke-opacity='.1' stroke-width='.7'%3E%3Cpath d='M10 18 30 6l20 12v22L30 52 10 40Z'/%3E%3Cpath d='m10 18 20 12 20-12M30 6v24m20-12L30 30 10 18m20 12v22'/%3E%3C/svg%3E");
+            background-position: center;
+            background-size: auto, auto, 280px;
+        }
+        body { background: transparent; }
+        body::before,
+        body::after { display: block; opacity: 0.28; filter: blur(48px); }
+        .app-bar,
+        .section,
+        .history-panel,
+        .move-log {
+            border: 1px solid var(--glass-border);
+            background: linear-gradient(135deg, var(--glass-strong), var(--glass-bg));
+            backdrop-filter: blur(26px) saturate(165%);
+            -webkit-backdrop-filter: blur(26px) saturate(165%);
+            box-shadow: var(--glass-shadow);
+        }
+        .app-bar {
+            position: sticky;
+            top: max(8px, env(safe-area-inset-top));
+            border-radius: 999px;
+            padding: 7px 10px;
+        }
+        .app-bar::before {
+            display: block;
+            background: linear-gradient(110deg, rgba(255,255,255,0.34), transparent 38%, rgba(255,255,255,0.12));
+        }
+        .app-bar::after {
+            display: block;
+            background: var(--glass-highlight);
+        }
+        .app-bar h1 { text-shadow: 0 1px 2px rgba(255,255,255,0.3); }
+        .section { border-radius: 20px; }
+        .section {
+            position: relative;
+            padding-bottom: 76px;
+        }
+        .section > .back-btn {
+            position: absolute;
+            left: clamp(12px, 3vmin, 24px);
+            bottom: max(14px, env(safe-area-inset-bottom));
+            margin: 0;
+            width: 48px;
+            height: 48px;
+            min-height: 48px;
+            padding: 0;
+            border-radius: 50%;
+            font-size: 1.35rem;
+            line-height: 1;
+        }
+        .section > .replay-controls:last-child {
+            margin-top: auto;
+        }
+        .replay-only[hidden] {
+            display: none;
+        }
+        .move-log {
+            color: var(--text-light);
+        }
+        .move-log h3 {
+            color: var(--text-light);
+        }
+        .move-log-entry small {
+            color: var(--text-muted);
+        }
+        #homeScreen {
+            flex: 1 1 auto;
+            min-height: 0;
+            width: 100%;
+        }
+        #setupNumPlayers {
+            position: relative;
+            padding-bottom: 76px;
+        }
+        #setupNumPlayers .back-btn {
+            position: absolute;
+            left: clamp(12px, 3vmin, 24px);
+            bottom: max(14px, env(safe-area-inset-bottom));
+            margin: 0;
+            width: 48px;
+            height: 48px;
+            min-height: 48px;
+            padding: 0;
+            border-radius: 50%;
+            font-size: 1.35rem;
+            line-height: 1;
+        }
+        #setupNumPlayers .input-group {
+            width: 100%;
+            margin-top: auto;
+            margin-bottom: 0;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+        }
+        #setupNumPlayers .input-group input,
+        #setupNumPlayers .input-group .appearance-setting,
+        #setupNumPlayers .input-group #startSetupBtn {
+            width: 100%;
+            max-width: none;
+            min-height: 48px;
+        }
+        #setupNumPlayers .input-group .appearance-setting {
+            justify-content: space-between;
+        }
+        #setupNumPlayers .input-group #startSetupBtn {
+            margin-bottom: 4px;
+        }
+        #endScreen .end-actions {
+            width: 100%;
+            max-width: 380px;
+            margin: auto auto 0;
+        }
+        #endScreen .end-actions .btn {
+            width: 100%;
+        }
+        .home-mark {
+            background: linear-gradient(145deg, #818cf8, #4f46e5);
+            box-shadow: 0 14px 28px rgba(79, 70, 229, 0.3), inset 0 1px 0 rgba(255,255,255,0.5);
+            filter: none;
+        }
+        .btn {
+            border: 1px solid var(--glass-border);
+            background: linear-gradient(135deg, rgba(255,255,255,0.34), rgba(255,255,255,0.12));
+            backdrop-filter: blur(18px) saturate(175%);
+            -webkit-backdrop-filter: blur(18px) saturate(175%);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.6),
+                inset 0 -1px 0 rgba(255,255,255,0.12),
+                0 6px 16px rgba(51,65,85,0.12);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, rgba(99,102,241,0.34), rgba(79,70,229,0.12));
+            border-color: rgba(255,255,255,0.62);
+            color: #fff;
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, rgba(255,255,255,0.22), rgba(255,255,255,0.06));
+            border-color: var(--glass-border);
+            color: var(--text-light);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, rgba(16,185,129,0.3), rgba(5,150,105,0.1));
+            border-color: rgba(167,243,208,0.62);
+            color: #fff;
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, rgba(239,68,68,0.3), rgba(185,28,28,0.1));
+            border-color: rgba(254,202,202,0.62);
+            color: #fff;
+        }
+        [data-theme="light"] .btn,
+        [data-theme="light"] .btn-secondary {
+            color: #172033;
+        }
+        [data-theme="light"] .btn-primary,
+        [data-theme="light"] .btn-success,
+        [data-theme="light"] .btn-danger {
+            color: #fff;
+        }
+        @media (prefers-color-scheme: light) {
+            .btn,
+            .btn-secondary {
+                color: #172033;
+            }
+            .btn-primary,
+            .btn-success,
+            .btn-danger {
+                color: #fff;
+            }
+        }
+        .btn:hover {
+            background: linear-gradient(135deg, rgba(255,255,255,0.36), rgba(255,255,255,0.12));
+            border-color: var(--glass-highlight);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, rgba(129,140,248,0.46), rgba(99,102,241,0.18));
+        }
+        .btn-success:hover {
+            background: linear-gradient(135deg, rgba(52,211,153,0.42), rgba(16,185,129,0.16));
+        }
+        .btn-danger:hover {
+            background: linear-gradient(135deg, rgba(248,113,113,0.42), rgba(239,68,68,0.16));
+        }
+        [data-theme="light"] .btn-secondary {
+            background: linear-gradient(135deg, rgba(255,255,255,0.34), rgba(255,255,255,0.12));
+            border-color: var(--glass-border);
+            color: #172033;
+        }
+        [data-theme="light"] .btn-secondary:hover {
+            background: linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0.2));
+        }
+        @media (prefers-color-scheme: light) {
+            .btn-secondary {
+                background: linear-gradient(135deg, rgba(255,255,255,0.34), rgba(255,255,255,0.12));
+                border-color: var(--glass-border);
+                color: #172033;
+            }
+            .btn-secondary:hover {
+                background: linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0.2));
+            }
+        }
+        [data-theme="dark"] .btn,
+        [data-theme="dark"] .btn-secondary {
+            background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.06));
+            color: #f8fafc;
+        }
+        [data-theme="dark"] .btn-primary {
+            background: linear-gradient(135deg, rgba(129,140,248,0.34), rgba(99,102,241,0.12));
+        }
+        @media (prefers-color-scheme: dark) {
+            .btn,
+            .btn-secondary {
+                background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.06));
+                color: #f8fafc;
+            }
+            .btn-primary {
+                background: linear-gradient(135deg, rgba(129,140,248,0.34), rgba(99,102,241,0.12));
+            }
+        }
+        .appearance-setting,
+        .turn-indicator,
+        .hash-display,
+        .player-id-value,
+        .player-id-card,
+        .other-ids,
+        .player-card,
+        .bingo-letter {
+            border-color: var(--glass-border);
+            background: var(--control-bg);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
+        }
+        .cell { border-color: var(--glass-border); }
+        .cell.filled { background: rgba(99, 102, 241, 0.6); border-color: rgba(165, 180, 252, 0.7); }
+        .cell.marked { box-shadow: 0 0 0 2px rgba(110, 231, 183, 0.2), 0 0 14px rgba(110, 231, 183, 0.4); }
+        .win-line { box-shadow: 0 0 7px rgba(250, 204, 21, 0.95), 0 0 16px rgba(250, 204, 21, 0.65); }
+        .history-panel {
+            position: fixed;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .history-panel.open { display: flex; }
+        .history-header-actions {
+            position: absolute;
+            left: 18px;
+            right: 18px;
+            bottom: max(14px, env(safe-area-inset-bottom));
+            justify-content: space-between;
+            z-index: 2;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            pointer-events: auto;
+        }
+        .history-header-actions .btn.history-icon-btn {
+            position: relative;
+            z-index: 1;
+            width: 48px;
+            height: 48px;
+            min-height: 48px;
+            padding: 0;
+            margin: 0;
+            border-radius: 50%;
+            font-size: 1.35rem;
+            line-height: 1;
+            pointer-events: auto;
+        }
+        #historyList {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            padding-bottom: 82px;
+        }
+        .history-entry-actions .btn-danger {
+            min-width: 72px;
+            min-height: 42px;
+            border-color: rgba(185, 28, 28, 0.58);
+            background: rgba(239, 68, 68, 0.24);
+            color: #991b1b;
+            font-weight: 750;
+            text-shadow: none;
+        }
+        .history-entry-actions .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.36);
+            border-color: rgba(153, 27, 27, 0.72);
+        }
+        [data-theme="dark"] .history-entry-actions .btn-danger {
+            border-color: rgba(252, 165, 165, 0.72);
+            background: rgba(239, 68, 68, 0.32);
+            color: #fff1f2;
+        }
+        [data-theme="dark"] .history-entry-actions .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.44);
+        }
+        #clearHistoryBtn {
+            border-color: rgba(185, 28, 28, 0.58);
+            background: rgba(239, 68, 68, 0.24);
+            color: #991b1b;
+            text-shadow: none;
+            box-shadow:
+                inset 1px 1px 0 rgba(255, 255, 255, 0.52),
+                0 5px 14px rgba(185, 28, 28, 0.16);
+        }
+        #clearHistoryBtn:hover {
+            background: rgba(239, 68, 68, 0.34);
+            border-color: rgba(153, 27, 27, 0.72);
+        }
+        [data-theme="dark"] #clearHistoryBtn {
+            border-color: rgba(252, 165, 165, 0.72);
+            background: rgba(239, 68, 68, 0.32);
+            color: #fff1f2;
+        }
+        [data-theme="dark"] #clearHistoryBtn:hover {
+            background: rgba(239, 68, 68, 0.44);
+        }
+        #confirmBackdrop .confirm-actions #cancelConfirmBtn {
+            color: #172033;
+        }
+        #confirmBackdrop .confirm-actions #acceptConfirmBtn {
+            background: rgba(239, 68, 68, 0.28);
+            border-color: rgba(185, 28, 28, 0.58);
+            color: #991b1b;
+            text-shadow: none;
+        }
+        #confirmBackdrop .confirm-actions #acceptConfirmBtn:hover {
+            background: rgba(239, 68, 68, 0.4);
+            border-color: rgba(153, 27, 27, 0.72);
+        }
+        [data-theme="dark"] #confirmBackdrop .confirm-actions #cancelConfirmBtn {
+            color: #f8fafc;
+        }
+        [data-theme="dark"] #confirmBackdrop .confirm-actions #acceptConfirmBtn {
+            background: rgba(239, 68, 68, 0.36);
+            border-color: rgba(252, 165, 165, 0.72);
+            color: #fff1f2;
+        }
+        .app-notice {
+            position: fixed;
+            left: 50%;
+            bottom: max(18px, env(safe-area-inset-bottom));
+            z-index: 40;
+            width: min(420px, calc(100vw - 32px));
+            padding: 12px 16px;
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--glass-strong), var(--glass-bg));
+            color: var(--text-light);
+            box-shadow: var(--glass-shadow);
+            backdrop-filter: blur(20px) saturate(165%);
+            -webkit-backdrop-filter: blur(20px) saturate(165%);
+            text-align: center;
+            transform: translate(-50%, 18px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+        .app-notice.visible {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+        .confirm-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: none;
+            place-items: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.24);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .confirm-backdrop.open { display: grid; }
+        .confirm-card {
+            width: min(380px, 100%);
+            padding: 22px;
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            background: linear-gradient(135deg, var(--glass-strong), var(--glass-bg));
+            color: var(--text-light);
+            box-shadow: var(--glass-shadow);
+            backdrop-filter: blur(26px) saturate(165%);
+            -webkit-backdrop-filter: blur(26px) saturate(165%);
+            text-align: center;
+        }
+        .confirm-card h2 { margin-bottom: 8px; }
+        .confirm-card p { color: var(--text-muted); margin-bottom: 18px; }
+        .confirm-actions { display: flex; justify-content: center; gap: 8px; }
+    </style>
+</head>
+<body>
+    <div id="appNotice" class="app-notice" role="status" aria-live="polite"></div>
+    <div id="confirmBackdrop" class="confirm-backdrop" aria-hidden="true">
+        <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+            <h2 id="confirmTitle">Confirm deletion</h2>
+            <p id="confirmMessage"></p>
+            <div class="confirm-actions">
+                <button class="btn btn-secondary" id="cancelConfirmBtn" type="button">Cancel</button>
+                <button class="btn btn-danger" id="acceptConfirmBtn" type="button">Delete</button>
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <header class="app-bar">
+            <span class="app-bar-spacer" aria-hidden="true"></span>
+            <h1>Bingo</h1>
+            <span class="app-bar-spacer" aria-hidden="true"></span>
+        </header>
+
+        <div id="homeScreen" class="section active">
+            <svg class="home-mark" viewBox="0 0 512 512" aria-hidden="true" focusable="false">
+                <defs>
+                    <linearGradient id="homeIconBackground" x1="0" y1="0" x2="1" y2="1">
+                        <stop stop-color="#818cf8"/>
+                        <stop offset="1" stop-color="#4f46e5"/>
+                    </linearGradient>
+                </defs>
+                <rect width="512" height="512" rx="128" fill="url(#homeIconBackground)"/>
+                <g fill="none" stroke="#fff" stroke-linecap="round" stroke-width="28">
+                    <rect x="112" y="112" width="288" height="288" rx="28"/>
+                    <path d="M208 112v288M304 112v288M112 208h288M112 304h288"/>
+                </g>
+                <circle cx="160" cy="160" r="22" fill="#fef08a"/>
+                <circle cx="352" cy="352" r="22" fill="#fef08a"/>
+            </svg>
+            <h2>Welcome to Bingo</h2>
+            <p class="home-subtitle">A simple pass-and-play bingo board for people in the same room.</p>
+            <div class="home-actions">
+                <button class="btn btn-primary" id="homeNewGameBtn">＋&nbsp; New Game <span aria-hidden="true">→</span></button>
+                <button class="btn btn-secondary" id="homeHistoryBtn">☷&nbsp; History <span aria-hidden="true">→</span></button>
+                <button class="btn btn-secondary" id="homeRegenerateBtn">♻&nbsp; Regenerate Grid <span aria-hidden="true">→</span></button>
+            </div>
+            <label class="appearance-setting" for="themeSelect">
+                <span>Appearance</span>
+                <select id="themeSelect" aria-label="Appearance">
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </label>
+        </div>
+
+        <div id="setupNumPlayers" class="section">
+            <button class="btn btn-secondary back-btn" id="backFromSetupBtn" aria-label="Back" title="Back">←</button>
+            <h2>New Game</h2>
+            <p>Set up your own board on this device. Other players keep their boards on their own devices.</p>
+            <div class="input-group">
+                <input type="number" id="numPlayersInput" min="1" max="10" value="2" inputmode="numeric" aria-label="Number of players">
+                <label class="appearance-setting" for="gridSizeSelect">
+                    <span>Grid</span>
+                    <select id="gridSizeSelect" aria-label="Grid size"></select>
+                </label>
+                <button class="btn btn-primary" id="startSetupBtn">Set Up My Grid</button>
+            </div>
+        </div>
+        <aside class="history-panel" id="historyPanel" aria-hidden="true">
+            <div class="history-header">
+                <h2>Game history</h2>
+                <div class="history-header-actions">
+                    <button class="btn btn-danger history-icon-btn" id="clearHistoryBtn" aria-label="Clear all history" title="Clear all history">🧹</button>
+                    <button class="btn btn-secondary history-icon-btn" id="closeHistoryBtn" aria-label="Close history" title="Close history">×</button>
+                </div>
+            </div>
+            <p>Every completed and in-progress game stays on this device with its grid ID and action timestamps.</p>
+            <div id="historyList"></div>
+        </aside>
+
+        <!-- Setup Player Grid -->
+        <div id="setupPlayerGrid" class="section">
+            <button class="btn btn-secondary back-btn" id="backFromGridBtn" aria-label="Back" title="Back">←</button>
+            <h2>Set Up Your Grid</h2>
+            <p>Tap the boxes — numbers fill in automatically:</p>
+            <div class="input-group">
+                <button class="btn btn-primary" id="fillRandomBtn">🎲 Fill Random</button>
+                <button class="btn btn-secondary" id="manualFillBtn">✍️ Start Over</button>
+            </div>
+
+            <p class="setup-hint" id="setupHint"><strong>Next number: 1</strong> — tap a box to place it. Tap a placed number to undo from there.</p>
+            <div id="gridContainer"></div>
+            <p class="hash-display" id="playerHashDisplay">Your Grid ID: not generated yet</p>
+            <div class="input-group">
+                <input type="text" id="gridIdInput" placeholder="Paste your grid ID to restore it">
+                <button class="btn btn-secondary" id="restoreGridBtn">Restore Grid</button>
+            </div>
+            <div class="replay-controls">
+                <button class="btn btn-success" id="doneSetupBtn" disabled>Done Setup</button>
+            </div>
+        </div>
+
+        <div id="setupPlayerIds" class="section">
+            <button class="btn btn-secondary back-btn" id="backFromIdsBtn" aria-label="Back" title="Back">←</button>
+            <h2>Confirm Grid IDs</h2>
+            <p>Everyone should check and record their ID before the game begins.</p>
+            <div id="playerIdsList"></div>
+            <div class="replay-controls"><button class="btn btn-success" id="startGameBtn">Start Game</button></div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="gameScreen" class="section">
+            <button class="btn btn-secondary back-btn" id="backFromGameBtn" aria-label="Home" title="Home">←</button>
+            <div class="turn-indicator">Call a number aloud, then tap it on your board to circle it.</div>
+            <div class="bingo-status" id="bingoStatus"></div>
+            <div class="bingo-message" id="bingoMessage" aria-live="polite"></div>
+            <div id="playersGridsContainer"></div>
+            <button class="btn btn-secondary log-fab" id="viewLogsBtn" aria-expanded="false" aria-controls="moveLogPanel" aria-label="Show move log">☷</button>
+            <div class="move-log" id="moveLogPanel" aria-hidden="true">
+                <h3>Move Log</h3>
+                <div id="moveLog"></div>
+            </div>
+            <div class="replay-controls">
+                <button class="btn btn-danger" id="endGameBtn" disabled>🏁 End Game</button>
+                <button class="btn btn-secondary" id="previousMoveBtn">◀ Back</button>
+                <button class="btn btn-secondary" id="nextMoveBtn">Next ▶</button>
+                <div class="replay-only" id="replayControls" hidden>
+                    <button class="btn btn-secondary" id="autoReplayBtn">▶ Auto playback</button>
+                    <label class="speed-control">Speed
+                        <select id="replaySpeedSelect" aria-label="Auto playback speed">
+                            <option value="3000">0.5×</option>
+                            <option value="2000" selected>1×</option>
+                            <option value="1000">2×</option>
+                            <option value="500">4×</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- End Screen -->
+        <div id="endScreen" class="section">
+            <h2>Game Over!</h2>
+            <div id="hashResults"></div>
+            <div class="home-actions end-actions">
+                <button class="btn btn-secondary" id="backFromEndBtn">Home <span aria-hidden="true">→</span></button>
+                <button class="btn btn-secondary" id="replayBtn">Replay Game <span aria-hidden="true">→</span></button>
+                <button class="btn btn-secondary" id="newGameBtn">New Game <span aria-hidden="true">→</span></button>
+            </div>
+
+        </div>
+        <div id="regenerateScreen" class="section">
+            <button class="btn btn-secondary back-btn" id="backFromRegenerateBtn" aria-label="Home" title="Home">←</button>
+            <h2>Regenerate Grid</h2>
+            <p>Draw a grid, or paste a grid ID belonging to this device.</p>
+            <div class="input-group">
+                <input type="text" id="regenerateIdInput" placeholder="Paste grid ID to fill grid">
+                <button class="btn btn-secondary" id="regenerateFromIdBtn">Fill Grid</button>
+            </div>
+            <div id="regenerateGridContainer"></div>
+            <p class="hash-display" id="regenerateIdDisplay">Grid ID: not generated yet</p>
+            <div class="input-group">
+                <button class="btn btn-primary" id="regenerateRandomBtn">🎲 Random Grid</button>
+                <button class="btn btn-success" id="saveRegeneratedBtn" disabled>Generate Grid ID</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================ State ============================
+        const state = {
+            numPlayers: 1,
+            playerGrids: [],
+            playerMarked: [],
+            playerHashes: [],
+            userId: '',
+            otherPlayerIds: [],
+            moveLog: [],       // { number }
+            gameEnded: false,
+            replayIndex: 0,
+            isReplaying: false,
+            replayTimeout: null,
+            currentSetupPlayer: 0,
+            gridSize: 5,
+            numberRange: { min: 1, max: 25 },
+            nextNumber: 1                     // next number to place during manual setup
+            ,history: []
+            ,gameId: null
+            ,actionLog: []
+            ,lastLoggedBingoLines: 0
+        };
+
+        function totalCells() {
+            return state.gridSize * state.gridSize;
+        }
+
+        // ============================ DOM ============================
+        const setupNumPlayersSection = document.getElementById('setupNumPlayers');
+        const setupPlayerGridSection = document.getElementById('setupPlayerGrid');
+        const homeScreen = document.getElementById('homeScreen');
+        const setupPlayerIdsSection = document.getElementById('setupPlayerIds');
+        const gameScreenSection = document.getElementById('gameScreen');
+        const endScreenSection = document.getElementById('endScreen');
+        const regenerateScreen = document.getElementById('regenerateScreen');
+
+        const numPlayersInput = document.getElementById('numPlayersInput');
+        const homeNewGameBtn = document.getElementById('homeNewGameBtn');
+        const homeHistoryBtn = document.getElementById('homeHistoryBtn');
+        const homeRegenerateBtn = document.getElementById('homeRegenerateBtn');
+        const themeSelect = document.getElementById('themeSelect');
+        const gridSizeSelect = document.getElementById('gridSizeSelect');
+        const startSetupBtn = document.getElementById('startSetupBtn');
+        const fillRandomBtn = document.getElementById('fillRandomBtn');
+        const manualFillBtn = document.getElementById('manualFillBtn');
+        const setupHint = document.getElementById('setupHint');
+        const gridContainer = document.getElementById('gridContainer');
+        const playerHashDisplay = document.getElementById('playerHashDisplay');
+        const doneSetupBtn = document.getElementById('doneSetupBtn');
+        const gridIdInput = document.getElementById('gridIdInput');
+        const restoreGridBtn = document.getElementById('restoreGridBtn');
+        const otherIdsList = document.getElementById('otherIdsList');
+        const addOtherIdBtn = document.getElementById('addOtherIdBtn');
+        const playerIdsList = document.getElementById('playerIdsList');
+        const startGameBtn = document.getElementById('startGameBtn');
+        const viewLogsBtn = document.getElementById('viewLogsBtn');
+        const regenerateGridContainer = document.getElementById('regenerateGridContainer');
+        const regenerateIdInput = document.getElementById('regenerateIdInput');
+        const regenerateFromIdBtn = document.getElementById('regenerateFromIdBtn');
+        const regenerateRandomBtn = document.getElementById('regenerateRandomBtn');
+        const regenerateIdDisplay = document.getElementById('regenerateIdDisplay');
+        const saveRegeneratedBtn = document.getElementById('saveRegeneratedBtn');
+        const autoReplayBtn = document.getElementById('autoReplayBtn');
+        const replaySpeedSelect = document.getElementById('replaySpeedSelect');
+        const replayControls = document.getElementById('replayControls');
+
+        const currentTurnDisplay = document.getElementById('currentTurnDisplay');
+        const playersGridsContainer = document.getElementById('playersGridsContainer');
+        const moveLogPanel = document.getElementById('moveLogPanel');
+        const moveLog = document.getElementById('moveLog');
+        const endGameBtn = document.getElementById('endGameBtn');
+        const bingoStatus = document.getElementById('bingoStatus');
+        const bingoMessage = document.getElementById('bingoMessage');
+
+        const hashResults = document.getElementById('hashResults');
+        const replayBtn = document.getElementById('replayBtn');
+        const newGameBtn = document.getElementById('newGameBtn');
+        const historyPanel = document.getElementById('historyPanel');
+        const historyList = document.getElementById('historyList');
+        const appNotice = document.getElementById('appNotice');
+        const confirmBackdrop = document.getElementById('confirmBackdrop');
+        const confirmMessage = document.getElementById('confirmMessage');
+        const cancelConfirmBtn = document.getElementById('cancelConfirmBtn');
+        const acceptConfirmBtn = document.getElementById('acceptConfirmBtn');
+        const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        const backFromSetupBtn = document.getElementById('backFromSetupBtn');
+        const backFromGridBtn = document.getElementById('backFromGridBtn');
+        const backFromIdsBtn = document.getElementById('backFromIdsBtn');
+        const backFromGameBtn = document.getElementById('backFromGameBtn');
+        const backFromEndBtn = document.getElementById('backFromEndBtn');
+        const backFromRegenerateBtn = document.getElementById('backFromRegenerateBtn');
+
+        // ============================ Events ============================
+        function bind(element, event, handler) {
+            if (element) element.addEventListener(event, handler);
+        }
+
+        bind(startSetupBtn, 'click', startSetup);
+        bind(homeNewGameBtn, 'click', () => showSection(setupNumPlayersSection));
+        bind(homeHistoryBtn, 'click', openHistory);
+        bind(homeRegenerateBtn, 'click', openRegenerate);
+        bind(themeSelect, 'change', () => applyTheme(themeSelect.value));
+        bind(fillRandomBtn, 'click', fillRandomGrid);
+        bind(manualFillBtn, 'click', enableManualFill);
+        bind(doneSetupBtn, 'click', completePlayerSetup);
+        bind(endGameBtn, 'click', endGame);
+        bind(replayBtn, 'click', startReplay);
+        bind(newGameBtn, 'click', () => {
+            resetGame(false);
+            showSection(setupNumPlayersSection);
+        });
+        bind(viewLogsBtn, 'click', toggleMoveLog);
+        bind(startGameBtn, 'click', startGame);
+        bind(backFromSetupBtn, 'click', goHome);
+        bind(backFromGridBtn, 'click', goHome);
+        bind(backFromIdsBtn, 'click', () => showSection(setupPlayerGridSection));
+        bind(backFromGameBtn, 'click', goHome);
+        bind(backFromEndBtn, 'click', goHome);
+        bind(backFromRegenerateBtn, 'click', goHome);
+        bind(regenerateFromIdBtn, 'click', restoreRegeneratedGrid);
+        bind(regenerateRandomBtn, 'click', fillRegeneratedRandom);
+        bind(saveRegeneratedBtn, 'click', generateRegeneratedId);
+        bind(previousMoveBtn, 'click', () => stepReplay(-1));
+        bind(nextMoveBtn, 'click', () => stepReplay(1));
+        bind(autoReplayBtn, 'click', startReplay);
+        bind(replaySpeedSelect, 'change', () => {
+            if (state.replayTimeout) {
+                clearTimeout(state.replayTimeout);
+                state.replayTimeout = setTimeout(replayNextMove, getReplayDelay());
+            }
+        });
+        bind(closeHistoryBtn, 'click', closeHistory);
+        bind(clearHistoryBtn, 'click', clearHistory);
+        bind(cancelConfirmBtn, 'click', closeConfirmation);
+        bind(acceptConfirmBtn, 'click', acceptConfirmation);
+        bind(restoreGridBtn, 'click', restoreGridFromId);
+        bind(addOtherIdBtn, 'click', addOtherIdInput);
+        loadHistory();
+        renderHistory();
+        applyTheme(localStorage.getItem('bingo-theme') || 'system');
+        for (let size = 3; size <= 10; size++) {
+            const option = document.createElement('option');
+            option.value = String(size);
+            option.textContent = `${size} × ${size} (${size * size})`;
+            gridSizeSelect.appendChild(option);
+        }
+        gridSizeSelect.value = String(state.gridSize);
+
+        function applyTheme(theme) {
+            const selectedTheme = ['system', 'light', 'dark'].includes(theme) ? theme : 'system';
+            document.body.dataset.theme = selectedTheme === 'system' ? '' : selectedTheme;
+            themeSelect.value = selectedTheme;
+            localStorage.setItem('bingo-theme', selectedTheme);
+        }
+
+        // ============================ Setup ============================
+        function loadHistory() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('bingo-game-history') || '[]');
+                state.history = Array.isArray(saved) ? saved : [];
+            } catch (error) {
+                state.history = [];
+            }
+        }
+
+        let noticeTimeout;
+        let pendingConfirmation = null;
+        function showNotice(message) {
+            if (!appNotice) return;
+            appNotice.textContent = message;
+            appNotice.classList.add('visible');
+            clearTimeout(noticeTimeout);
+            noticeTimeout = setTimeout(() => appNotice.classList.remove('visible'), 2800);
+        }
+
+        function requestConfirmation(message, action) {
+            pendingConfirmation = action;
+            confirmMessage.textContent = message;
+            confirmBackdrop.classList.add('open');
+            confirmBackdrop.setAttribute('aria-hidden', 'false');
+            cancelConfirmBtn.focus();
+        }
+
+        function closeConfirmation() {
+            pendingConfirmation = null;
+            confirmBackdrop.classList.remove('open');
+            confirmBackdrop.setAttribute('aria-hidden', 'true');
+        }
+
+        function acceptConfirmation() {
+            const action = pendingConfirmation;
+            closeConfirmation();
+            if (action) action();
+        }
+
+        function persistHistory() {
+            localStorage.setItem('bingo-game-history', JSON.stringify(state.history));
+            renderHistory();
+        }
+
+        function logAction(action, details = {}) {
+            if (!state.gameId) return;
+            state.actionLog.push({ action, at: new Date().toISOString(), details });
+            const game = state.history.find(item => item.id === state.gameId);
+            if (game) {
+                game.actions = state.actionLog;
+                game.moves = state.moveLog;
+                game.updatedAt = new Date().toISOString();
+                game.ended = state.gameEnded;
+                persistHistory();
+            }
+        }
+
+        function renderHistory() {
+            historyList.innerHTML = '';
+            if (state.history.length === 0) {
+                historyList.innerHTML = '<p class="history-empty">No games recorded yet.</p>';
+                return;
+            }
+            [...state.history].reverse().forEach(game => {
+                const entry = document.createElement('div');
+                entry.className = 'history-entry';
+                const info = document.createElement('div');
+                info.innerHTML = `<strong>${new Date(game.startedAt).toLocaleString()}</strong>` +
+                    `<small>${game.ended ? 'Completed' : 'In progress'} · ${game.moves.length} calls</small>` +
+                    `<small>Grid size: ${game.gridSize || game.grid?.length || 5} × ${game.gridSize || game.grid?.length || 5}</small>` +
+                    `<small>Grid IDs: ${(game.playerGridIds || [game.gridId]).join(', ')}</small>`;
+                const actions = document.createElement('details');
+                const summary = document.createElement('summary');
+                summary.textContent = `Action log (${(game.actions || []).length})`;
+                actions.appendChild(summary);
+                (game.actions || []).forEach(item => {
+                    const action = document.createElement('small');
+                    const number = item.details?.number;
+                    action.textContent = `${new Date(item.at).toLocaleString()} — ${item.action}` +
+                        (number === undefined ? '' : `: ${number}`);
+                    actions.appendChild(action);
+                });
+                info.appendChild(actions);
+                const play = document.createElement('button');
+                play.className = 'btn btn-primary bar-btn';
+                play.textContent = '▶ Play';
+                play.addEventListener('click', () => playHistory(game.id));
+                const remove = document.createElement('button');
+                remove.className = 'btn btn-danger bar-btn';
+                remove.textContent = 'Delete';
+                remove.setAttribute('aria-label', `Delete game from ${new Date(game.startedAt).toLocaleString()}`);
+                remove.addEventListener('click', () => deleteHistoryItem(game.id));
+                const actionsBar = document.createElement('div');
+                actionsBar.className = 'history-entry-actions';
+                actionsBar.append(play, remove);
+                entry.append(info, actionsBar);
+                historyList.appendChild(entry);
+            });
+        }
+
+        function deleteHistoryItem(id) {
+            const game = state.history.find(item => item.id === id);
+            if (!game) return;
+            const startedAt = new Date(game.startedAt).toLocaleString();
+            requestConfirmation(`Delete the game from ${startedAt}? This cannot be undone.`, () => {
+                state.history = state.history.filter(item => item.id !== id);
+                persistHistory();
+                showNotice(`Deleted game from ${startedAt}`);
+            });
+        }
+
+        function clearHistory() {
+            if (state.history.length === 0) return;
+            requestConfirmation('Delete all saved game history? This cannot be undone.', () => {
+                state.history = [];
+                persistHistory();
+                showNotice('All game history deleted');
+            });
+        }
+
+        function openHistory() {
+            renderHistory();
+            historyPanel.classList.add('open');
+            historyPanel.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeHistory() {
+            historyPanel.classList.remove('open');
+            historyPanel.setAttribute('aria-hidden', 'true');
+        }
+
+        function toggleMoveLog() {
+            const isOpen = moveLogPanel.classList.toggle('open');
+            viewLogsBtn.setAttribute('aria-expanded', String(isOpen));
+            moveLogPanel.setAttribute('aria-hidden', String(!isOpen));
+            if (isOpen) moveLog.scrollTop = moveLog.scrollHeight;
+        }
+
+        function setReplayControlsVisible(visible) {
+            if (!replayControls) return;
+            replayControls.hidden = !visible;
+        }
+
+        function goHome() {
+            if (state.replayTimeout) clearTimeout(state.replayTimeout);
+            state.replayTimeout = null;
+            state.isReplaying = false;
+            replayBtn.disabled = false;
+            newGameBtn.disabled = false;
+            setReplayControlsVisible(false);
+            closeHistory();
+            showSection(homeScreen);
+        }
+
+        function openRegenerate() {
+            state.userId = getOrCreateUserId();
+            createRegenerateGrid();
+            showSection(regenerateScreen);
+        }
+
+        function setGridSize(size) {
+            state.gridSize = Math.max(3, Math.min(10, Number(size) || 5));
+            state.numberRange = { min: 1, max: totalCells() };
+            gridContainer.style.gridTemplateColumns = `repeat(${state.gridSize}, 1fr)`;
+            regenerateGridContainer.style.gridTemplateColumns = `repeat(${state.gridSize}, 1fr)`;
+        }
+
+        function createRegenerateGrid(values = []) {
+            regenerateGridContainer.innerHTML = '';
+            for (let index = 0; index < totalCells(); index++) {
+                const cell = document.createElement('div');
+                cell.className = values[index] ? 'cell filled' : 'cell empty';
+                cell.textContent = values[index] || '';
+                cell.addEventListener('click', () => {
+                    if (cell.classList.contains('filled')) {
+                        const target = parseInt(cell.textContent);
+                        regenerateGridContainer.querySelectorAll('.cell.filled').forEach(item => {
+                            if (parseInt(item.textContent) >= target) {
+                                item.textContent = '';
+                                item.className = 'cell empty';
+                            }
+                        });
+                    } else {
+                        const next = [...regenerateGridContainer.querySelectorAll('.cell.filled')]
+                            .map(item => parseInt(item.textContent)).filter(Number.isFinite).length + 1;
+                        if (next <= totalCells()) {
+                            cell.textContent = next;
+                            cell.className = 'cell filled';
+                        }
+                    }
+                    checkRegenerateComplete();
+                });
+                regenerateGridContainer.appendChild(cell);
+            }
+            checkRegenerateComplete();
+        }
+
+        function getRegeneratedGrid() {
+            const values = [...regenerateGridContainer.querySelectorAll('.cell')].map(cell => parseInt(cell.textContent));
+            if (values.some(value => !Number.isInteger(value))) return null;
+            return Array.from({ length: state.gridSize }, (_, row) =>
+                values.slice(row * state.gridSize, (row + 1) * state.gridSize));
+        }
+
+        function checkRegenerateComplete() {
+            saveRegeneratedBtn.disabled = !getRegeneratedGrid();
+        }
+
+        function shuffle(values) {
+            for (let index = values.length - 1; index > 0; index--) {
+                const swap = Math.floor(Math.random() * (index + 1));
+                [values[index], values[swap]] = [values[swap], values[index]];
+            }
+            return values;
+        }
+
+        function fillEmptyCellsRandomly(cells) {
+            const used = new Set([...cells]
+                .map(cell => parseInt(cell.textContent))
+                .filter(Number.isInteger));
+            const remaining = shuffle(Array.from({ length: totalCells() }, (_, index) => index + 1)
+                .filter(number => !used.has(number)));
+            let remainingIndex = 0;
+            cells.forEach(cell => {
+                if (!Number.isInteger(parseInt(cell.textContent))) {
+                    cell.textContent = remaining[remainingIndex++];
+                    cell.className = 'cell filled';
+                }
+            });
+        }
+
+        function fillRegeneratedRandom() {
+            fillEmptyCellsRandomly(regenerateGridContainer.querySelectorAll('.cell'));
+            checkRegenerateComplete();
+        }
+
+        function restoreRegeneratedGrid() {
+            try {
+                const grid = decodeGridId(regenerateIdInput.value);
+                createRegenerateGrid(grid.flat());
+                regenerateIdDisplay.textContent = `Grid ID: ${createGridId(grid)}`;
+            } catch (error) {
+                showNotice(error.message || 'Unable to restore this grid ID.');
+            }
+        }
+
+        function generateRegeneratedId() {
+            const grid = getRegeneratedGrid();
+            if (!grid) return;
+            regenerateIdDisplay.textContent = `Grid ID: ${createGridId(grid)}`;
+        }
+
+        function playHistory(id) {
+            const game = state.history.find(item => item.id === id);
+            if (!game) return;
+            setGridSize(game.gridSize || game.grid?.length || 5);
+            state.userId = game.userId;
+            state.gameId = game.id;
+            state.playerGrids = [game.grid.map(row => [...row])];
+            state.playerHashes = [game.gridId];
+            state.playerMarked = [makeFalseGrid()];
+            state.moveLog = game.moves.map(move => ({ ...move }));
+            state.actionLog = [...(game.actions || [])];
+            state.gameEnded = true;
+            state.isReplaying = true;
+            state.replayIndex = 0;
+            closeHistory();
+            showSection(gameScreenSection);
+            setReplayControlsVisible(true);
+            renderPlayersGrids();
+            updateBingoStatus();
+            updateMoveLog();
+            moveLogPanel.classList.remove('open');
+            viewLogsBtn.setAttribute('aria-expanded', 'false');
+            moveLogPanel.setAttribute('aria-hidden', 'true');
+            renderReplayPosition();
+        }
+
+        function startSetup() {
+            const numberOfPlayers = parseInt(numPlayersInput.value);
+            if (!Number.isInteger(numberOfPlayers) || numberOfPlayers < 1 || numberOfPlayers > 10) {
+                showNotice('Please enter between 1 and 10 players.');
+                return;
+            }
+            setGridSize(gridSizeSelect.value);
+            state.numPlayers = numberOfPlayers;
+            state.userId = getOrCreateUserId();
+            state.currentSetupPlayer = 0;
+            state.playerGrids = new Array(1);
+            state.playerMarked = new Array(1);
+            state.playerHashes = new Array(1);
+            updateSetupPlayerUI();
+            showSection(setupPlayerGridSection);
+        }
+
+        function updateSetupPlayerUI() {
+            setupPlayerGridSection.querySelector('h2').textContent = 'Set Up Your Grid';
+            enableManualFill(); // start each player with a fresh empty grid
+        }
+
+        function renderPlayerIds() {
+            playerIdsList.innerHTML = '';
+            for (let index = 0; index < state.numPlayers; index++) {
+                const card = document.createElement('div');
+                card.className = 'player-id-card';
+                const id = index === 0 ? state.playerHashes[0] : '';
+                const label = index === 0 ? 'Your grid ID' : `Other player ${index + 1} grid ID`;
+                if (index === 0) {
+                    card.innerHTML = `<strong>${label}</strong>
+                        <div class="player-id-value">
+                            <code>${id}</code>
+                            <button class="btn btn-secondary copy-id-btn" type="button">Copy</button>
+                        </div>`;
+                    card.querySelector('button').addEventListener('click', async () => {
+                        try {
+                            await navigator.clipboard.writeText(id);
+                            card.querySelector('button').textContent = 'Copied';
+                        } catch (error) {
+                            showNotice(`Grid ID: ${id}`);
+                        }
+                    });
+                } else {
+                    card.innerHTML = `<strong>${label}</strong>
+                        <div class="player-id-entry">
+                            <input class="player-id-input" type="text" placeholder="000000" aria-label="${label}" maxlength="6" inputmode="numeric" pattern="[0-9]{6}">
+                        </div>`;
+                }
+                playerIdsList.appendChild(card);
+            }
+        }
+
+        function startGame() {
+            state.playerHashes = [
+                state.playerHashes[0],
+                ...[...playerIdsList.querySelectorAll('.player-id-input')]
+                    .map(input => input.value.trim())
+            ];
+            if (state.playerHashes.length !== state.numPlayers ||
+                state.playerHashes.some(id => id === '')) {
+                showNotice('Enter every player grid ID before starting.');
+                return;
+            }
+            state.gameId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+            state.actionLog = [];
+            const otherPlayerIds = state.playerHashes.slice(1);
+            state.history.push({
+                id: state.gameId,
+                startedAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                ended: false,
+                userId: state.userId,
+                gridSize: state.gridSize,
+                gridId: state.playerHashes[0],
+                grid: state.playerGrids[0],
+                playerGridIds: [...state.playerHashes],
+                otherPlayerIds,
+                moves: [],
+                actions: []
+            });
+            logAction('game_started', { playerCount: 1, gridIds: [state.playerHashes[0]], otherPlayerIds });
+            initGame();
+            setReplayControlsVisible(false);
+            showSection(gameScreenSection);
+        }
+
+        function createEmptyGrid() {
+            for (let r = 0; r < state.gridSize; r++) {
+                for (let c = 0; c < state.gridSize; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell empty';
+                    cell.addEventListener('click', handleCellClick);
+                    gridContainer.appendChild(cell);
+                }
+            }
+        }
+
+        // Tap empty box -> next sequential number appears (1, 2, 3, ... 25).
+        // Tap a placed number -> undo: clears it and every number placed after it.
+        function handleCellClick(e) {
+            const cell = e.currentTarget;
+
+            if (cell.classList.contains('filled')) {
+                const target = parseInt(cell.textContent);
+                gridContainer.querySelectorAll('.cell.filled').forEach(c => {
+                    if (parseInt(c.textContent) >= target) {
+                        c.textContent = '';
+                        c.className = 'cell empty';
+                    }
+                });
+                state.nextNumber = target;
+            } else {
+                if (state.nextNumber > totalCells()) return; // grid already full
+                cell.textContent = state.nextNumber;
+                cell.className = 'cell filled';
+                state.nextNumber++;
+            }
+
+            updateSetupHint();
+            checkSetupComplete();
+        }
+
+        function updateSetupHint() {
+            if (state.nextNumber > totalCells()) {
+                setupHint.innerHTML = '<strong>Grid complete!</strong> Tap Done Setup — or tap any number to undo from there.';
+            } else {
+                setupHint.innerHTML = `<strong>Next number: ${state.nextNumber}</strong> — tap a box to place it. Tap a placed number to undo from there.`;
+            }
+        }
+
+        // Random = shuffled 1..25, so every called number exists on every grid
+        function fillRandomGrid() {
+            const cells = gridContainer.querySelectorAll('.cell');
+            fillEmptyCellsRandomly(cells);
+            state.nextNumber = totalCells() + 1;
+            updateSetupHint();
+            checkSetupComplete();
+        }
+
+        function enableManualFill() {
+            gridContainer.innerHTML = '';
+            createEmptyGrid();
+            state.nextNumber = 1;
+            updateSetupHint();
+            playerHashDisplay.textContent = 'Your Grid ID: not generated yet';
+            doneSetupBtn.disabled = true;
+        }
+
+        function checkSetupComplete() {
+            const filled = gridContainer.querySelectorAll('.cell.filled').length;
+            doneSetupBtn.disabled = filled !== totalCells();
+        }
+
+        function completePlayerSetup() {
+            const grid = [];
+            const cells = gridContainer.querySelectorAll('.cell');
+            for (let r = 0; r < state.gridSize; r++) {
+                const row = [];
+                for (let c = 0; c < state.gridSize; c++) {
+                    row.push(parseInt(cells[r * state.gridSize + c].textContent));
+                }
+                grid.push(row);
+            }
+
+            state.playerGrids[state.currentSetupPlayer] = grid;
+            state.playerMarked[state.currentSetupPlayer] = makeFalseGrid();
+            state.playerHashes[state.currentSetupPlayer] = createGridId(grid);
+            playerHashDisplay.textContent = `Your Grid ID: ${state.playerHashes[state.currentSetupPlayer]}`;
+
+            state.currentSetupPlayer++;
+            renderPlayerIds();
+            showSection(setupPlayerIdsSection);
+        }
+
+        function makeFalseGrid() {
+            return Array.from({ length: state.gridSize }, () => Array(state.gridSize).fill(false));
+        }
+
+        // ============================ Local grid ID ============================
+        function getOrCreateUserId() {
+            const stored = localStorage.getItem('bingo-user-id');
+            if (stored) return stored;
+            const id = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+                .map(value => (value % 36).toString(36)).join('').toUpperCase();
+            localStorage.setItem('bingo-user-id', id);
+            return id;
+        }
+
+        function createGridId(grid) {
+            const saved = JSON.parse(localStorage.getItem('bingo-grid-ids') || '{}');
+            let id;
+            do {
+                id = String(Math.floor(100000 + Math.random() * 900000));
+            } while (saved[id]);
+            saved[id] = { u: state.userId, s: state.gridSize, g: grid };
+            localStorage.setItem('bingo-grid-ids', JSON.stringify(saved));
+            return id;
+        }
+
+        function decodeGridId(id) {
+            const shortId = id.trim();
+            const saved = JSON.parse(localStorage.getItem('bingo-grid-ids') || '{}');
+            if (saved[shortId]) {
+                if (saved[shortId].u !== state.userId) {
+                    throw new Error('This grid ID belongs to a different user screen.');
+                }
+                setGridSize(saved[shortId].s || saved[shortId].g.length);
+                return saved[shortId].g;
+            }
+
+            // Keep old Base64 IDs readable for existing local history.
+            const normalized = id.trim().replace(/-/g, '+').replace(/_/g, '/');
+            const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+            const payload = JSON.parse(atob(padded));
+            if (payload.u !== state.userId) throw new Error('This grid ID belongs to a different user screen.');
+            if (payload.s) setGridSize(payload.s);
+            if (!Array.isArray(payload.g) || payload.g.length !== state.gridSize ||
+                payload.g.some(row => !Array.isArray(row) || row.length !== state.gridSize ||
+                    row.some(value => !Number.isInteger(value) || value < 1 || value > totalCells()))) {
+                throw new Error('The grid data is invalid.');
+            }
+            return payload.g;
+        }
+
+        function gridMatchesId(grid, id) {
+            try {
+                return JSON.stringify(decodeGridId(id)) === JSON.stringify(grid);
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function restoreGridFromId() {
+            try {
+                const grid = decodeGridId(gridIdInput.value);
+                if (gridContainer.children.length !== totalCells()) {
+                    gridContainer.innerHTML = '';
+                    createEmptyGrid();
+                }
+                const cells = gridContainer.querySelectorAll('.cell');
+                grid.flat().forEach((number, index) => {
+                    cells[index].textContent = number;
+                    cells[index].className = 'cell filled';
+                });
+                state.nextNumber = totalCells() + 1;
+                updateSetupHint();
+                checkSetupComplete();
+            } catch (error) {
+                showNotice(error.message || 'Unable to restore this grid ID.');
+            }
+        }
+
+        function addOtherIdInput() {
+            const row = document.createElement('div');
+            row.className = 'other-id-row';
+            row.innerHTML = '<input type="text" placeholder="Other player grid ID"><button class="btn btn-danger" type="button">Remove</button>';
+            row.querySelector('button').addEventListener('click', () => row.remove());
+            otherIdsList.appendChild(row);
+        }
+
+        function computeGridHash(grid) {
+            let gridString = '';
+            for (let r = 0; r < state.gridSize; r++) {
+                for (let c = 0; c < state.gridSize; c++) {
+                    gridString += grid[r][c] + ',';
+                }
+            }
+            let hash = 0;
+            for (let i = 0; i < gridString.length; i++) {
+                hash = ((hash << 5) - hash) + gridString.charCodeAt(i);
+                hash = hash & hash;
+            }
+            hash = Math.abs(hash) % 1000000;
+            return String(hash).padStart(6, '0');
+        }
+
+        // ============================ Game ============================
+        function initGame() {
+            state.moveLog = [];
+            state.gameEnded = false;
+            state.replayIndex = 0;
+            state.isReplaying = false;
+            state.lastLoggedBingoLines = 0;
+            for (let i = 0; i < 1; i++) {
+                state.playerMarked[i] = makeFalseGrid();
+            }
+            renderPlayersGrids();
+            updateBingoStatus();
+            updateMoveLog();
+            endGameBtn.disabled = true;
+        }
+
+        function renderPlayersGrids() {
+            playersGridsContainer.innerHTML = '';
+            for (let p = 0; p < 1; p++) {
+                const card = document.createElement('div');
+                card.className = 'player-card';
+
+                const title = document.createElement('h3');
+                title.textContent = 'Your board';
+                card.appendChild(title);
+
+                const chip = document.createElement('div');
+                chip.className = 'hash-chip';
+                chip.textContent = `Grid ID: ${state.playerHashes[p]} | User ID: ${state.userId}`;
+                card.appendChild(chip);
+
+                const grid = document.createElement('div');
+                grid.className = 'grid';
+
+                for (let r = 0; r < state.gridSize; r++) {
+                    for (let c = 0; c < state.gridSize; c++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell ' + (state.playerMarked[p][r][c] ? 'marked' : 'filled');
+                        cell.textContent = state.playerGrids[p][r][c]; // number stays visible; marked strikes it through
+                        cell.addEventListener('click', () => markNumber(state.playerGrids[p][r][c]));
+                        grid.appendChild(cell);
+                    }
+                }
+
+                card.appendChild(grid);
+                getCompletedLines().forEach(line => {
+                    const lineElement = document.createElement('span');
+                    if (line < state.gridSize) {
+                        lineElement.className = 'win-line horizontal';
+                        lineElement.style.top = `${((line + 0.5) / state.gridSize) * 100}%`;
+                    } else if (line < state.gridSize * 2) {
+                        lineElement.className = 'win-line vertical';
+                        lineElement.style.left = `${((line - state.gridSize + 0.5) / state.gridSize) * 100}%`;
+                    } else if (line === state.gridSize * 2) {
+                        lineElement.className = 'win-line diagonal';
+                    } else {
+                        lineElement.className = 'win-line diagonal-reverse';
+                    }
+                    lineElement.setAttribute('aria-label', 'Completed bingo line');
+                    grid.appendChild(lineElement);
+                });
+                playersGridsContainer.appendChild(card);
+            }
+        }
+
+        function markNumber(number) {
+            if (state.isReplaying || state.gameEnded ||
+                state.moveLog.slice(0, state.replayIndex).some(move => move.number === number)) return;
+            const grid = state.playerGrids[0];
+            const position = grid.flat().indexOf(number);
+            if (position === -1) return;
+            if (state.replayIndex < state.moveLog.length) {
+                state.moveLog = state.moveLog.slice(0, state.replayIndex);
+                logAction('move_history_rewritten', { retainedMoves: state.replayIndex });
+            }
+            state.moveLog.push({ number, at: new Date().toISOString() });
+            state.replayIndex = state.moveLog.length;
+            state.playerMarked[0][Math.floor(position / state.gridSize)][position % state.gridSize] = true;
+            logAction('number_marked', { number });
+            renderPlayersGrids();
+            updateBingoStatus();
+            updateMoveLog();
+            endGameBtn.disabled = false;
+        }
+
+        function markNumberOnAllGrids(number) {
+            const position = state.playerGrids[0].flat().indexOf(number);
+            if (position !== -1) state.playerMarked[0][Math.floor(position / state.gridSize)][position % state.gridSize] = true;
+        }
+
+        function updateMoveLog(currentIndex = -1) {
+            moveLog.innerHTML = '';
+            const visibleMoves = state.moveLog.slice(0, state.replayIndex);
+            visibleMoves.forEach((move, index) => {
+                const entry = document.createElement('div');
+                entry.className = `move-log-entry${index === currentIndex ? ' current' : ''}`;
+                entry.innerHTML = `<span>Call ${index + 1}: <strong>${move.number}</strong>` +
+                    `${index === currentIndex ? ' — Marking now' : ''}</span>` +
+                    `<small>${new Date(move.at).toLocaleTimeString()}</small>`;
+                moveLog.appendChild(entry);
+            });
+            moveLog.scrollTop = moveLog.scrollHeight;
+            const currentEntry = moveLog.querySelector('.move-log-entry.current');
+            if (currentEntry) currentEntry.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+
+        function getCompletedLines() {
+            const marked = state.playerMarked[0];
+            const lines = [];
+            for (let i = 0; i < state.gridSize; i++) {
+                if (marked[i].every(Boolean)) lines.push(i);
+                if (marked.every(row => row[i])) lines.push(state.gridSize + i);
+            }
+            if (marked.every((row, i) => row[i])) lines.push(state.gridSize * 2);
+            if (marked.every((row, i) => row[state.gridSize - 1 - i])) lines.push(state.gridSize * 2 + 1);
+            return lines;
+        }
+
+        function updateBingoStatus() {
+            const lines = getCompletedLines();
+            if (!state.isReplaying && lines.length > state.lastLoggedBingoLines) {
+                for (let lineCount = state.lastLoggedBingoLines + 1; lineCount <= lines.length; lineCount++) {
+                    if (lineCount === 5) {
+                        logAction('bingo_achieved', { lines: lineCount });
+                    } else if (lineCount > 5) {
+                        logAction('bingo_plus_achieved', {
+                            lines: lineCount,
+                            extraLines: lineCount - 5
+                        });
+                    }
+                }
+                state.lastLoggedBingoLines = lines.length;
+            }
+            bingoStatus.innerHTML = 'BINGO'.split('').map((letter, index) =>
+                `<span class="bingo-letter ${index < lines.length ? 'lit' : ''}">${letter}</span>`).join('');
+            bingoMessage.textContent = lines.length > 5
+                ? `BINGO+ (N: ${lines.length - 5})`
+                : lines.length === 5 ? 'BINGO!' : '';
+        }
+
+        function endGame() {
+            state.gameEnded = true;
+            endGameBtn.disabled = true;
+            replayBtn.disabled = false;
+            newGameBtn.disabled = false;
+            setReplayControlsVisible(false);
+            logAction('game_ended');
+            showSection(endScreenSection);
+            displayHashResults();
+        }
+
+        function displayHashResults() {
+            hashResults.innerHTML = '<h3>🔒 Grid ID Verification</h3>';
+            let allOK = true;
+            for (let p = 0; p < 1; p++) {
+                const isOK = gridMatchesId(state.playerGrids[p], state.playerHashes[p]);
+                if (!isOK) allOK = false;
+                const box = document.createElement('div');
+                box.className = `stat-box ${isOK ? 'ok' : 'error-box'}`;
+                box.innerHTML = `<div class="stat-value">${isOK ? '✔ OK' : '✘ ALTERED'}</div><div class="stat-label">Your grid — ${state.playerHashes[p]}</div>`;
+                hashResults.appendChild(box);
+            }
+            const overall = document.createElement('div');
+            overall.className = `stat-box ${allOK ? 'ok' : 'error-box'}`;
+            overall.innerHTML = `<div class="stat-value">${allOK ? '🏆 ALL GOOD' : '⚠ SOME ALTERED'}</div><div class="stat-label">Overall Verification</div>`;
+            hashResults.appendChild(overall);
+        }
+
+        // ============================ Replay ============================
+        function renderReplayPosition() {
+            state.playerMarked[0] = makeFalseGrid();
+            state.moveLog.slice(0, state.replayIndex).forEach(move => markNumberOnAllGrids(move.number));
+            renderPlayersGrids();
+            updateBingoStatus();
+            updateMoveLog();
+        }
+
+        function stepReplay(direction) {
+            if (state.moveLog.length === 0) return;
+            if (state.replayTimeout) clearTimeout(state.replayTimeout);
+            const previousIndex = state.replayIndex;
+            state.isReplaying = true;
+            state.replayIndex = Math.max(0, Math.min(state.moveLog.length, state.replayIndex + direction));
+            renderReplayPosition();
+            updateMoveLog(state.replayIndex > 0 ? state.replayIndex - 1 : -1);
+            state.isReplaying = false;
+            logAction(direction < 0 ? 'move_stepped_back' : 'move_stepped_forward', {
+                from: previousIndex,
+                to: state.replayIndex,
+                changed: state.replayIndex !== previousIndex
+            });
+            endGameBtn.disabled = state.replayIndex === 0;
+        }
+
+        function startReplay() {
+            if (state.moveLog.length === 0) return;
+            logAction('replay_started');
+            state.isReplaying = true;
+            state.replayIndex = 0;
+            setReplayControlsVisible(true);
+            showSection(gameScreenSection);
+            moveLogPanel.classList.remove('open');
+            viewLogsBtn.setAttribute('aria-expanded', 'false');
+            moveLogPanel.setAttribute('aria-hidden', 'true');
+            renderReplayPosition();
+            renderPlayersGrids();
+            updateBingoStatus();
+            replayBtn.disabled = true;
+            newGameBtn.disabled = true;
+            replayNextMove();
+        }
+
+        function getReplayDelay() {
+            return parseInt(replaySpeedSelect?.value || '2000', 10);
+        }
+
+        function replayNextMove() {
+            if (state.replayIndex >= state.moveLog.length) {
+                endReplay();
+                return;
+            }
+            const move = state.moveLog[state.replayIndex];
+
+            // Highlight the current move in the log
+            moveLog.querySelectorAll('.move-log-entry').forEach((entry, i) => {
+                entry.classList.toggle('current', i === state.replayIndex);
+            });
+
+            markNumberOnAllGrids(move.number);
+            renderPlayersGrids();
+            updateBingoStatus();
+            state.replayIndex++;
+            updateMoveLog(state.replayIndex - 1);
+            state.replayTimeout = setTimeout(replayNextMove, getReplayDelay());
+        }
+
+        function endReplay() {
+            state.isReplaying = false;
+            state.replayIndex = state.moveLog.length;
+            replayBtn.disabled = false;
+            newGameBtn.disabled = false;
+            setReplayControlsVisible(true);
+        }
+
+        // ============================ Reset / Nav ============================
+        function resetGame(showHome = true) {
+            if (state.replayTimeout) clearTimeout(state.replayTimeout);
+            state.replayTimeout = null;
+            state.playerGrids = [];
+            state.playerMarked = [];
+            state.playerHashes = [];
+            state.moveLog = [];
+            state.gameEnded = false;
+            state.replayIndex = 0;
+            state.isReplaying = false;
+            state.currentSetupPlayer = 0;
+            state.userId = '';
+            state.gameId = null;
+            state.actionLog = [];
+            setReplayControlsVisible(false);
+            if (otherIdsList) otherIdsList.innerHTML = '';
+            moveLogPanel.classList.remove('open');
+            viewLogsBtn.setAttribute('aria-expanded', 'false');
+            moveLogPanel.setAttribute('aria-hidden', 'true');
+            closeHistory();
+            replayBtn.disabled = false;
+            newGameBtn.disabled = false;
+            setReplayControlsVisible(false);
+            if (showHome) showSection(homeScreen);
+        }
+
+        function showSection(sectionToShow) {
+            [homeScreen, setupNumPlayersSection, setupPlayerGridSection, setupPlayerIdsSection,
+                gameScreenSection, endScreenSection, regenerateScreen]
+                .forEach(s => s.classList.remove('active'));
+            sectionToShow.classList.add('active');
+            window.scrollTo(0, 0);
+        }
+
+        if ('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')) {
+            navigator.serviceWorker.register('./bingo-pwa-local-sw.js').catch(error => {
+                console.warn('Offline app shell could not be registered.', error);
+            });
+        }
+    </script>
+</body>
+</html>

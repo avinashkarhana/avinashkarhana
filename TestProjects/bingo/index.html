@@ -634,6 +634,9 @@
             font-size: clamp(1rem, 2.6vmin, 1.2rem);
             margin: 12px 0;
         }
+        .hash-display:empty {
+            display: none;
+        }
         .turn-indicator {
             text-align: center;
             font-size: clamp(1.1rem, 3vmin, 1.5rem);
@@ -867,6 +870,72 @@
             .player-card { padding: 4px; gap: 3px; }
             .player-card .grid { width: min(100%, 30dvh); }
             .section .btn { padding: 8px 12px; }
+        }
+
+        @media (max-height: 850px) and (max-width: 600px) {
+            .app-bar { margin-bottom: 8px; }
+            .section {
+                padding: 8px 10px 56px;
+            }
+            .section > .back-btn,
+            #setupNumPlayers .back-btn {
+                position: relative;
+                top: auto;
+                left: auto;
+                bottom: auto;
+                align-self: flex-start;
+                margin: 0 0 4px;
+                width: 42px;
+                height: 42px;
+                min-height: 42px;
+                font-size: 1.15rem;
+            }
+            .section h2 {
+                margin-bottom: 4px;
+                font-size: 1.2rem;
+            }
+            .section p {
+                line-height: 1.35;
+            }
+            .input-group {
+                gap: 6px;
+                margin: 5px 0;
+            }
+            .input-group input,
+            .input-group button,
+            .input-group .appearance-setting,
+            .section .replay-controls .btn {
+                min-height: 42px;
+            }
+            .input-group input {
+                padding: 8px 10px;
+            }
+            .section .btn {
+                padding: 7px 10px;
+            }
+            .hash-display {
+                padding: 8px;
+                margin: 7px 0;
+            }
+            #setupNumPlayers {
+                padding-bottom: 56px;
+            }
+            #setupNumPlayers .input-group {
+                gap: 6px;
+            }
+            .setup-hint {
+                margin: 5px 0;
+                font-size: 0.9rem;
+            }
+            .player-card {
+                padding: 4px;
+            }
+            .player-card .grid {
+                width: min(100%, 34dvh);
+            }
+            .section .replay-controls {
+                margin: 3px 0;
+            }
         }
 
         #hashResults {
@@ -1185,7 +1254,7 @@
         .section > .back-btn {
             position: absolute;
             left: clamp(12px, 3vmin, 24px);
-            bottom: max(6px, env(safe-area-inset-bottom));
+            bottom: max(14px, env(safe-area-inset-bottom));
             margin: 0;
             width: 48px;
             height: 48px;
@@ -1222,7 +1291,7 @@
         #setupNumPlayers .back-btn {
             position: absolute;
             left: clamp(12px, 3vmin, 24px);
-            bottom: max(6px, env(safe-area-inset-bottom));
+            bottom: max(14px, env(safe-area-inset-bottom));
             margin: 0;
             width: 48px;
             height: 48px;
@@ -1627,7 +1696,7 @@
 
             <p class="setup-hint" id="setupHint"><strong>Next number: 1</strong> — tap a box to place it. Tap a placed number to undo from there.</p>
             <div id="gridContainer"></div>
-            <p class="hash-display" id="playerHashDisplay">Your Grid ID: not generated yet</p>
+            <p class="hash-display" id="playerHashDisplay"></p>
             <div class="input-group">
                 <input type="text" id="gridIdInput" placeholder="Paste your grid ID to restore it">
                 <button class="btn btn-secondary" id="restoreGridBtn">Restore Grid</button>
@@ -1695,7 +1764,7 @@
                 <button class="btn btn-secondary" id="regenerateFromIdBtn">Fill Grid</button>
             </div>
             <div id="regenerateGridContainer"></div>
-            <p class="hash-display" id="regenerateIdDisplay">Grid ID: not generated yet</p>
+            <p class="hash-display" id="regenerateIdDisplay"></p>
             <div class="input-group">
                 <button class="btn btn-primary" id="regenerateRandomBtn">🎲 Random Grid</button>
                 <button class="btn btn-success" id="saveRegeneratedBtn" disabled>Generate Grid ID</button>
@@ -2284,7 +2353,7 @@
             createEmptyGrid();
             state.nextNumber = 1;
             updateSetupHint();
-            playerHashDisplay.textContent = 'Your Grid ID: not generated yet';
+            playerHashDisplay.textContent = '';
             doneSetupBtn.disabled = true;
         }
 

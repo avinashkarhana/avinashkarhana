@@ -358,6 +358,27 @@
         }
         #regenerateGridContainer { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; width: min(96vw, 45dvh, 440px); margin: 10px auto; padding: 8px; }
         #regenerateGridContainer .cell { font-size: clamp(1rem, 4vmin, 1.4rem); }
+        .regenerate-heading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .regenerate-heading .compact-setting {
+            min-height: 34px;
+            padding: 4px 8px;
+            margin: 0;
+            gap: 4px;
+            font-size: 0.8rem;
+        }
+        .regenerate-heading .compact-setting select {
+            padding: 3px 5px;
+            font-size: 0.8rem;
+        }
+        .regenerate-description {
+            font-size: 0.82rem;
+            margin: 2px 0 8px;
+        }
 
         /* ===== Setup grid: 5-column board sized to fit width AND height ===== */
         #gridContainer {
@@ -1322,8 +1343,7 @@
         .game-nav .log-fab {
             position: static;
             width: 48px;
-            height: 48px;
-            min-height: 48px;
+            height: 48px;            min-height: 48px;
             margin: 0;
             padding: 0;
             border-radius: 50%;
@@ -1929,8 +1949,14 @@
         </div>
         <div id="regenerateScreen" class="section">
             <button class="btn btn-secondary back-btn" id="backFromRegenerateBtn" aria-label="Home" title="Home">←</button>
-            <h2>Regenerate Grid</h2>
-            <p>Draw a grid, or paste a grid ID belonging to this device.</p>
+            <div class="regenerate-heading">
+                <h2>Regenerate Grid</h2>
+                <label class="appearance-setting compact-setting" for="regenerateGridSizeSelect">
+                    <span>Size</span>
+                    <select id="regenerateGridSizeSelect" aria-label="Regenerate grid size"></select>
+                </label>
+            </div>
+            <p class="regenerate-description">Draw or paste a Grid ID for this device.</p>
             <div class="input-group">
                 <input type="text" id="regenerateIdInput" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Enter 6-digit Grid ID" autocomplete="off">
                 <button class="btn btn-secondary" id="regenerateFromIdBtn">Fill Grid</button>
@@ -1984,6 +2010,7 @@
         const gameScreenSection = document.getElementById('gameScreen');
         const endScreenSection = document.getElementById('endScreen');
         const regenerateScreen = document.getElementById('regenerateScreen');
+        const regenerateGridSizeSelect = document.getElementById('regenerateGridSizeSelect');
 
         const numPlayersInput = document.getElementById('numPlayersInput');
         const homeNewGameBtn = document.getElementById('homeNewGameBtn');
@@ -2081,6 +2108,10 @@
         bind(backFromEndBtn, 'click', goHome);
         bind(backFromRegenerateBtn, 'click', goHome);
         bind(regenerateFromIdBtn, 'click', restoreRegeneratedGrid);
+        bind(regenerateGridSizeSelect, 'change', () => {
+            setGridSize(regenerateGridSizeSelect.value);
+            createRegenerateGrid();
+        });
         bind(regenerateRandomBtn, 'click', fillRegeneratedRandom);
         bind(saveRegeneratedBtn, 'click', generateRegeneratedId);
         bind(previousMoveBtn, 'click', () => stepReplay(-1));
@@ -2107,12 +2138,15 @@
         renderHistory();
         applyTheme(localStorage.getItem('bingo-theme') || 'system');
         for (let size = 3; size <= 10; size++) {
-            const option = document.createElement('option');
-            option.value = String(size);
-            option.textContent = `${size} × ${size} (${size * size})`;
-            gridSizeSelect.appendChild(option);
+            [gridSizeSelect, regenerateGridSizeSelect].forEach(select => {
+                const option = document.createElement('option');
+                option.value = String(size);
+                option.textContent = `${size} × ${size}`;
+                select.appendChild(option);
+            });
         }
         gridSizeSelect.value = String(state.gridSize);
+        regenerateGridSizeSelect.value = String(state.gridSize);
 
         function applyTheme(theme) {
             const selectedTheme = ['system', 'light', 'dark'].includes(theme) ? theme : 'system';
@@ -2392,6 +2426,7 @@
             state.numberRange = { min: 1, max: totalCells() };
             gridContainer.style.gridTemplateColumns = `repeat(${state.gridSize}, 1fr)`;
             regenerateGridContainer.style.gridTemplateColumns = `repeat(${state.gridSize}, 1fr)`;
+            regenerateGridSizeSelect.value = String(state.gridSize);
         }
 
         function createRegenerateGrid(values = []) {

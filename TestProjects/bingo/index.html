@@ -318,6 +318,17 @@
             letter-spacing: 2px;
             text-align: center;
         }
+        .confirm-card.bingo-confirm {
+            border-color: #facc15;
+            box-shadow: 0 0 24px rgba(250, 204, 21, 0.32), var(--glass-shadow);
+        }
+        .confirm-card.bingo-confirm h2 {
+            color: #facc15;
+            text-shadow: 0 0 12px rgba(250, 204, 21, 0.45);
+        }
+        .confirm-card.bingo-confirm p {
+            color: var(--text-light);
+        }
         .player-id-entry input:focus {
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
@@ -345,7 +356,7 @@
             padding: 6px 9px;
             font-size: 12px;
         }
-        #regenerateGridContainer { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; width: min(92vw, 36dvh, 440px); margin: 10px auto; padding: 8px; }
+        #regenerateGridContainer { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; width: min(96vw, 45dvh, 440px); margin: 10px auto; padding: 8px; }
         #regenerateGridContainer .cell { font-size: clamp(1rem, 4vmin, 1.4rem); }
 
         /* ===== Setup grid: 5-column board sized to fit width AND height ===== */
@@ -353,7 +364,7 @@
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             gap: clamp(4px, 1vmin, 8px);
-            width: min(92vw, 36dvh, 440px);
+            width: min(96vw, 45dvh, 440px);
             margin: 10px auto;
             padding: clamp(8px, 1.5vmin, 12px);
             background: var(--glass-bg);
@@ -410,12 +421,22 @@
 
         /* ===== Game screen: one player's board ===== */
         #playersGridsContainer {
-            flex: 1 1 auto;
+            flex: 0 0 auto;
             min-height: 0;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
-            margin: 4px 0;
+            margin: 10px 0 12px;
+            padding-top: 0;
+            position: relative;
+            z-index: 1;
+        }
+        #gameScreen > .replay-controls {
+            flex: 0 0 auto;
+            position: relative;
+            z-index: 2;
+            margin-top: 16px;
+            padding-top: 4px;
         }
         .player-card {
             display: flex;
@@ -442,7 +463,7 @@
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             gap: 4px;
-            width: min(100%, clamp(132px, 34dvh, 320px));
+            width: min(100%, clamp(160px, 45dvh, 380px));
         }
         .player-card .grid .cell {
             position: relative;
@@ -503,6 +524,8 @@
             gap: 6px;
             flex-wrap: wrap;
             margin: 12px 0;
+            min-height: 44px;
+            align-items: center;
         }
         .bingo-letter {
             min-width: 42px;
@@ -521,11 +544,12 @@
             box-shadow: 0 0 12px rgba(250, 204, 21, 0.5);
         }
         .bingo-message {
-            min-height: 32px;
+            display: none;
             text-align: center;
             color: #fef08a;
             font-weight: 800;
             font-size: clamp(1.2rem, 4vmin, 1.8rem);
+            margin: 0 0 12px;
         }
         .other-ids {
             width: min(100%, 560px);
@@ -641,20 +665,12 @@
             text-align: center;
             font-size: clamp(1.1rem, 3vmin, 1.5rem);
             font-weight: 600;
-            color: #172033;
-            padding: 14px;
+            color: var(--text-light);
+            padding: 8px 10px;
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
             border-radius: 10px;
-            margin: 16px 0;
-        }
-        [data-theme="dark"] .turn-indicator {
-            color: #f8fafc;
-        }
-        @media (prefers-color-scheme: dark) {
-            [data-theme="system"] .turn-indicator {
-                color: #f8fafc;
-            }
+            margin: 8px 0 10px;
         }
         .move-log {
             display: none;
@@ -673,15 +689,7 @@
         }
         .move-log.open { display: block; }
         .log-fab {
-            position: fixed;
-            right: max(16px, env(safe-area-inset-right));
-            bottom: max(16px, env(safe-area-inset-bottom));
-            z-index: 13;
-            width: 54px;
-            height: 54px;
-            padding: 0;
-            margin: 0;
-            border-radius: 50%;
+            z-index: 2;
             display: grid;
             place-items: center;
             font-size: 1.35rem;
@@ -868,7 +876,7 @@
             .bingo-letter { min-width: 34px; padding: 3px 6px; }
             .bingo-message { min-height: 24px; font-size: 1.25rem; }
             .player-card { padding: 4px; gap: 3px; }
-            .player-card .grid { width: min(100%, 30dvh); }
+            .player-card .grid { width: min(100%, 40dvh); }
             .section .btn { padding: 8px 12px; }
         }
 
@@ -890,12 +898,45 @@
                 min-height: 42px;
                 font-size: 1.15rem;
             }
+            .game-nav {
+                margin-bottom: 4px;
+            }
+            .game-nav .back-btn,
+            .game-nav .game-info-btn,
+            .game-nav .log-fab {
+                width: 42px;
+                height: 42px;
+                min-height: 42px;
+                font-size: 1.15rem;
+            }
             .section h2 {
                 margin-bottom: 4px;
                 font-size: 1.2rem;
             }
             .section p {
                 line-height: 1.35;
+            }
+            .turn-indicator {
+                margin: 5px 0 8px;
+                padding: 6px 8px;
+                font-size: 0.95rem;
+            }
+            .bingo-status {
+                margin: 4px 0 8px;
+                min-height: 38px;
+            }
+            .bingo-message {
+                min-height: 32px;
+                font-size: 1.2rem;
+                margin-bottom: 12px;
+            }
+            #playersGridsContainer {
+                margin: 0 0 10px;
+                padding-top: 0;
+            }
+            #gameScreen > .replay-controls {
+                margin-top: 14px;
+                padding-top: 4px;
             }
             .input-group {
                 gap: 6px;
@@ -931,7 +972,7 @@
                 padding: 4px;
             }
             .player-card .grid {
-                width: min(100%, 34dvh);
+                width: min(100%, 45dvh);
             }
             .section .replay-controls {
                 margin: 3px 0;
@@ -1254,7 +1295,7 @@
         .section > .back-btn {
             position: absolute;
             left: clamp(12px, 3vmin, 24px);
-            bottom: max(14px, env(safe-area-inset-bottom));
+            bottom: max(3px, env(safe-area-inset-bottom));
             margin: 0;
             width: 48px;
             height: 48px;
@@ -1267,6 +1308,46 @@
         .section > .replay-controls:last-child {
             margin-top: auto;
         }
+        .game-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 1px solid var(--glass-border);
+        }
+        .game-nav .back-btn,
+        .game-nav .game-info-btn,
+        .game-nav .log-fab {
+            position: static;
+            width: 48px;
+            height: 48px;
+            min-height: 48px;
+            margin: 0;
+            padding: 0;
+            border-radius: 50%;
+        }
+        .game-nav .game-info-btn {
+            font-weight: 800;
+            font-style: italic;
+        }
+        #gameScreen.replay-active .game-nav {
+            position: fixed;
+            left: max(12px, env(safe-area-inset-left));
+            right: max(12px, env(safe-area-inset-right));
+            bottom: max(8px, env(safe-area-inset-bottom));
+            z-index: 20;
+            width: auto;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+        }
+        #gameScreen.replay-active .game-info-btn {
+            display: none;
+        }
         .replay-only[hidden] {
             display: none;
         }
@@ -1276,8 +1357,58 @@
         .move-log h3 {
             color: var(--text-light);
         }
+        .move-log-entry,
+        .move-log-entry strong {
+            color: var(--text-light);
+        }
         .move-log-entry small {
             color: var(--text-muted);
+        }
+        .move-log {
+            background: rgba(71, 85, 105, 0.92);
+            color: #fff;
+        }
+        .move-log h3 {
+            position: sticky;
+            top: -14px;
+            z-index: 1;
+            margin: -14px -14px 8px;
+            padding: 14px 14px 8px;
+            background: rgba(71, 85, 105, 0.98);
+            color: #fff;
+        }
+        .move-log-entry,
+        .move-log-entry strong {
+            color: #fff;
+        }
+        .move-log-entry small {
+            color: #e2e8f0;
+        }
+        [data-theme="dark"] .move-log,
+        [data-theme="dark"] .move-log h3 {
+            background: rgba(15, 23, 42, 0.94);
+            color: #cbd5e1;
+        }
+        [data-theme="dark"] .move-log-entry,
+        [data-theme="dark"] .move-log-entry strong {
+            color: #cbd5e1;
+        }
+        [data-theme="dark"] .move-log-entry small {
+            color: #94a3b8;
+        }
+        @media (prefers-color-scheme: dark) {
+            body[data-theme=""] .move-log,
+            body[data-theme=""] .move-log h3 {
+                background: rgba(15, 23, 42, 0.94);
+                color: #cbd5e1;
+            }
+            body[data-theme=""] .move-log-entry,
+            body[data-theme=""] .move-log-entry strong {
+                color: #cbd5e1;
+            }
+            body[data-theme=""] .move-log-entry small {
+                color: #94a3b8;
+            }
         }
         #homeScreen {
             flex: 1 1 auto;
@@ -1287,6 +1418,9 @@
         #setupNumPlayers {
             position: relative;
             padding-bottom: 76px;
+        }
+        #setupPlayerIds {
+            overflow-y: auto;
         }
         #setupNumPlayers .back-btn {
             position: absolute;
@@ -1320,7 +1454,8 @@
             justify-content: space-between;
         }
         #setupNumPlayers .input-group #startSetupBtn {
-            margin-bottom: 4px;
+            margin-top: 10px;
+            padding-top: 6px;
         }
         #endScreen .end-actions {
             width: 100%;
@@ -1605,12 +1740,40 @@
         .confirm-card h2 { margin-bottom: 8px; }
         .confirm-card p { color: var(--text-muted); margin-bottom: 18px; }
         .confirm-actions { display: flex; justify-content: center; gap: 8px; }
+        .game-info-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 45;
+            display: none;
+            place-items: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.24);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        .game-info-backdrop.open { display: grid; }
+        .game-info-card {
+            width: min(360px, 100%);
+            padding: 20px;
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            background: linear-gradient(135deg, var(--glass-strong), var(--glass-bg));
+            color: var(--text-light);
+            box-shadow: var(--glass-shadow);
+            backdrop-filter: blur(26px) saturate(165%);
+            -webkit-backdrop-filter: blur(26px) saturate(165%);
+            text-align: center;
+        }
+        .game-info-card p {
+            color: var(--text-light);
+            margin: 8px 0 18px;
+        }
     </style>
 </head>
 <body>
     <div id="appNotice" class="app-notice" role="status" aria-live="polite"></div>
     <div id="confirmBackdrop" class="confirm-backdrop" aria-hidden="true">
-        <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+        <div class="confirm-card" id="confirmCard" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
             <h2 id="confirmTitle">Confirm deletion</h2>
             <p id="confirmMessage"></p>
             <div class="confirm-actions">
@@ -1619,6 +1782,13 @@
             </div>
         </div>
     </div>
+        <div id="gameInfoBackdrop" class="game-info-backdrop" aria-hidden="true">
+            <div class="game-info-card" role="dialog" aria-modal="true" aria-labelledby="gameInfoTitle">
+                <h2 id="gameInfoTitle">How to play</h2>
+                <p>Call a number aloud, then tap it on your board to circle it.</p>
+                <button class="btn btn-secondary" id="closeGameInfoBtn" type="button">OK</button>
+            </div>
+        </div>
     <div class="container">
         <header class="app-bar">
             <span class="app-bar-spacer" aria-hidden="true"></span>
@@ -1698,7 +1868,7 @@
             <div id="gridContainer"></div>
             <p class="hash-display" id="playerHashDisplay"></p>
             <div class="input-group">
-                <input type="text" id="gridIdInput" placeholder="Paste your grid ID to restore it">
+                <input type="text" id="gridIdInput" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Enter 6-digit Grid ID" autocomplete="off">
                 <button class="btn btn-secondary" id="restoreGridBtn">Restore Grid</button>
             </div>
             <div class="replay-controls">
@@ -1716,12 +1886,8 @@
 
         <!-- Game Screen -->
         <div id="gameScreen" class="section">
-            <button class="btn btn-secondary back-btn" id="backFromGameBtn" aria-label="Home" title="Home">←</button>
-            <div class="turn-indicator">Call a number aloud, then tap it on your board to circle it.</div>
             <div class="bingo-status" id="bingoStatus"></div>
-            <div class="bingo-message" id="bingoMessage" aria-live="polite"></div>
             <div id="playersGridsContainer"></div>
-            <button class="btn btn-secondary log-fab" id="viewLogsBtn" aria-expanded="false" aria-controls="moveLogPanel" aria-label="Show move log">☷</button>
             <div class="move-log" id="moveLogPanel" aria-hidden="true">
                 <h3>Move Log</h3>
                 <div id="moveLog"></div>
@@ -1731,16 +1897,22 @@
                 <button class="btn btn-secondary" id="previousMoveBtn">◀ Back</button>
                 <button class="btn btn-secondary" id="nextMoveBtn">Next ▶</button>
                 <div class="replay-only" id="replayControls" hidden>
-                    <button class="btn btn-secondary" id="autoReplayBtn">▶ Auto playback</button>
+                    <button class="btn btn-secondary" id="autoReplayBtn" aria-pressed="false">▶ Auto playback</button>
                     <label class="speed-control">Speed
                         <select id="replaySpeedSelect" aria-label="Auto playback speed">
                             <option value="3000">0.5×</option>
-                            <option value="2000" selected>1×</option>
+                            <option value="2000">1×</option>
                             <option value="1000">2×</option>
                             <option value="500">4×</option>
+                            <option value="400" selected>5×</option>
                         </select>
                     </label>
                 </div>
+            </div>
+            <div class="game-nav">
+                <button class="btn btn-secondary back-btn" id="backFromGameBtn" aria-label="Home" title="Home">←</button>
+                <button class="btn btn-secondary game-info-btn" id="gameInfoBtn" aria-label="How to play" title="How to play">i</button>
+                <button class="btn btn-secondary log-fab" id="viewLogsBtn" aria-expanded="false" aria-controls="moveLogPanel" aria-label="Show move log">☷</button>
             </div>
         </div>
 
@@ -1760,7 +1932,7 @@
             <h2>Regenerate Grid</h2>
             <p>Draw a grid, or paste a grid ID belonging to this device.</p>
             <div class="input-group">
-                <input type="text" id="regenerateIdInput" placeholder="Paste grid ID to fill grid">
+                <input type="text" id="regenerateIdInput" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Enter 6-digit Grid ID" autocomplete="off">
                 <button class="btn btn-secondary" id="regenerateFromIdBtn">Fill Grid</button>
             </div>
             <div id="regenerateGridContainer"></div>
@@ -1786,6 +1958,7 @@
             replayIndex: 0,
             isReplaying: false,
             replayTimeout: null,
+            replayPlaying: false,
             currentSetupPlayer: 0,
             gridSize: 5,
             numberRange: { min: 1, max: 25 },
@@ -1794,6 +1967,9 @@
             ,gameId: null
             ,actionLog: []
             ,lastLoggedBingoLines: 0
+            ,bingoConfirmationShown: false
+            ,replayReturn: 'home'
+            ,navigationStack: ['home']
         };
 
         function totalCells() {
@@ -1845,15 +2021,19 @@
         const moveLog = document.getElementById('moveLog');
         const endGameBtn = document.getElementById('endGameBtn');
         const bingoStatus = document.getElementById('bingoStatus');
-        const bingoMessage = document.getElementById('bingoMessage');
 
         const hashResults = document.getElementById('hashResults');
         const replayBtn = document.getElementById('replayBtn');
         const newGameBtn = document.getElementById('newGameBtn');
         const historyPanel = document.getElementById('historyPanel');
         const historyList = document.getElementById('historyList');
+        const gameInfoBackdrop = document.getElementById('gameInfoBackdrop');
+        const gameInfoBtn = document.getElementById('gameInfoBtn');
+        const closeGameInfoBtn = document.getElementById('closeGameInfoBtn');
         const appNotice = document.getElementById('appNotice');
         const confirmBackdrop = document.getElementById('confirmBackdrop');
+        const confirmCard = document.getElementById('confirmCard');
+        const confirmTitle = document.getElementById('confirmTitle');
         const confirmMessage = document.getElementById('confirmMessage');
         const cancelConfirmBtn = document.getElementById('cancelConfirmBtn');
         const acceptConfirmBtn = document.getElementById('acceptConfirmBtn');
@@ -1872,7 +2052,7 @@
         }
 
         bind(startSetupBtn, 'click', startSetup);
-        bind(homeNewGameBtn, 'click', () => showSection(setupNumPlayersSection));
+        bind(homeNewGameBtn, 'click', beginNewGameSetup);
         bind(homeHistoryBtn, 'click', openHistory);
         bind(homeRegenerateBtn, 'click', openRegenerate);
         bind(themeSelect, 'change', () => applyTheme(themeSelect.value));
@@ -1881,16 +2061,23 @@
         bind(doneSetupBtn, 'click', completePlayerSetup);
         bind(endGameBtn, 'click', endGame);
         bind(replayBtn, 'click', startReplay);
-        bind(newGameBtn, 'click', () => {
-            resetGame(false);
-            showSection(setupNumPlayersSection);
-        });
+        bind(newGameBtn, 'click', beginNewGameSetup);
         bind(viewLogsBtn, 'click', toggleMoveLog);
+        bind(gameInfoBtn, 'click', () => {
+            gameInfoBackdrop.classList.add('open');
+            gameInfoBackdrop.setAttribute('aria-hidden', 'false');
+            closeGameInfoBtn.focus();
+        });
+        bind(closeGameInfoBtn, 'click', () => {
+            gameInfoBackdrop.classList.remove('open');
+            gameInfoBackdrop.setAttribute('aria-hidden', 'true');
+            gameInfoBtn.focus();
+        });
         bind(startGameBtn, 'click', startGame);
-        bind(backFromSetupBtn, 'click', goHome);
-        bind(backFromGridBtn, 'click', goHome);
-        bind(backFromIdsBtn, 'click', () => showSection(setupPlayerGridSection));
-        bind(backFromGameBtn, 'click', goHome);
+        bind(backFromSetupBtn, 'click', backFromNewGameSetup);
+        bind(backFromGridBtn, 'click', backFromGridSetup);
+        bind(backFromIdsBtn, 'click', backFromIdsSetup);
+        bind(backFromGameBtn, 'click', exitReplayOrGoHome);
         bind(backFromEndBtn, 'click', goHome);
         bind(backFromRegenerateBtn, 'click', goHome);
         bind(regenerateFromIdBtn, 'click', restoreRegeneratedGrid);
@@ -1898,19 +2085,24 @@
         bind(saveRegeneratedBtn, 'click', generateRegeneratedId);
         bind(previousMoveBtn, 'click', () => stepReplay(-1));
         bind(nextMoveBtn, 'click', () => stepReplay(1));
-        bind(autoReplayBtn, 'click', startReplay);
+        bind(autoReplayBtn, 'click', toggleReplayPlayback);
         bind(replaySpeedSelect, 'change', () => {
             if (state.replayTimeout) {
                 clearTimeout(state.replayTimeout);
                 state.replayTimeout = setTimeout(replayNextMove, getReplayDelay());
             }
         });
-        bind(closeHistoryBtn, 'click', closeHistory);
+        bind(closeHistoryBtn, 'click', closeHistoryFromUi);
         bind(clearHistoryBtn, 'click', clearHistory);
-        bind(cancelConfirmBtn, 'click', closeConfirmation);
+        bind(cancelConfirmBtn, 'click', cancelConfirmation);
         bind(acceptConfirmBtn, 'click', acceptConfirmation);
         bind(restoreGridBtn, 'click', restoreGridFromId);
         bind(addOtherIdBtn, 'click', addOtherIdInput);
+        [gridIdInput, regenerateIdInput].forEach(input => {
+            bind(input, 'input', () => {
+                input.value = input.value.replace(/\D/g, '').slice(0, 6);
+            });
+        });
         loadHistory();
         renderHistory();
         applyTheme(localStorage.getItem('bingo-theme') || 'system');
@@ -1941,6 +2133,7 @@
 
         let noticeTimeout;
         let pendingConfirmation = null;
+        let pendingCancellation = null;
         function showNotice(message) {
             if (!appNotice) return;
             appNotice.textContent = message;
@@ -1949,9 +2142,20 @@
             noticeTimeout = setTimeout(() => appNotice.classList.remove('visible'), 2800);
         }
 
-        function requestConfirmation(message, action) {
+        function requestConfirmation(
+            message,
+            action,
+            title = 'Confirm deletion',
+            acceptLabel = 'Delete',
+            cancelAction = null,
+            isBingo = false
+        ) {
             pendingConfirmation = action;
+            pendingCancellation = cancelAction;
+            confirmTitle.textContent = title;
             confirmMessage.textContent = message;
+            acceptConfirmBtn.textContent = acceptLabel;
+            confirmCard.classList.toggle('bingo-confirm', isBingo);
             confirmBackdrop.classList.add('open');
             confirmBackdrop.setAttribute('aria-hidden', 'false');
             cancelConfirmBtn.focus();
@@ -1959,8 +2163,16 @@
 
         function closeConfirmation() {
             pendingConfirmation = null;
+            pendingCancellation = null;
+            confirmCard.classList.remove('bingo-confirm');
             confirmBackdrop.classList.remove('open');
             confirmBackdrop.setAttribute('aria-hidden', 'true');
+        }
+
+        function cancelConfirmation() {
+            const action = pendingCancellation;
+            closeConfirmation();
+            if (action) action();
         }
 
         function acceptConfirmation() {
@@ -2024,6 +2236,13 @@
                 remove.addEventListener('click', () => deleteHistoryItem(game.id));
                 const actionsBar = document.createElement('div');
                 actionsBar.className = 'history-entry-actions';
+                if (!game.ended) {
+                    const continueButton = document.createElement('button');
+                    continueButton.className = 'btn btn-success bar-btn';
+                    continueButton.textContent = 'Continue';
+                    continueButton.addEventListener('click', () => continueHistory(game.id));
+                    actionsBar.appendChild(continueButton);
+                }
                 actionsBar.append(play, remove);
                 entry.append(info, actionsBar);
                 historyList.appendChild(entry);
@@ -2051,6 +2270,9 @@
         }
 
         function openHistory() {
+            if (state.navigationStack[state.navigationStack.length - 1] !== 'history') {
+                state.navigationStack.push('history');
+            }
             renderHistory();
             historyPanel.classList.add('open');
             historyPanel.setAttribute('aria-hidden', 'false');
@@ -2059,6 +2281,55 @@
         function closeHistory() {
             historyPanel.classList.remove('open');
             historyPanel.setAttribute('aria-hidden', 'true');
+        }
+
+        function closeHistoryFromUi() {
+            closeHistory();
+            if (state.navigationStack[state.navigationStack.length - 1] === 'history') {
+                state.navigationStack.pop();
+            }
+            showSection(homeScreen);
+        }
+
+        function continueHistory(id) {
+            const game = state.history.find(item => item.id === id);
+            if (!game || game.ended) return;
+            if (!game.grid) {
+                showNotice('This saved game cannot be continued because its grid is missing.');
+                return;
+            }
+            if (state.replayTimeout) clearTimeout(state.replayTimeout);
+            state.replayTimeout = null;
+            setGridSize(game.gridSize || game.grid?.length || 5);
+            state.numPlayers = 1;
+            state.userId = game.userId || getOrCreateUserId();
+            state.gameId = game.id;
+            state.playerGrids = [game.grid.map(row => [...row])];
+            state.playerHashes = [...(game.playerGridIds || [game.gridId])];
+            state.otherPlayerIds = [...(game.otherPlayerIds || state.playerHashes.slice(1))];
+            state.playerMarked = [makeFalseGrid()];
+            state.moveLog = (game.moves || []).map(move => ({ ...move }));
+            state.actionLog = [...(game.actions || [])];
+            state.gameEnded = false;
+            state.isReplaying = false;
+            state.replayPlaying = false;
+            state.replayIndex = state.moveLog.length;
+            state.replayReturn = 'home';
+            state.lastLoggedBingoLines = 0;
+            state.bingoConfirmationShown = false;
+            state.moveLog.forEach(move => markNumberOnAllGrids(move.number));
+            closeHistory();
+            if (state.navigationStack[state.navigationStack.length - 1] === 'history') {
+                state.navigationStack.pop();
+            }
+            state.navigationStack.push('game');
+            setReplayControlsVisible(false);
+            renderPlayersGrids();
+            updateBingoStatus();
+            updateMoveLog();
+            endGameBtn.disabled = state.moveLog.length === 0;
+            showSection(gameScreenSection);
+            logAction('game_continued');
         }
 
         function toggleMoveLog() {
@@ -2071,17 +2342,43 @@
         function setReplayControlsVisible(visible) {
             if (!replayControls) return;
             replayControls.hidden = !visible;
+            endGameBtn.hidden = visible;
+            gameScreenSection.classList.toggle('replay-active', visible);
         }
 
         function goHome() {
             if (state.replayTimeout) clearTimeout(state.replayTimeout);
             state.replayTimeout = null;
             state.isReplaying = false;
+            state.navigationStack = ['home'];
             replayBtn.disabled = false;
             newGameBtn.disabled = false;
             setReplayControlsVisible(false);
             closeHistory();
             showSection(homeScreen);
+        }
+
+        function exitReplayOrGoHome() {
+            if (!state.isReplaying && !state.gameEnded) {
+                goHome();
+                return;
+            }
+            if (state.replayTimeout) clearTimeout(state.replayTimeout);
+            state.replayTimeout = null;
+            state.isReplaying = false;
+            setReplayControlsVisible(false);
+            moveLogPanel.classList.remove('open');
+            viewLogsBtn.setAttribute('aria-expanded', 'false');
+            moveLogPanel.setAttribute('aria-hidden', 'true');
+            if (state.replayReturn === 'history') {
+                if (state.navigationStack[state.navigationStack.length - 1] === 'game') {
+                    state.navigationStack.pop();
+                }
+                openHistory();
+            } else {
+                state.navigationStack = ['home', 'end'];
+                showSection(endScreenSection);
+            }
         }
 
         function openRegenerate() {
@@ -2162,7 +2459,12 @@
         }
 
         function fillRegeneratedRandom() {
-            fillEmptyCellsRandomly(regenerateGridContainer.querySelectorAll('.cell'));
+            const cells = regenerateGridContainer.querySelectorAll('.cell');
+            if ([...cells].every(cell => Number.isInteger(parseInt(cell.textContent)))) {
+                showNotice('All cells are already filled.');
+                return;
+            }
+            fillEmptyCellsRandomly(cells);
             checkRegenerateComplete();
         }
 
@@ -2196,7 +2498,9 @@
             state.gameEnded = true;
             state.isReplaying = true;
             state.replayIndex = 0;
+            state.replayReturn = 'history';
             closeHistory();
+            state.navigationStack.push('game');
             showSection(gameScreenSection);
             setReplayControlsVisible(true);
             renderPlayersGrids();
@@ -2206,6 +2510,40 @@
             viewLogsBtn.setAttribute('aria-expanded', 'false');
             moveLogPanel.setAttribute('aria-hidden', 'true');
             renderReplayPosition();
+        }
+
+        function beginNewGameSetup() {
+            if (state.navigationStack[state.navigationStack.length - 1] !== 'setup') {
+                state.navigationStack.push('setup');
+            }
+            showSection(setupNumPlayersSection);
+        }
+
+        function backFromNewGameSetup() {
+            if (state.navigationStack[state.navigationStack.length - 1] === 'setup') {
+                state.navigationStack.pop();
+            }
+            const previousStage = state.navigationStack[state.navigationStack.length - 1];
+            if (previousStage === 'end') {
+                showSection(endScreenSection);
+            } else {
+                state.navigationStack = ['home'];
+                showSection(homeScreen);
+            }
+        }
+
+        function backFromGridSetup() {
+            if (state.navigationStack[state.navigationStack.length - 1] === 'grid') {
+                state.navigationStack.pop();
+            }
+            showSection(setupNumPlayersSection);
+        }
+
+        function backFromIdsSetup() {
+            if (state.navigationStack[state.navigationStack.length - 1] === 'ids') {
+                state.navigationStack.pop();
+            }
+            showSection(setupPlayerGridSection);
         }
 
         function startSetup() {
@@ -2221,6 +2559,7 @@
             state.playerGrids = new Array(1);
             state.playerMarked = new Array(1);
             state.playerHashes = new Array(1);
+            state.navigationStack = [...state.navigationStack.filter(stage => stage !== 'grid' && stage !== 'ids'), 'grid'];
             updateSetupPlayerUI();
             showSection(setupPlayerGridSection);
         }
@@ -2292,6 +2631,7 @@
             logAction('game_started', { playerCount: 1, gridIds: [state.playerHashes[0]], otherPlayerIds });
             initGame();
             setReplayControlsVisible(false);
+            state.navigationStack = [...state.navigationStack.filter(stage => stage !== 'game'), 'game'];
             showSection(gameScreenSection);
         }
 
@@ -2342,6 +2682,10 @@
         // Random = shuffled 1..25, so every called number exists on every grid
         function fillRandomGrid() {
             const cells = gridContainer.querySelectorAll('.cell');
+            if ([...cells].every(cell => Number.isInteger(parseInt(cell.textContent)))) {
+                showNotice('All cells are already filled.');
+                return;
+            }
             fillEmptyCellsRandomly(cells);
             state.nextNumber = totalCells() + 1;
             updateSetupHint();
@@ -2380,6 +2724,7 @@
 
             state.currentSetupPlayer++;
             renderPlayerIds();
+            state.navigationStack = [...state.navigationStack.filter(stage => stage !== 'ids'), 'ids'];
             showSection(setupPlayerIdsSection);
         }
 
@@ -2492,6 +2837,7 @@
             state.replayIndex = 0;
             state.isReplaying = false;
             state.lastLoggedBingoLines = 0;
+            state.bingoConfirmationShown = false;
             for (let i = 0; i < 1; i++) {
                 state.playerMarked[i] = makeFalseGrid();
             }
@@ -2620,9 +2966,21 @@
             }
             bingoStatus.innerHTML = 'BINGO'.split('').map((letter, index) =>
                 `<span class="bingo-letter ${index < lines.length ? 'lit' : ''}">${letter}</span>`).join('');
-            bingoMessage.textContent = lines.length > 5
-                ? `BINGO+ (N: ${lines.length - 5})`
-                : lines.length === 5 ? 'BINGO!' : '';
+            if (!state.isReplaying && lines.length >= 5 && !state.bingoConfirmationShown) {
+                state.bingoConfirmationShown = true;
+                requestConfirmation(
+                    `BINGO achieved: ${lines.length > 5
+                        ? `BINGO+ (N: ${lines.length - 5})`
+                        : 'BINGO!'}. End this game and review the results?`,
+                    endGame,
+                    lines.length > 5 ? `BINGO+ (N: ${lines.length - 5})` : 'BINGO!',
+                    'OK',
+                    () => {
+                        state.bingoConfirmationShown = false;
+                    },
+                    true
+                );
+            }
         }
 
         function endGame() {
@@ -2632,6 +2990,8 @@
             newGameBtn.disabled = false;
             setReplayControlsVisible(false);
             logAction('game_ended');
+            state.navigationStack = state.navigationStack.filter(stage => stage !== 'game');
+            state.navigationStack.push('end');
             showSection(endScreenSection);
             displayHashResults();
         }
@@ -2663,8 +3023,18 @@
         }
 
         function stepReplay(direction) {
-            if (state.moveLog.length === 0) return;
+            if (state.moveLog.length === 0) {
+                showNotice('No moves recorded in this game.');
+                return;
+            }
+            if (direction > 0 && state.replayIndex >= state.moveLog.length) {
+                showNotice('No moves left to play.');
+                return;
+            }
             if (state.replayTimeout) clearTimeout(state.replayTimeout);
+            state.replayTimeout = null;
+            state.replayPlaying = false;
+            updateReplayButton();
             const previousIndex = state.replayIndex;
             state.isReplaying = true;
             state.replayIndex = Math.max(0, Math.min(state.moveLog.length, state.replayIndex + direction));
@@ -2680,11 +3050,20 @@
         }
 
         function startReplay() {
-            if (state.moveLog.length === 0) return;
+            if (state.moveLog.length === 0) {
+                showNotice('No moves recorded in this game.');
+                return;
+            }
+            if (state.replayReturn !== 'history') state.replayReturn = 'end';
+            if (state.navigationStack[state.navigationStack.length - 1] === 'end') {
+                state.navigationStack.push('game');
+            }
             logAction('replay_started');
             state.isReplaying = true;
+            state.replayPlaying = true;
             state.replayIndex = 0;
             setReplayControlsVisible(true);
+            updateReplayButton();
             showSection(gameScreenSection);
             moveLogPanel.classList.remove('open');
             viewLogsBtn.setAttribute('aria-expanded', 'false');
@@ -2697,11 +3076,41 @@
             replayNextMove();
         }
 
+        function updateReplayButton() {
+            if (!autoReplayBtn) return;
+            const playing = state.replayPlaying;
+            autoReplayBtn.textContent = playing ? '⏸ Pause playback' : '▶ Auto playback';
+            autoReplayBtn.setAttribute('aria-pressed', String(playing));
+        }
+
+        function toggleReplayPlayback() {
+            if (state.moveLog.length === 0) {
+                showNotice('No moves recorded in this game.');
+                return;
+            }
+            if (state.replayIndex >= state.moveLog.length) {
+                showNotice('No moves left to play.');
+                return;
+            }
+            if (state.replayPlaying) {
+                state.replayPlaying = false;
+                if (state.replayTimeout) clearTimeout(state.replayTimeout);
+                state.replayTimeout = null;
+                updateReplayButton();
+                return;
+            }
+            state.replayPlaying = true;
+            state.isReplaying = true;
+            updateReplayButton();
+            state.replayTimeout = setTimeout(replayNextMove, getReplayDelay());
+        }
+
         function getReplayDelay() {
             return parseInt(replaySpeedSelect?.value || '2000', 10);
         }
 
         function replayNextMove() {
+            state.replayTimeout = null;
             if (state.replayIndex >= state.moveLog.length) {
                 endReplay();
                 return;
@@ -2718,21 +3127,26 @@
             updateBingoStatus();
             state.replayIndex++;
             updateMoveLog(state.replayIndex - 1);
-            state.replayTimeout = setTimeout(replayNextMove, getReplayDelay());
+            if (state.replayPlaying) {
+                state.replayTimeout = setTimeout(replayNextMove, getReplayDelay());
+            }
         }
 
         function endReplay() {
             state.isReplaying = false;
+            state.replayPlaying = false;
             state.replayIndex = state.moveLog.length;
             replayBtn.disabled = false;
             newGameBtn.disabled = false;
             setReplayControlsVisible(true);
+            updateReplayButton();
         }
 
         // ============================ Reset / Nav ============================
         function resetGame(showHome = true) {
             if (state.replayTimeout) clearTimeout(state.replayTimeout);
             state.replayTimeout = null;
+            state.replayPlaying = false;
             state.playerGrids = [];
             state.playerMarked = [];
             state.playerHashes = [];
@@ -2744,7 +3158,10 @@
             state.userId = '';
             state.gameId = null;
             state.actionLog = [];
+            state.replayReturn = 'home';
+            state.navigationStack = ['home'];
             setReplayControlsVisible(false);
+            updateReplayButton();
             if (otherIdsList) otherIdsList.innerHTML = '';
             moveLogPanel.classList.remove('open');
             viewLogsBtn.setAttribute('aria-expanded', 'false');

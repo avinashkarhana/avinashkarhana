@@ -10,7 +10,7 @@
   "theme_color": "#1e293b",
   "icons": [
     {
-      "src": "./bingo-pwa-local-icon.svg",
+      "src": "./images/bingo-pwa-local-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

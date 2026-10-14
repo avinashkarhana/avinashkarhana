@@ -7,8 +7,16 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="./bingo-pwa-local.webmanifest">
-    <title>Bingo PWA</title>
+    <title>Bingo</title>
     <style>
+        /* The Liquid Glass theme sets `display: inline-flex` on .btn, which
+           overrides the browser default `[hidden] { display: none }` and makes
+           hidden buttons (e.g. View Opponent in History) stay visible.
+           Re-assert it globally with !important so the hidden attribute
+           always wins over any author display rule. */
+        [hidden] {
+            display: none !important;
+        }
         :root {
             color-scheme: light dark;
             --page-start: #e0e7ff;
@@ -289,6 +297,19 @@
         }
         .back-btn { margin: 0 0 12px; }
         #playerIdsList { display: grid; gap: 10px; margin: 20px 0; }
+        #turnOrderList { display: grid; gap: 8px; margin: 12px 0 20px; }
+        .turn-order-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px 10px;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            background: var(--control-bg);
+        }
+        .turn-order-actions { display: flex; gap: 4px; }
+        .turn-order-actions .btn { min-height: 32px; padding: 5px 9px; margin: 0; }
         .player-id-card { padding: 12px; border: 1px solid var(--glass-border); border-radius: 12px; background: var(--control-bg); }
         .player-id-card > strong {
             display: block;
@@ -469,7 +490,7 @@
             border-radius: 14px;
             padding: 6px;
             transition: border-color 0.3s ease, box-shadow 0.3s ease;
-            max-width: 440px;
+            max-width: 600px;
             margin: 0 auto;
         }
         .player-card.active-turn {
@@ -484,11 +505,34 @@
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             gap: 4px;
-            width: min(100%, clamp(160px, 45dvh, 380px));
+            width: min(100%, clamp(200px, 55dvh, 540px));
         }
         .player-card .grid .cell {
             position: relative;
             z-index: 1;
+        }
+        /* Side-by-side playback: both boards share the row equally and stay
+           on-screen (no viewport-height sizing, which made the second board
+           look smaller). A zero flex-basis + min-width: 0 keeps both cards
+           on one row at ANY width - with a pixel basis (e.g. 320px) phones
+           wrapped and stacked the boards instead of splitting the row. */
+        #playersGridsContainer.multi-board {
+            flex-wrap: nowrap;
+            align-items: stretch;
+            gap: 10px;
+            width: 100%;
+        }
+        #playersGridsContainer.multi-board .player-card {
+            flex: 1 1 0;
+            min-width: 0;
+            max-width: none;
+        }
+        #playersGridsContainer.multi-board .player-card .grid {
+            width: 100%;
+            aspect-ratio: 1;
+        }
+        #playersGridsContainer.multi-board .player-card .cell {
+            font-size: clamp(0.55rem, 2.2vmin, 1rem);
         }
         .win-line {
             position: absolute;
@@ -584,6 +628,38 @@
         .other-id-row { display: flex; gap: 8px; margin-top: 8px; }
         .other-id-row input { min-width: 0; }
         .id-actions { text-align: center; }
+        .mode-icon-btn { min-width: 48px; padding: 10px 14px; }
+        /* Inline SVG icon buttons (back / previous / next / play / pause).
+           The `-dark` variants carry dark ink (for light theme) and the
+           `-light` variants white ink (for dark theme); src is swapped in
+           updateThemeIcons(). Single-variant icons (previous/next) are black,
+           so they invert to white in dark themes. */
+        .btn .icon-img {
+            display: block;
+            width: clamp(16px, 3.4vmin, 20px);
+            height: clamp(16px, 3.4vmin, 20px);
+            pointer-events: none;
+        }
+        .back-btn .icon-img,
+        .game-nav .icon-img {
+            width: clamp(18px, 3.8vmin, 24px);
+            height: clamp(18px, 3.8vmin, 24px);
+        }
+        .icon-invert { transition: filter 0.2s ease; }
+        @media (prefers-color-scheme: dark) {
+            body:not([data-theme="light"]) .icon-invert { filter: invert(1); }
+        }
+        body[data-theme="dark"] .icon-invert { filter: invert(1); }
+        /* Lit state for the AI/bot toggle - mirrors .bingo-letter.lit */
+        .mode-icon-btn.ai-assist-on {
+            color: #fef08a;
+            background: rgba(234, 179, 8, 0.34);
+            border-color: #facc15;
+            box-shadow: 0 0 12px rgba(250, 204, 21, 0.5);
+        }
+        .mode-icon-btn.ai-assist-on:hover {
+            background: rgba(234, 179, 8, 0.45);
+        }
 
         .btn {
             background: var(--control-bg);
@@ -649,6 +725,12 @@
             align-items: center;
             justify-content: center;
         }
+        .field-label {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin: 4px -6px 4px 4px;
+        }
         .input-group input {
             flex: 1;
             min-width: 140px;
@@ -693,6 +775,25 @@
             border-radius: 10px;
             margin: 8px 0 10px;
         }
+        .turn-chip {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: var(--control-bg);
+            border: 1px solid var(--glass-border);
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin: 2px;
+            vertical-align: middle;
+        }
+        .turn-chip.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #ffffff;
+            font-weight: 700;
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+        }
+        .turn-arrow { color: var(--text-muted); font-size: 0.85rem; margin: 0 2px; }
         .move-log {
             display: none;
             position: fixed;
@@ -754,6 +855,39 @@
             box-shadow: var(--glass-shadow);
         }
         .history-panel.open { display: block; }
+        .opponent-picker {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .opponent-picker select {
+            min-width: 120px;
+            max-width: 180px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid var(--line, rgba(148, 163, 184, 0.4));
+            background: var(--control-bg, rgba(148, 163, 184, 0.14));
+            color: inherit;
+            font: inherit;
+        }
+        .per-board-bingo {
+            margin: 2px 0 4px;
+        }
+        .dev-options-panel .dev-options-note {
+            color: var(--ink-muted);
+            font-size: 0.85rem;
+            margin-bottom: 14px;
+        }
+        .dev-options-panel .dev-toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .dev-options-panel .dev-toggle-state {
+            font-size: 0.78rem;
+            opacity: 0.7;
+        }
         .history-header {
             display: flex;
             align-items: center;
@@ -806,6 +940,24 @@
         .move-log-entry.current::before { content: "▶"; color: #facc15; margin-right: 6px; }
         .replay-controls { text-align: center; margin: 6px 0; }
         .section .replay-controls { margin: 4px 0; }
+        /* The replay-only group sits in the same row as the step buttons -
+           as a block element it broke onto its own line. Keep everything on
+           one centered row, wrapping only if it genuinely can't fit. */
+        .replay-controls .replay-only {
+            display: inline-flex;
+            align-items: center;
+            vertical-align: middle;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .replay-controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
         .speed-control {
             display: inline-flex;
             align-items: center;
@@ -897,7 +1049,7 @@
             .bingo-letter { min-width: 34px; padding: 3px 6px; }
             .bingo-message { min-height: 24px; font-size: 1.25rem; }
             .player-card { padding: 4px; gap: 3px; }
-            .player-card .grid { width: min(100%, 40dvh); }
+            .player-card .grid { width: min(100%, 50dvh); }
             .section .btn { padding: 8px 12px; }
         }
 
@@ -993,7 +1145,11 @@
                 padding: 4px;
             }
             .player-card .grid {
-                width: min(100%, 45dvh);
+                width: min(100%, 55dvh);
+            }
+            /* Keep multi-board playback on one row on phones too. */
+            #playersGridsContainer.multi-board .player-card .grid {
+                width: 100%;
             }
             .section .replay-controls {
                 margin: 3px 0;
@@ -1001,14 +1157,99 @@
         }
 
         #hashResults {
-            display: grid;
-            grid-template-columns: minmax(0, 380px);
-            justify-content: center;
-            gap: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
             width: min(100%, 380px);
-            margin: 20px auto;
+            box-sizing: border-box;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px;
+            max-height: min(48vh, 380px);
+            overflow-y: auto;
+            overscroll-behavior: contain;
         }
-        #hashResults h3 { grid-column: 1 / -1; text-align: center; }
+        #hashResults h3 { text-align: center; }
+        .results-player-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .results-player-list:empty { display: none; }
+        /* Hairline separator between player boards inside the shared card. */
+        .results-player-list .results-player-row + .results-player-row {
+            border-top: 1px solid var(--glass-border);
+            padding-top: 10px;
+            margin-top: 2px;
+        }
+        .results-player-list .results-player-row {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1px;
+            /* The containing #hashResults box carries the card styling -
+               rows stay flat so the whole list scrolls as one surface.
+               (Higher specificity to beat the shared .stat-box rule.) */
+            background: transparent;
+            border: 0;
+            border-radius: 0;
+            padding: 0;
+            text-align: center;
+        }
+        /* Tighter vertical rhythm than the shared stat-box defaults, which
+           were sized for standalone stat cards, not rows in one shared box. */
+        .results-player-row .stat-value {
+            font-size: clamp(1.05rem, 2.6vmin, 1.3rem);
+            margin-bottom: 0;
+        }
+        .results-player-row .stat-label {
+            font-size: 12px;
+        }
+        .results-player-row .stat-state {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        .results-player-row .stat-state.known {
+            color: var(--text);
+            font-weight: 600;
+        }
+        .results-player-header {
+            font: inherit;
+            color: inherit;
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            transition: opacity 0.15s ease;
+        }
+        .results-player-header:hover { opacity: 0.8; }
+        .result-mini-grid {
+            position: relative;
+            display: grid;
+            gap: 3px;
+            width: min(100%, 220px);
+            margin: 5px auto 0;
+            pointer-events: none;
+        }
+        .result-mini-grid .cell {
+            font-size: clamp(0.55rem, 1.8vmin, 0.8rem);
+            cursor: default;
+        }
+        .result-mini-grid .win-line {
+            height: clamp(3px, 0.9vmin, 5px);
+        }
+        /* Vertical lines are tall, not wide: the base .win-line height clamp
+           must not collapse their 104% height, or they render as a speck. */
+        .result-mini-grid .win-line.vertical {
+            height: 104%;
+            width: clamp(3px, 0.9vmin, 5px);
+        }
+        .results-playback-btn {
+            margin: 7px auto 0;
+            padding: 6px 14px;
+            font-size: 0.85rem;
+        }
         .stat-box {
             width: 100%;
             box-sizing: border-box;
@@ -1017,6 +1258,16 @@
             border-radius: 12px;
             padding: 16px;
             text-align: center;
+        }
+        button.stat-box.player-id-toggle {
+            font: inherit;
+            color: inherit;
+            cursor: pointer;
+            transition: border-color 0.15s ease, transform 0.15s ease;
+        }
+        button.stat-box.player-id-toggle:hover {
+            border-color: var(--btn-primary-bg, #16a34a);
+            transform: translateY(-1px);
         }
         #endScreen {
             text-align: center;
@@ -1343,7 +1594,8 @@
         .game-nav .log-fab {
             position: static;
             width: 48px;
-            height: 48px;            min-height: 48px;
+            height: 48px;
+            min-height: 48px;
             margin: 0;
             padding: 0;
             border-radius: 50%;
@@ -1440,7 +1692,39 @@
             padding-bottom: 76px;
         }
         #setupPlayerIds {
+            position: relative;
+        }
+        #setupIdsScroll {
+            flex: 1 1 auto;
+            min-height: 0;
             overflow-y: auto;
+            overscroll-behavior: contain;
+            padding-bottom: 8px;
+        }
+        #setupPlayerIds > .back-btn {
+            position: absolute;
+            left: clamp(12px, 3vmin, 24px);
+            bottom: max(3px, env(safe-area-inset-bottom));
+            margin: 0;
+            width: 48px;
+            height: 48px;
+            min-height: 48px;
+            padding: 0;
+            border-radius: 50%;
+            font-size: 1.35rem;
+            line-height: 1;
+            z-index: 3;
+        }
+        #startGameControls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        #setupNumPlayers > p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
         }
         #setupNumPlayers .back-btn {
             position: absolute;
@@ -1470,6 +1754,21 @@
             max-width: none;
             min-height: 48px;
         }
+        #setupNumPlayers .field-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #setupNumPlayers .field-row .field-label {
+            margin: 0;
+            flex: 0 0 auto;
+            white-space: nowrap;
+        }
+        #setupNumPlayers .field-row input {
+            width: auto;
+            flex: 1;
+            min-width: 0;
+        }
         #setupNumPlayers .input-group .appearance-setting {
             justify-content: space-between;
         }
@@ -1480,7 +1779,6 @@
         #endScreen .end-actions {
             width: 100%;
             max-width: 380px;
-            margin: auto auto 0;
         }
         #endScreen .end-actions .btn {
             width: 100%;
@@ -1788,6 +2086,314 @@
             color: var(--text-light);
             margin: 8px 0 18px;
         }
+
+        /* Keep native controls readable when the device theme changes. */
+        :root {
+            --control-text: #172033;
+            --control-surface: rgba(255, 255, 255, 0.78);
+            --control-border: rgba(71, 85, 105, 0.32);
+            --option-surface: #ffffff;
+            --option-text: #172033;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --control-text: #f8fafc;
+                --control-surface: rgba(15, 23, 42, 0.78);
+                --control-border: rgba(226, 232, 240, 0.32);
+                --option-surface: #1e293b;
+                --option-text: #f8fafc;
+            }
+        }
+        [data-theme="light"] {
+            --control-text: #172033;
+            --control-surface: rgba(255, 255, 255, 0.78);
+            --control-border: rgba(71, 85, 105, 0.32);
+            --option-surface: #ffffff;
+            --option-text: #172033;
+        }
+        [data-theme="dark"] {
+            --control-text: #f8fafc;
+            --control-surface: rgba(15, 23, 42, 0.78);
+            --control-border: rgba(226, 232, 240, 0.32);
+            --option-surface: #1e293b;
+            --option-text: #f8fafc;
+        }
+        body,
+        input,
+        select {
+            color: var(--control-text);
+        }
+        input,
+        select,
+        .appearance-setting,
+        .speed-control select {
+            background-color: var(--control-surface);
+            border-color: var(--control-border);
+            color: var(--control-text);
+            color-scheme: light;
+        }
+        option {
+            background: var(--option-surface);
+            color: var(--option-text);
+        }
+        @media (prefers-color-scheme: dark) {
+            input,
+            select,
+            .appearance-setting,
+            .speed-control select {
+                color-scheme: dark;
+            }
+        }
+        [data-theme="dark"] input,
+        [data-theme="dark"] select,
+        [data-theme="dark"] .appearance-setting,
+        [data-theme="dark"] .speed-control select {
+            color-scheme: dark;
+        }
+        .btn-secondary {
+            color: var(--control-text);
+            background-color: var(--control-surface);
+            border-color: var(--control-border);
+        }
+        .btn-primary,
+        .btn-success,
+        .btn-danger {
+            color: #ffffff;
+        }
+        [data-theme="dark"] .btn-secondary,
+        [data-theme="dark"] .btn {
+            color: #f8fafc;
+        }
+        @media (prefers-color-scheme: dark) {
+            body[data-theme=""] .btn-secondary,
+            body[data-theme=""] .btn {
+                color: #f8fafc;
+            }
+        }
+        .stat-label {
+            color: var(--text-muted);
+        }
+        .setup-hint strong {
+            color: var(--primary);
+        }
+        input::placeholder {
+            color: var(--text-muted);
+            opacity: 1;
+        }
+
+        /* ===== Universal ink layer =====
+           Rule: every text and line derives its color/opacity from the
+           surface behind it - dark surface -> light ink/lines, light
+           surface -> dark ink/lines. iOS light mode previously washed out
+           because the glass theme hard-coded white borders/inks that only
+           read on dark backgrounds. These semantic variables flip with the
+           theme and the component rules below (placed last) re-assert them
+           over earlier hard-coded values. */
+        :root {
+            --ink: #172033;
+            --ink-muted: #475569;
+            --line: rgba(30, 41, 59, 0.34);
+            --line-soft: rgba(30, 41, 59, 0.18);
+            --on-accent: #ffffff;
+            --btn-bg: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.8));
+            --btn-bg-hover: linear-gradient(135deg, #ffffff, rgba(255,255,255,0.88));
+            --btn-primary-bg: #4f46e5;
+            --btn-primary-bg-hover: #4338ca;
+            --btn-primary-border: #4338ca;
+            --btn-success-bg: #059669;
+            --btn-success-bg-hover: #047857;
+            --btn-success-border: #047857;
+            --btn-danger-bg: #dc2626;
+            --btn-danger-bg-hover: #b91c1c;
+            --btn-danger-border: #b91c1c;
+            --cell-fill: #6366f1;
+            --cell-fill-border: #4f46e5;
+            --marked-border: #10b981;
+            --lit-ink: #92400e;
+            --lit-bg: rgba(217, 119, 6, 0.22);
+            --lit-border: #d97706;
+            --lit-glow: rgba(217, 119, 6, 0.45);
+            --win-line-a: #f59e0b;
+            --win-line-b: #d97706;
+            --win-glow: rgba(217, 119, 6, 0.55);
+            --ok-ink: #047857;
+            --err-ink: #b91c1c;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --ink: #f8fafc;
+                --ink-muted: #cbd5e1;
+                --line: rgba(255, 255, 255, 0.28);
+                --line-soft: rgba(255, 255, 255, 0.16);
+                --on-accent: #ffffff;
+                --btn-bg: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.06));
+                --btn-bg-hover: linear-gradient(135deg, rgba(255,255,255,0.36), rgba(255,255,255,0.12));
+                --btn-primary-bg: linear-gradient(135deg, rgba(129,140,248,0.34), rgba(99,102,241,0.12));
+                --btn-primary-bg-hover: linear-gradient(135deg, rgba(129,140,248,0.5), rgba(99,102,241,0.2));
+                --btn-primary-border: rgba(255,255,255,0.62);
+                --btn-success-bg: linear-gradient(135deg, rgba(16,185,129,0.3), rgba(5,150,105,0.1));
+                --btn-success-bg-hover: linear-gradient(135deg, rgba(52,211,153,0.42), rgba(16,185,129,0.16));
+                --btn-success-border: rgba(167,243,208,0.62);
+                --btn-danger-bg: linear-gradient(135deg, rgba(239,68,68,0.3), rgba(185,28,28,0.1));
+                --btn-danger-bg-hover: linear-gradient(135deg, rgba(248,113,113,0.42), rgba(239,68,68,0.16));
+                --btn-danger-border: rgba(254,202,202,0.62);
+                --cell-fill: rgba(99, 102, 241, 0.6);
+                --cell-fill-border: rgba(165, 180, 252, 0.7);
+                --marked-border: #6ee7b7;
+                --lit-ink: #fef08a;
+                --lit-bg: rgba(234, 179, 8, 0.34);
+                --lit-border: #facc15;
+                --lit-glow: rgba(250, 204, 21, 0.5);
+                --win-line-a: #fef08a;
+                --win-line-b: #facc15;
+                --win-glow: rgba(250, 204, 21, 0.65);
+                --ok-ink: #6ee7b7;
+                --err-ink: #fca5a5;
+            }
+        }
+        [data-theme="light"] {
+            --ink: #172033;
+            --ink-muted: #475569;
+            --line: rgba(30, 41, 59, 0.34);
+            --line-soft: rgba(30, 41, 59, 0.18);
+            --on-accent: #ffffff;
+            --btn-bg: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.8));
+            --btn-bg-hover: linear-gradient(135deg, #ffffff, rgba(255,255,255,0.88));
+            --btn-primary-bg: #4f46e5;
+            --btn-primary-bg-hover: #4338ca;
+            --btn-primary-border: #4338ca;
+            --btn-success-bg: #059669;
+            --btn-success-bg-hover: #047857;
+            --btn-success-border: #047857;
+            --btn-danger-bg: #dc2626;
+            --btn-danger-bg-hover: #b91c1c;
+            --btn-danger-border: #b91c1c;
+            --cell-fill: #6366f1;
+            --cell-fill-border: #4f46e5;
+            --marked-border: #10b981;
+            --lit-ink: #92400e;
+            --lit-bg: rgba(217, 119, 6, 0.22);
+            --lit-border: #d97706;
+            --lit-glow: rgba(217, 119, 6, 0.45);
+            --win-line-a: #f59e0b;
+            --win-line-b: #d97706;
+            --win-glow: rgba(217, 119, 6, 0.55);
+            --ok-ink: #047857;
+            --err-ink: #b91c1c;
+        }
+        [data-theme="dark"] {
+            --ink: #f8fafc;
+            --ink-muted: #cbd5e1;
+            --line: rgba(255, 255, 255, 0.28);
+            --line-soft: rgba(255, 255, 255, 0.16);
+            --on-accent: #ffffff;
+            --btn-bg: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.06));
+            --btn-bg-hover: linear-gradient(135deg, rgba(255,255,255,0.36), rgba(255,255,255,0.12));
+            --btn-primary-bg: linear-gradient(135deg, rgba(129,140,248,0.34), rgba(99,102,241,0.12));
+            --btn-primary-bg-hover: linear-gradient(135deg, rgba(129,140,248,0.5), rgba(99,102,241,0.2));
+            --btn-primary-border: rgba(255,255,255,0.62);
+            --btn-success-bg: linear-gradient(135deg, rgba(16,185,129,0.3), rgba(5,150,105,0.1));
+            --btn-success-bg-hover: linear-gradient(135deg, rgba(52,211,153,0.42), rgba(16,185,129,0.16));
+            --btn-success-border: rgba(167,243,208,0.62);
+            --btn-danger-bg: linear-gradient(135deg, rgba(239,68,68,0.3), rgba(185,28,28,0.1));
+            --btn-danger-bg-hover: linear-gradient(135deg, rgba(248,113,113,0.42), rgba(239,68,68,0.16));
+            --btn-danger-border: rgba(254,202,202,0.62);
+            --cell-fill: rgba(99, 102, 241, 0.6);
+            --cell-fill-border: rgba(165, 180, 252, 0.7);
+            --marked-border: #6ee7b7;
+            --lit-ink: #fef08a;
+            --lit-bg: rgba(234, 179, 8, 0.34);
+            --lit-border: #facc15;
+            --lit-glow: rgba(250, 204, 21, 0.5);
+            --win-line-a: #fef08a;
+            --win-line-b: #facc15;
+            --win-glow: rgba(250, 204, 21, 0.65);
+            --ok-ink: #6ee7b7;
+            --err-ink: #fca5a5;
+        }
+        /* Buttons: ink + line always contrast with their surface. Accent
+           buttons get solid fills in light mode so pale translucent
+           gradients can never wash them out. */
+        .btn {
+            color: var(--ink);
+            border-color: var(--line);
+            background: var(--btn-bg);
+        }
+        .btn:hover {
+            background: var(--btn-bg-hover);
+            border-color: var(--line);
+        }
+        .btn-primary {
+            background: var(--btn-primary-bg);
+            border-color: var(--btn-primary-border);
+            color: var(--on-accent);
+        }
+        .btn-primary:hover { background: var(--btn-primary-bg-hover); }
+        .btn-secondary {
+            background: var(--btn-bg);
+            border-color: var(--line);
+            color: var(--ink);
+        }
+        [data-theme="light"] .btn-secondary {
+            background: var(--btn-bg);
+            border-color: var(--line);
+            color: var(--ink);
+        }
+        .btn-success {
+            background: var(--btn-success-bg);
+            border-color: var(--btn-success-border);
+            color: var(--on-accent);
+        }
+        .btn-danger {
+            background: var(--btn-danger-bg);
+            border-color: var(--btn-danger-border);
+            color: var(--on-accent);
+        }
+        /* Board cells: dark lines + ink on light, light on dark. */
+        .cell {
+            border-color: var(--line);
+            color: var(--ink);
+        }
+        .cell.empty { border-color: var(--line); }
+        .cell.filled {
+            background: var(--cell-fill);
+            border-color: var(--cell-fill-border);
+            color: var(--on-accent);
+        }
+        .cell.marked {
+            border-color: var(--marked-border);
+            color: var(--ink);
+        }
+        /* BINGO letters + lit toggles: amber ink flips with the theme. */
+        .bingo-letter {
+            color: var(--ink-muted);
+            border-color: var(--line);
+            background: var(--control-bg);
+        }
+        .bingo-letter.lit {
+            color: var(--lit-ink);
+            background: var(--lit-bg);
+            border-color: var(--lit-border);
+            box-shadow: 0 0 12px var(--lit-glow);
+        }
+        .mode-icon-btn.ai-assist-on {
+            color: var(--lit-ink);
+            background: var(--lit-bg);
+            border-color: var(--lit-border);
+            box-shadow: 0 0 12px var(--lit-glow);
+        }
+        .bingo-message { color: var(--lit-ink); }
+        /* Win lines: amber on light, yellow on dark. */
+        .win-line {
+            background: linear-gradient(90deg, var(--win-line-a), var(--win-line-b), var(--win-line-a));
+            box-shadow: 0 0 5px var(--win-glow), 0 0 14px var(--win-glow);
+        }
+        .other-ids {
+            background: var(--control-bg);
+            border-color: var(--line);
+        }
+        .stat-box.ok .stat-value { color: var(--ok-ink); }
+        .error-box .stat-value { color: var(--err-ink); }
     </style>
 </head>
 <body>
@@ -1836,7 +2442,7 @@
             <p class="home-subtitle">A simple pass-and-play bingo board for people in the same room.</p>
             <div class="home-actions">
                 <button class="btn btn-primary" id="homeNewGameBtn">＋&nbsp; New Game <span aria-hidden="true">→</span></button>
-                <button class="btn btn-secondary" id="homeHistoryBtn">☷&nbsp; History <span aria-hidden="true">→</span></button>
+                <button class="btn btn-secondary" id="homeHistoryBtn"><img class="icon-img icon-invert" src="./images/log-dark.svg" alt="" aria-hidden="true">&nbsp; History <span aria-hidden="true">→</span></button>
                 <button class="btn btn-secondary" id="homeRegenerateBtn">♻&nbsp; Regenerate Grid <span aria-hidden="true">→</span></button>
             </div>
             <label class="appearance-setting" for="themeSelect">
@@ -1850,11 +2456,34 @@
         </div>
 
         <div id="setupNumPlayers" class="section">
-            <button class="btn btn-secondary back-btn" id="backFromSetupBtn" aria-label="Back" title="Back">←</button>
+            <button class="btn btn-secondary back-btn" id="backFromSetupBtn" aria-label="Back" title="Back"><img class="icon-img icon-invert" src="./images/back-dark.svg" alt="" aria-hidden="true"></button>
             <h2>New Game</h2>
             <p>Set up your own board on this device. Other players keep their boards on their own devices.</p>
             <div class="input-group">
-                <input type="number" id="numPlayersInput" min="1" max="10" value="2" inputmode="numeric" aria-label="Number of players">
+                <div class="field-row">
+                    <label class="field-label" for="numPlayersInput">Players</label>
+                    <input type="number" id="numPlayersInput" min="1" max="10" value="2" inputmode="numeric" aria-label="Number of players">
+                </div>
+                <div class="field-row">
+                    <label class="field-label" for="displayNameInput">Your display name</label>
+                    <input type="text" id="displayNameInput" maxlength="40" placeholder="e.g. Alex" aria-label="Your display name" autocomplete="nickname">
+                </div>
+                <label class="appearance-setting" for="gameModeSelect">
+                    <span>Mode</span>
+                    <select id="gameModeSelect" aria-label="Game mode">
+                        <option value="passplay">Pass and play</option>
+                        <option value="versus-ai">Play against AI</option>
+                    </select>
+                </label>
+                <label class="appearance-setting" for="aiDifficultySelect" id="aiDifficultySetting" hidden>
+                    <span>AI level</span>
+                    <select id="aiDifficultySelect" aria-label="AI difficulty">
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                        <option value="extrahard">Extra Hard</option>
+                    </select>
+                </label>
                 <label class="appearance-setting" for="gridSizeSelect">
                     <span>Grid</span>
                     <select id="gridSizeSelect" aria-label="Grid size"></select>
@@ -1866,25 +2495,40 @@
             <div class="history-header">
                 <h2>Game history</h2>
                 <div class="history-header-actions">
-                    <button class="btn btn-danger history-icon-btn" id="clearHistoryBtn" aria-label="Clear all history" title="Clear all history">🧹</button>
-                    <button class="btn btn-secondary history-icon-btn" id="closeHistoryBtn" aria-label="Close history" title="Close history">×</button>
+                    <button class="btn btn-danger history-icon-btn" id="clearHistoryBtn" aria-label="Clear all history" title="Clear all history"><img class="icon-img icon-invert" src="./images/clearAll-dark.svg" alt="" aria-hidden="true"></button>
+                    <button class="btn btn-secondary history-icon-btn" id="closeHistoryBtn" aria-label="Close history" title="Close history"><img class="icon-img icon-invert" src="./images/close-dark.svg" alt="" aria-hidden="true"></button>
                 </div>
             </div>
             <p>Every completed and in-progress game stays on this device with its grid ID and action timestamps.</p>
             <div id="historyList"></div>
         </aside>
 
+        <!-- Secret dev options: unlocked by tapping the Welcome banner 7 times. -->
+        <aside class="history-panel dev-options-panel" id="devOptionsPanel" aria-hidden="true">
+            <div class="history-header">
+                <h2>Secret options</h2>
+                <div class="history-header-actions">
+                    <button class="btn btn-secondary history-icon-btn" id="closeDevOptionsBtn" aria-label="Close secret options" title="Close"><img class="icon-img icon-invert" src="./images/close-dark.svg" alt="" aria-hidden="true"></button>
+                </div>
+            </div>
+            <p class="dev-options-note">Cheat codes for this device. These stay enabled once unlocked.</p>
+            <label class="appearance-setting dev-toggle" for="devBotToggle">
+                <span>🤖&nbsp; Bot assist <span class="dev-toggle-state" id="devBotToggleState">off</span></span>
+                <button class="btn btn-secondary mode-icon-btn" id="devBotToggle" type="button" role="switch" aria-checked="false" aria-label="Enable bot assist feature">Off</button>
+            </label>
+        </aside>
+
         <!-- Setup Player Grid -->
         <div id="setupPlayerGrid" class="section">
-            <button class="btn btn-secondary back-btn" id="backFromGridBtn" aria-label="Back" title="Back">←</button>
+            <button class="btn btn-secondary back-btn" id="backFromGridBtn" aria-label="Back" title="Back"><img class="icon-img icon-invert" src="./images/back-dark.svg" alt="" aria-hidden="true"></button>
             <h2>Set Up Your Grid</h2>
-            <p>Tap the boxes — numbers fill in automatically:</p>
+            <p>Tap the boxes - numbers fill in automatically:</p>
             <div class="input-group">
                 <button class="btn btn-primary" id="fillRandomBtn">🎲 Fill Random</button>
                 <button class="btn btn-secondary" id="manualFillBtn">✍️ Start Over</button>
             </div>
 
-            <p class="setup-hint" id="setupHint"><strong>Next number: 1</strong> — tap a box to place it. Tap a placed number to undo from there.</p>
+            <p class="setup-hint" id="setupHint"><strong>Next number: 1</strong> - tap a box to place it. Tap a placed number to undo from there.</p>
             <div id="gridContainer"></div>
             <p class="hash-display" id="playerHashDisplay"></p>
             <div class="input-group">
@@ -1897,27 +2541,42 @@
         </div>
 
         <div id="setupPlayerIds" class="section">
-            <button class="btn btn-secondary back-btn" id="backFromIdsBtn" aria-label="Back" title="Back">←</button>
-            <h2>Confirm Grid IDs</h2>
-            <p>Everyone should check and record their ID before the game begins.</p>
-            <div id="playerIdsList"></div>
-            <div class="replay-controls"><button class="btn btn-success" id="startGameBtn">Start Game</button></div>
+            <button class="btn btn-secondary back-btn" id="backFromIdsBtn" aria-label="Back" title="Back"><img class="icon-img icon-invert" src="./images/back-dark.svg" alt="" aria-hidden="true"></button>
+            <div id="setupIdsScroll">
+                <h2>Confirm Grid IDs</h2>
+                <p>Enter each player's display name and Grid ID before the game begins.</p>
+                <div id="playerIdsList"></div>
+                <div id="turnOrderSetup" hidden>
+                    <h3>Turn sequence</h3>
+                    <p>Arrange who calls first, or use Random toss to choose the order.</p>
+                    <div id="turnOrderList"></div>
+                </div>
+                <div class="replay-controls" id="startGameControls">
+                    <button class="btn btn-secondary" id="randomTurnOrderBtn" type="button">🎲 Random toss</button>
+                    <button class="btn btn-success" id="startGameBtn">Start Game</button>
+                </div>
+            </div>
         </div>
 
         <!-- Game Screen -->
         <div id="gameScreen" class="section">
-            <div class="bingo-status" id="bingoStatus"></div>
+            <!-- Global BINGO strip is redundant: every board renders its own
+                 per-board strip (lit from that player's completed lines). -->
+            <div class="bingo-status" id="bingoStatus" hidden></div>
             <div id="playersGridsContainer"></div>
+            <div id="currentTurnDisplay" class="turn-indicator" aria-live="polite"></div>
             <div class="move-log" id="moveLogPanel" aria-hidden="true">
                 <h3>Move Log</h3>
                 <div id="moveLog"></div>
             </div>
             <div class="replay-controls">
                 <button class="btn btn-danger" id="endGameBtn" disabled>🏁 End Game</button>
-                <button class="btn btn-secondary" id="previousMoveBtn">◀ Back</button>
-                <button class="btn btn-secondary" id="nextMoveBtn">Next ▶</button>
+                <button class="btn btn-secondary mode-icon-btn" id="aiModeToggleBtn"
+                    type="button" aria-pressed="false" aria-label="Turn on AI assist" title="Turn on AI assist">🤖</button>
+                <button class="btn btn-secondary mode-icon-btn" id="previousMoveBtn" aria-label="Back one move" title="Back one move"><img class="icon-img" data-theme-icon="previous" src="./images/previous-dark.svg" alt="" aria-hidden="true"></button>
+                <button class="btn btn-secondary mode-icon-btn" id="nextMoveBtn" aria-label="Next move" title="Next move"><img class="icon-img" data-theme-icon="next" src="./images/next-dark.svg" alt="" aria-hidden="true"></button>
                 <div class="replay-only" id="replayControls" hidden>
-                    <button class="btn btn-secondary" id="autoReplayBtn" aria-pressed="false">▶ Auto playback</button>
+                    <button class="btn btn-secondary mode-icon-btn" id="autoReplayBtn" aria-pressed="false" aria-label="Auto playback" title="Auto playback"><img class="icon-img icon-invert" id="autoReplayIcon" src="./images/play-dark.svg" alt="" aria-hidden="true"></button>
                     <label class="speed-control">Speed
                         <select id="replaySpeedSelect" aria-label="Auto playback speed">
                             <option value="3000">0.5×</option>
@@ -1930,25 +2589,26 @@
                 </div>
             </div>
             <div class="game-nav">
-                <button class="btn btn-secondary back-btn" id="backFromGameBtn" aria-label="Home" title="Home">←</button>
-                <button class="btn btn-secondary game-info-btn" id="gameInfoBtn" aria-label="How to play" title="How to play">i</button>
-                <button class="btn btn-secondary log-fab" id="viewLogsBtn" aria-expanded="false" aria-controls="moveLogPanel" aria-label="Show move log">☷</button>
+                <button class="btn btn-secondary back-btn" id="backFromGameBtn" aria-label="Home" title="Home"><img class="icon-img icon-invert" src="./images/home-dark.svg" alt="" aria-hidden="true"></button>
+                <button class="btn btn-secondary game-info-btn" id="gameInfoBtn" aria-label="How to play" title="How to play"><img class="icon-img icon-invert" src="./images/info-dark.svg" alt="" aria-hidden="true"></button>
+                <button class="btn btn-secondary log-fab" id="viewLogsBtn" aria-expanded="false" aria-controls="moveLogPanel" aria-label="Show move log"><img class="icon-img icon-invert" src="./images/log-dark.svg" alt="" aria-hidden="true"></button>
             </div>
         </div>
 
         <!-- End Screen -->
         <div id="endScreen" class="section">
             <h2>Game Over!</h2>
+            <div id="winnerResult" class="bingo-message" style="display:block;"></div>
             <div id="hashResults"></div>
             <div class="home-actions end-actions">
-                <button class="btn btn-secondary" id="backFromEndBtn">Home <span aria-hidden="true">→</span></button>
-                <button class="btn btn-secondary" id="replayBtn">Replay Game <span aria-hidden="true">→</span></button>
-                <button class="btn btn-secondary" id="newGameBtn">New Game <span aria-hidden="true">→</span></button>
+                <button class="btn btn-secondary" id="backFromEndBtn"><img class="icon-img icon-invert" src="./images/home-dark.svg" alt="" aria-hidden="true"><span>Home</span></button>
+                <button class="btn btn-secondary" id="replayBtn"><img class="icon-img icon-invert" src="./images/play-dark.svg" alt="" aria-hidden="true"><span>Replay Game</span></button>
+                <button class="btn btn-secondary" id="newGameBtn"><span>New Game</span> <span aria-hidden="true">→</span></button>
             </div>
 
         </div>
         <div id="regenerateScreen" class="section">
-            <button class="btn btn-secondary back-btn" id="backFromRegenerateBtn" aria-label="Home" title="Home">←</button>
+            <button class="btn btn-secondary back-btn" id="backFromRegenerateBtn" aria-label="Home" title="Home"><img class="icon-img icon-invert" src="./images/home-dark.svg" alt="" aria-hidden="true"></button>
             <div class="regenerate-heading">
                 <h2>Regenerate Grid</h2>
                 <label class="appearance-setting compact-setting" for="regenerateGridSizeSelect">
@@ -1974,16 +2634,26 @@
         // ============================ State ============================
         const state = {
             numPlayers: 1,
+            gameMode: 'passplay',
+            aiDifficulty: 'medium',
+            aiTimer: null,
+            aiAssist: false,
+            aiAssistCallInProgress: false,
+            turnOwner: null,
+            playerNames: [],
+            turnOrder: [],
+            turnOrderPosition: 0,
             playerGrids: [],
             playerMarked: [],
             playerHashes: [],
             userId: '',
+            aiUserId: '',
+            displayName: '',
             otherPlayerIds: [],
             moveLog: [],       // { number }
             gameEnded: false,
             replayIndex: 0,
             isReplaying: false,
-            replayTimeout: null,
             replayPlaying: false,
             currentSetupPlayer: 0,
             gridSize: 5,
@@ -1995,6 +2665,8 @@
             ,lastLoggedBingoLines: 0
             ,bingoConfirmationShown: false
             ,replayReturn: 'home'
+            ,replayOpponentVisible: false
+            ,replayFocusPlayer: null               // player index whose board a playback is focused on (null = all known boards)
             ,navigationStack: ['home']
         };
 
@@ -2013,6 +2685,9 @@
         const regenerateGridSizeSelect = document.getElementById('regenerateGridSizeSelect');
 
         const numPlayersInput = document.getElementById('numPlayersInput');
+        const displayNameInput = document.getElementById('displayNameInput');
+        const gameModeSelect = document.getElementById('gameModeSelect');
+        const aiDifficultySelect = document.getElementById('aiDifficultySelect');
         const homeNewGameBtn = document.getElementById('homeNewGameBtn');
         const homeHistoryBtn = document.getElementById('homeHistoryBtn');
         const homeRegenerateBtn = document.getElementById('homeRegenerateBtn');
@@ -2030,6 +2705,9 @@
         const otherIdsList = document.getElementById('otherIdsList');
         const addOtherIdBtn = document.getElementById('addOtherIdBtn');
         const playerIdsList = document.getElementById('playerIdsList');
+        const turnOrderSetup = document.getElementById('turnOrderSetup');
+        const turnOrderList = document.getElementById('turnOrderList');
+        const randomTurnOrderBtn = document.getElementById('randomTurnOrderBtn');
         const startGameBtn = document.getElementById('startGameBtn');
         const viewLogsBtn = document.getElementById('viewLogsBtn');
         const regenerateGridContainer = document.getElementById('regenerateGridContainer');
@@ -2048,8 +2726,10 @@
         const moveLog = document.getElementById('moveLog');
         const endGameBtn = document.getElementById('endGameBtn');
         const bingoStatus = document.getElementById('bingoStatus');
+        const aiModeToggleBtn = document.getElementById('aiModeToggleBtn');
 
         const hashResults = document.getElementById('hashResults');
+        const winnerResult = document.getElementById('winnerResult');
         const replayBtn = document.getElementById('replayBtn');
         const newGameBtn = document.getElementById('newGameBtn');
         const historyPanel = document.getElementById('historyPanel');
@@ -2083,11 +2763,19 @@
         bind(homeHistoryBtn, 'click', openHistory);
         bind(homeRegenerateBtn, 'click', openRegenerate);
         bind(themeSelect, 'change', () => applyTheme(themeSelect.value));
+        bind(gameModeSelect, 'change', updateGameModeSetup);
+        bind(aiDifficultySelect, 'change', () => {
+            localStorage.setItem('bingo-ai-difficulty', aiDifficultySelect.value);
+        });
+        bind(displayNameInput, 'input', () => {
+            displayNameInput.value = displayNameInput.value.replace(/[<>]/g, '').slice(0, 40);
+        });
         bind(fillRandomBtn, 'click', fillRandomGrid);
         bind(manualFillBtn, 'click', enableManualFill);
         bind(doneSetupBtn, 'click', completePlayerSetup);
         bind(endGameBtn, 'click', endGame);
-        bind(replayBtn, 'click', startReplay);
+        bind(aiModeToggleBtn, 'click', toggleAiMode);
+        bind(replayBtn, 'click', () => startReplay());
         bind(newGameBtn, 'click', beginNewGameSetup);
         bind(viewLogsBtn, 'click', toggleMoveLog);
         bind(gameInfoBtn, 'click', () => {
@@ -2101,6 +2789,8 @@
             gameInfoBtn.focus();
         });
         bind(startGameBtn, 'click', startGame);
+        bind(randomTurnOrderBtn, 'click', randomizeTurnOrder);
+        bind(playerIdsList, 'input', renderTurnOrder);
         bind(backFromSetupBtn, 'click', backFromNewGameSetup);
         bind(backFromGridBtn, 'click', backFromGridSetup);
         bind(backFromIdsBtn, 'click', backFromIdsSetup);
@@ -2134,9 +2824,42 @@
                 input.value = input.value.replace(/\D/g, '').slice(0, 6);
             });
         });
+        // ---- Theme-aware icon sources (declared before any init code that
+        // renders icons, e.g. renderHistory() during page load) ----
+        // `-dark` files carry dark ink (light theme), `-light` files white ink
+        // (dark theme). The auto-replay icon also depends on play/pause state,
+        // so updateReplayButton() re-asks via iconSrc() after a theme change.
+        function isDarkThemeActive() {
+            if (document.body.dataset.theme === 'dark') return true;
+            if (document.body.dataset.theme === 'light') return false;
+            return window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+
+        // Icons that ship as -dark/-light file pairs (src swapped on theme
+        // change); every other icon is single-variant and CSS-inverted.
+        const THEME_ICON_NAMES = ['play', 'pause', 'next', 'previous'];
+
+        function iconSrc(name) {
+            // Icons with explicit theme variants swap src; anything else is a
+            // single SVG that CSS inverts in dark mode.
+            if (THEME_ICON_NAMES.includes(name)) {
+                return `./images/${name}-${isDarkThemeActive() ? 'light' : 'dark'}.svg`;
+            }
+            return `./images/${name}.svg`;
+        }
+
+        function updateThemeIcons() {
+            document.querySelectorAll('img[data-theme-icon]').forEach(img => {
+                img.src = iconSrc(img.dataset.themeIcon);
+            });
+        }
+
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateThemeIcons);
+
         loadHistory();
         renderHistory();
         applyTheme(localStorage.getItem('bingo-theme') || 'system');
+        displayNameInput.value = localStorage.getItem('bingo-display-name') || '';
         for (let size = 3; size <= 10; size++) {
             [gridSizeSelect, regenerateGridSizeSelect].forEach(select => {
                 const option = document.createElement('option');
@@ -2147,12 +2870,22 @@
         }
         gridSizeSelect.value = String(state.gridSize);
         regenerateGridSizeSelect.value = String(state.gridSize);
+        // Restore the last chosen AI difficulty so returning players keep
+        // their preferred level.
+        if (aiDifficultySelect) {
+            const savedDifficulty = localStorage.getItem('bingo-ai-difficulty');
+            if (savedDifficulty && ['easy', 'medium', 'hard', 'extrahard'].includes(savedDifficulty)) {
+                aiDifficultySelect.value = savedDifficulty;
+            }
+            state.aiDifficulty = aiDifficultySelect.value || 'medium';
+        }
 
         function applyTheme(theme) {
             const selectedTheme = ['system', 'light', 'dark'].includes(theme) ? theme : 'system';
             document.body.dataset.theme = selectedTheme === 'system' ? '' : selectedTheme;
             themeSelect.value = selectedTheme;
             localStorage.setItem('bingo-theme', selectedTheme);
+            updateThemeIcons();
         }
 
         // ============================ Setup ============================
@@ -2168,12 +2901,12 @@
         let noticeTimeout;
         let pendingConfirmation = null;
         let pendingCancellation = null;
-        function showNotice(message) {
+        function showNotice(message, duration = 2800) {
             if (!appNotice) return;
             appNotice.textContent = message;
             appNotice.classList.add('visible');
             clearTimeout(noticeTimeout);
-            noticeTimeout = setTimeout(() => appNotice.classList.remove('visible'), 2800);
+            noticeTimeout = setTimeout(() => appNotice.classList.remove('visible'), duration);
         }
 
         function requestConfirmation(
@@ -2182,13 +2915,15 @@
             title = 'Confirm deletion',
             acceptLabel = 'Delete',
             cancelAction = null,
-            isBingo = false
+            isBingo = false,
+            cancelLabel = 'Cancel'
         ) {
             pendingConfirmation = action;
             pendingCancellation = cancelAction;
             confirmTitle.textContent = title;
             confirmMessage.textContent = message;
             acceptConfirmBtn.textContent = acceptLabel;
+            cancelConfirmBtn.textContent = cancelLabel;
             confirmCard.classList.toggle('bingo-confirm', isBingo);
             confirmBackdrop.classList.add('open');
             confirmBackdrop.setAttribute('aria-hidden', 'false');
@@ -2254,15 +2989,51 @@
                 (game.actions || []).forEach(item => {
                     const action = document.createElement('small');
                     const number = item.details?.number;
-                    action.textContent = `${new Date(item.at).toLocaleString()} — ${item.action}` +
-                        (number === undefined ? '' : `: ${number}`);
+                    const source = item.details?.source;
+                    const actor = item.details?.actor;
+                    action.textContent = `${new Date(item.at).toLocaleString()} - ${item.action}` +
+                        (number === undefined ? '' : `: ${number}`) +
+                        (actor === undefined ? (source === undefined ? '' : ` (${source})`) : ` - ${actor}`);
                     actions.appendChild(action);
                 });
                 info.appendChild(actions);
                 const play = document.createElement('button');
                 play.className = 'btn btn-primary bar-btn';
-                play.textContent = '▶ Play';
+                play.innerHTML = `<img class="icon-img icon-invert" src="${iconSrc('play')}" alt="" aria-hidden="true"> Play`;
                 play.addEventListener('click', () => playHistory(game.id));
+                // Opponent picker: playback shows all boards on this device by
+                // default, but a specific opponent can be focused from here -
+                // including ones whose board never left their device (their
+                // entry is disabled with an explanation).
+                let opponentPicker = null;
+                const opponentCount = Math.max(0, (game.playerNames || []).length - 1);
+                if (opponentCount > 0 && game.ended) {
+                    opponentPicker = document.createElement('label');
+                    opponentPicker.className = 'opponent-picker';
+                    const select = document.createElement('select');
+                    select.setAttribute('aria-label', 'Choose opponent to view');
+                    for (let i = 1; i < (game.playerNames || []).length; i++) {
+                        const option = document.createElement('option');
+                        const hasBoard = i === 1 && game.gameMode === 'versus-ai' && game.aiGrid;
+                        option.value = String(i);
+                        option.textContent = (game.playerNames[i] || `Player ${i + 1}`) + (hasBoard ? '' : ' (not on this device)');
+                        option.disabled = !hasBoard;
+                        select.appendChild(option);
+                    }
+                    if ([...select.options].every(option => option.disabled)) {
+                        opponentPicker.hidden = true;
+                    }
+                    const viewBtn = document.createElement('button');
+                    viewBtn.type = 'button';
+                    viewBtn.className = 'btn btn-secondary bar-btn';
+                    viewBtn.textContent = '👁 View';
+                    viewBtn.addEventListener('click', () => {
+                        const chosen = parseInt(select.value, 10);
+                        if (!Number.isInteger(chosen)) return;
+                        playHistory(game.id, chosen);
+                    });
+                    opponentPicker.append(select, viewBtn);
+                }
                 const remove = document.createElement('button');
                 remove.className = 'btn btn-danger bar-btn';
                 remove.textContent = 'Delete';
@@ -2277,7 +3048,9 @@
                     continueButton.addEventListener('click', () => continueHistory(game.id));
                     actionsBar.appendChild(continueButton);
                 }
-                actionsBar.append(play, remove);
+                actionsBar.append(play);
+                if (opponentPicker) actionsBar.append(opponentPicker);
+                actionsBar.append(remove);
                 entry.append(info, actionsBar);
                 historyList.appendChild(entry);
             });
@@ -2325,6 +3098,64 @@
             showSection(homeScreen);
         }
 
+        // ---- Secret dev options (cheat codes) ----
+        const devOptionsPanel = document.getElementById('devOptionsPanel');
+        const closeDevOptionsBtn = document.getElementById('closeDevOptionsBtn');
+        const devBotToggle = document.getElementById('devBotToggle');
+        const devBotToggleState = document.getElementById('devBotToggleState');
+
+        function openDevOptions() {
+            updateDevOptionsUI();
+            devOptionsPanel.classList.add('open');
+            devOptionsPanel.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeDevOptions() {
+            devOptionsPanel.classList.remove('open');
+            devOptionsPanel.setAttribute('aria-hidden', 'true');
+        }
+
+        function updateDevOptionsUI() {
+            const unlocked = isDevOptionsUnlocked();
+            const botFeatureOn = unlocked && localStorage.getItem('bingo-bot-feature') === '1';
+            if (devBotToggle) {
+                devBotToggle.disabled = !unlocked;
+                devBotToggle.setAttribute('aria-checked', String(botFeatureOn));
+                devBotToggle.textContent = botFeatureOn ? 'On' : 'Off';
+                devBotToggle.classList.toggle('ai-assist-on', botFeatureOn);
+            }
+            if (devBotToggleState) {
+                devBotToggleState.textContent = botFeatureOn ? 'on' : 'off';
+            }
+        }
+
+        function isBotFeatureEnabled() {
+            return isDevOptionsUnlocked() && localStorage.getItem('bingo-bot-feature') === '1';
+        }
+
+        function toggleBotFeature() {
+            if (!isDevOptionsUnlocked()) return;
+            const enabled = localStorage.getItem('bingo-bot-feature') !== '1';
+            localStorage.setItem('bingo-bot-feature', enabled ? '1' : '0');
+            if (!enabled) {
+                // Feature off: kill any pending bot call and turn the assist off.
+                if (state.aiTimer) {
+                    clearTimeout(state.aiTimer);
+                    state.aiTimer = null;
+                }
+                state.aiAssist = false;
+                logAction('bot_feature_changed', { enabled: false });
+            } else {
+                logAction('bot_feature_changed', { enabled: true });
+            }
+            updateDevOptionsUI();
+            updateAiModeUI();
+            showNotice(enabled ? '🤖 Bot assist feature enabled' : 'Bot assist feature disabled', 3000);
+        }
+
+        bind(closeDevOptionsBtn, 'click', closeDevOptions);
+        bind(devBotToggle, 'click', toggleBotFeature);
+
         function continueHistory(id) {
             const game = state.history.find(item => item.id === id);
             if (!game || game.ended) return;
@@ -2336,12 +3167,30 @@
             state.replayTimeout = null;
             setGridSize(game.gridSize || game.grid?.length || 5);
             state.numPlayers = 1;
+            state.gameMode = game.gameMode || 'passplay';
+            state.aiDifficulty = game.aiDifficulty || 'medium';
+            state.aiAssist = false;
+            state.aiAssistCallInProgress = false;
+            state.turnOwner = null;
             state.userId = game.userId || getOrCreateUserId();
+            state.aiUserId = game.aiUserId || getOrCreateAiUserId();
+            state.displayName = game.displayName || 'Player';
+            state.playerNames = game.playerNames || [state.displayName];
+            state.turnOrder = game.turnOrder || state.playerNames.map((_, index) => index);
+            state.turnOrderPosition = state.turnOrder.length
+                ? (game.moves || []).length % state.turnOrder.length
+                : 0;
             state.gameId = game.id;
             state.playerGrids = [game.grid.map(row => [...row])];
-            state.playerHashes = [...(game.playerGridIds || [game.gridId])];
+            if (state.gameMode === 'versus-ai' && game.aiGrid) {
+                state.playerGrids.push(game.aiGrid.map(row => [...row]));
+            }
+            state.playerHashes = state.gameMode === 'versus-ai'
+                ? [game.gridId, game.aiGridId || (game.aiGrid
+                    ? createGridId(game.aiGrid, state.aiUserId) : 'AI')]
+                : [...(game.playerGridIds || [game.gridId])];
             state.otherPlayerIds = [...(game.otherPlayerIds || state.playerHashes.slice(1))];
-            state.playerMarked = [makeFalseGrid()];
+            state.playerMarked = state.playerGrids.map(() => makeFalseGrid());
             state.moveLog = (game.moves || []).map(move => ({ ...move }));
             state.actionLog = [...(game.actions || [])];
             state.gameEnded = false;
@@ -2349,18 +3198,16 @@
             state.replayPlaying = false;
             state.replayIndex = state.moveLog.length;
             state.replayReturn = 'home';
-            state.lastLoggedBingoLines = 0;
-            state.bingoConfirmationShown = false;
-            state.moveLog.forEach(move => markNumberOnAllGrids(move.number));
-            closeHistory();
-            if (state.navigationStack[state.navigationStack.length - 1] === 'history') {
-                state.navigationStack.pop();
-            }
-            state.navigationStack.push('game');
+            state.replayOpponentVisible = false;
+            state.replayFocusPlayer = null;
+            state.navigationStack = [...state.navigationStack.filter(stage => stage !== 'game'), 'game'];
+            showSection(gameScreenSection);
             setReplayControlsVisible(false);
             renderPlayersGrids();
             updateBingoStatus();
             updateMoveLog();
+            renderCurrentTurn();
+            updateAiModeUI();
             endGameBtn.disabled = state.moveLog.length === 0;
             showSection(gameScreenSection);
             logAction('game_continued');
@@ -2378,12 +3225,17 @@
             replayControls.hidden = !visible;
             endGameBtn.hidden = visible;
             gameScreenSection.classList.toggle('replay-active', visible);
+            // Entering/leaving playback also hides/restores the bot toggle.
+            updateAiModeUI();
         }
 
         function goHome() {
             if (state.replayTimeout) clearTimeout(state.replayTimeout);
             state.replayTimeout = null;
+            if (state.aiTimer) clearTimeout(state.aiTimer);
+            state.aiTimer = null;
             state.isReplaying = false;
+            state.replayFocusPlayer = null;
             state.navigationStack = ['home'];
             replayBtn.disabled = false;
             newGameBtn.disabled = false;
@@ -2400,6 +3252,7 @@
             if (state.replayTimeout) clearTimeout(state.replayTimeout);
             state.replayTimeout = null;
             state.isReplaying = false;
+            state.replayFocusPlayer = null;
             setReplayControlsVisible(false);
             moveLogPanel.classList.remove('open');
             viewLogsBtn.setAttribute('aria-expanded', 'false');
@@ -2519,21 +3372,56 @@
             regenerateIdDisplay.textContent = `Grid ID: ${createGridId(grid)}`;
         }
 
-        function playHistory(id) {
+        function playHistory(id, opponentIndex = null) {
             const game = state.history.find(item => item.id === id);
             if (!game) return;
             setGridSize(game.gridSize || game.grid?.length || 5);
+            state.gameMode = game.gameMode || 'passplay';
+            state.aiDifficulty = game.aiDifficulty || 'medium';
+            state.aiAssist = false;
+            state.turnOwner = null;
             state.userId = game.userId;
+            state.aiUserId = game.aiUserId || getOrCreateAiUserId();
+            state.displayName = game.displayName || 'Player';
+            state.playerNames = game.playerNames || [state.displayName];
+            state.turnOrder = game.turnOrder || state.playerNames.map((_, index) => index);
+            state.turnOrderPosition = 0;
             state.gameId = game.id;
             state.playerGrids = [game.grid.map(row => [...row])];
-            state.playerHashes = [game.gridId];
-            state.playerMarked = [makeFalseGrid()];
+            if (state.gameMode === 'versus-ai' && game.aiGrid) {
+                state.playerGrids.push(game.aiGrid.map(row => [...row]));
+            }
+            state.playerHashes = state.gameMode === 'versus-ai'
+                ? [game.gridId, game.aiGridId || (game.aiGrid
+                    ? createGridId(game.aiGrid, state.aiUserId) : 'AI')]
+                : [...(game.playerGridIds || [game.gridId])];
+            state.playerMarked = state.playerGrids.map(() => makeFalseGrid());
             state.moveLog = game.moves.map(move => ({ ...move }));
             state.actionLog = [...(game.actions || [])];
             state.gameEnded = true;
             state.isReplaying = true;
             state.replayIndex = 0;
             state.replayReturn = 'history';
+            // Playback shows EVERY board that lives on this device. The AI
+            // (like any future network peer) hands over its grid + move log at
+            // game end, so its board replays here by default - no separate
+            // "View Opponent" step needed.
+            state.replayFocusPlayer = null;
+            state.replayOpponentVisible = state.playerGrids.length > 1;
+            if (Number.isInteger(opponentIndex) && opponentIndex > 0) {
+                if (state.playerGrids[opponentIndex]) {
+                    // Focused playback: your board + the chosen opponent's,
+                    // side by side.
+                    state.replayFocusPlayer = opponentIndex;
+                    state.replayOpponentVisible = true;
+                } else {
+                    const oppName = state.gameMode === 'versus-ai'
+                        ? 'AI'
+                        : (state.playerNames[opponentIndex] || `Player ${opponentIndex + 1}`);
+                    setTimeout(() => showNotice(
+                        `${oppName}'s board is not on this device - replaying your board only.`, 3600), 300);
+                }
+            }
             closeHistory();
             state.navigationStack.push('game');
             showSection(gameScreenSection);
@@ -2541,6 +3429,7 @@
             renderPlayersGrids();
             updateBingoStatus();
             updateMoveLog();
+            updateAiModeUI();
             moveLogPanel.classList.remove('open');
             viewLogsBtn.setAttribute('aria-expanded', 'false');
             moveLogPanel.setAttribute('aria-hidden', 'true');
@@ -2583,20 +3472,43 @@
 
         function startSetup() {
             const numberOfPlayers = parseInt(numPlayersInput.value);
-            if (!Number.isInteger(numberOfPlayers) || numberOfPlayers < 1 || numberOfPlayers > 10) {
+            const gameMode = gameModeSelect.value;
+            if (gameMode === 'passplay' && (!Number.isInteger(numberOfPlayers) || numberOfPlayers < 1 || numberOfPlayers > 10)) {
                 showNotice('Please enter between 1 and 10 players.');
                 return;
             }
             setGridSize(gridSizeSelect.value);
-            state.numPlayers = numberOfPlayers;
+            state.gameMode = gameMode;
+            state.aiDifficulty = aiDifficultySelect
+                ? (aiDifficultySelect.value || 'medium')
+                : 'medium';
+            state.numPlayers = gameMode === 'passplay' ? numberOfPlayers : 1;
             state.userId = getOrCreateUserId();
+            state.displayName = displayNameInput.value.trim() || localStorage.getItem('bingo-display-name') || 'Player';
+            displayNameInput.value = state.displayName;
+            localStorage.setItem('bingo-display-name', state.displayName);
             state.currentSetupPlayer = 0;
             state.playerGrids = new Array(1);
             state.playerMarked = new Array(1);
             state.playerHashes = new Array(1);
+            state.playerNames = [state.displayName];
+            state.turnOrder = [];
+            state.turnOrderPosition = 0;
             state.navigationStack = [...state.navigationStack.filter(stage => stage !== 'grid' && stage !== 'ids'), 'grid'];
             updateSetupPlayerUI();
             showSection(setupPlayerGridSection);
+        }
+
+        function updateGameModeSetup() {
+            const aiMode = gameModeSelect.value !== 'passplay';
+            numPlayersInput.disabled = aiMode;
+            numPlayersInput.setAttribute('aria-disabled', String(aiMode));
+            numPlayersInput.closest('.input-group').querySelector('input').title = aiMode
+                ? 'AI modes use one board on this device'
+                : '';
+            // AI level is only meaningful when playing against the AI.
+            const difficultySetting = document.getElementById('aiDifficultySetting');
+            if (difficultySetting) difficultySetting.hidden = !aiMode;
         }
 
         function updateSetupPlayerUI() {
@@ -2628,42 +3540,126 @@
                 } else {
                     card.innerHTML = `<strong>${label}</strong>
                         <div class="player-id-entry">
-                            <input class="player-id-input" type="text" placeholder="000000" aria-label="${label}" maxlength="6" inputmode="numeric" pattern="[0-9]{6}">
+                            <input class="player-name-input" type="text" placeholder="Display name" aria-label="${label} display name" maxlength="40">
+                            <input class="player-id-input" type="text" placeholder="Grid ID (6 digits)" aria-label="${label} Grid ID" maxlength="6" inputmode="numeric" pattern="[0-9]{6}">
                         </div>`;
                 }
                 playerIdsList.appendChild(card);
             }
+            state.turnOrder = Array.from({ length: state.numPlayers }, (_, index) => index);
+            renderTurnOrder();
+        }
+
+        function renderTurnOrder() {
+            const passplay = state.gameMode === 'passplay';
+            turnOrderSetup.hidden = !passplay;
+            randomTurnOrderBtn.hidden = !passplay;
+            if (!passplay) return;
+            turnOrderList.innerHTML = '';
+            state.turnOrder.forEach((playerIndex, orderIndex) => {
+                const row = document.createElement('div');
+                row.className = 'turn-order-row';
+                const names = [state.displayName, ...[...playerIdsList.querySelectorAll('.player-name-input')].map(input => input.value.trim())];
+                const ids = [state.playerHashes[0], ...[...playerIdsList.querySelectorAll('.player-id-input')].map(input => input.value.trim())];
+                const name = names[playerIndex] || `Player ${playerIndex + 1}`;
+                row.innerHTML = `<strong>${orderIndex + 1}. ${name}</strong><small>Grid#${ids[playerIndex] || '------'}</small>`;
+                const actions = document.createElement('div');
+                actions.className = 'turn-order-actions';
+                if (orderIndex > 0) {
+                    const up = document.createElement('button');
+                    up.className = 'btn btn-secondary';
+                    up.type = 'button';
+                    up.textContent = '↑';
+                    up.addEventListener('click', () => {
+                        [state.turnOrder[orderIndex - 1], state.turnOrder[orderIndex]] = [state.turnOrder[orderIndex], state.turnOrder[orderIndex - 1]];
+                        renderTurnOrder();
+                    });
+                    actions.appendChild(up);
+                }
+                if (orderIndex < state.turnOrder.length - 1) {
+                    const down = document.createElement('button');
+                    down.className = 'btn btn-secondary';
+                    down.type = 'button';
+                    down.textContent = '↓';
+                    down.addEventListener('click', () => {
+                        [state.turnOrder[orderIndex], state.turnOrder[orderIndex + 1]] = [state.turnOrder[orderIndex + 1], state.turnOrder[orderIndex]];
+                        renderTurnOrder();
+                    });
+                    actions.appendChild(down);
+                }
+                row.appendChild(actions);
+                turnOrderList.appendChild(row);
+            });
+        }
+
+        function randomizeTurnOrder() {
+            state.turnOrder = shuffle([...state.turnOrder]);
+            renderTurnOrder();
         }
 
         function startGame() {
-            state.playerHashes = [
-                state.playerHashes[0],
-                ...[...playerIdsList.querySelectorAll('.player-id-input')]
-                    .map(input => input.value.trim())
-            ];
-            if (state.playerHashes.length !== state.numPlayers ||
-                state.playerHashes.some(id => id === '')) {
-                showNotice('Enter every player grid ID before starting.');
-                return;
+            if (state.gameMode === 'passplay') {
+                const nameInputs = [...playerIdsList.querySelectorAll('.player-name-input')];
+                const idInputs = [...playerIdsList.querySelectorAll('.player-id-input')];
+                state.playerHashes = [
+                    state.playerHashes[0],
+                    ...idInputs.map(input => input.value.trim())
+                ];
+                state.playerNames = [state.displayName, ...nameInputs.map(input => input.value.trim())];
+                if (state.playerHashes.length !== state.numPlayers ||
+                    state.playerHashes.some(id => id === '') ||
+                    state.playerNames.some(name => name === '')) {
+                    showNotice('Enter a display name and Grid ID for every player.');
+                    return;
+                }
+            } else if (state.gameMode === 'versus-ai') {
+                const aiGrid = shuffle(Array.from({ length: totalCells() }, (_, index) => index + 1));
+                state.playerGrids[1] = Array.from({ length: state.gridSize }, (_, row) =>
+                    aiGrid.slice(row * state.gridSize, (row + 1) * state.gridSize));
+                state.playerMarked[1] = makeFalseGrid();
+                    state.aiUserId = getOrCreateAiUserId();
+                    state.playerHashes[1] = createGridId(state.playerGrids[1], state.aiUserId);
             }
             state.gameId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             state.actionLog = [];
-            const otherPlayerIds = state.playerHashes.slice(1);
+            const otherPlayerIds = state.gameMode === 'passplay' ? state.playerHashes.slice(1) : [];
+            state.turnOrder = state.gameMode === 'passplay' ? [...state.turnOrder] : [];
+            state.turnOrderPosition = 0;
             state.history.push({
                 id: state.gameId,
                 startedAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 ended: false,
                 userId: state.userId,
+                displayName: state.displayName,
                 gridSize: state.gridSize,
                 gridId: state.playerHashes[0],
                 grid: state.playerGrids[0],
                 playerGridIds: [...state.playerHashes],
+                playerUserIds: state.gameMode === 'versus-ai'
+                    ? [state.userId, state.aiUserId]
+                    : [state.userId, ...otherPlayerIds],
+                playerNames: [...state.playerNames],
+                turnOrder: [...state.turnOrder],
                 otherPlayerIds,
+                gameMode: state.gameMode,
+                aiDifficulty: state.gameMode === 'versus-ai' ? (state.aiDifficulty || 'medium') : null,
+                aiGrid: state.gameMode === 'versus-ai' ? state.playerGrids[1] : null,
+                aiUserId: state.gameMode === 'versus-ai' ? state.aiUserId : null,
+                aiGridId: state.gameMode === 'versus-ai' ? state.playerHashes[1] : null,
                 moves: [],
                 actions: []
             });
-            logAction('game_started', { playerCount: 1, gridIds: [state.playerHashes[0]], otherPlayerIds });
+            logAction('game_started', {
+                playerCount: state.playerGrids.length,
+                gridIds: [...state.playerHashes],
+                playerUserIds: state.gameMode === 'versus-ai'
+                    ? [state.userId, state.aiUserId]
+                    : [state.userId, ...otherPlayerIds],
+                otherPlayerIds,
+                playerNames: [...state.playerNames],
+                turnOrder: [...state.turnOrder]
+            });
             initGame();
             setReplayControlsVisible(false);
             state.navigationStack = [...state.navigationStack.filter(stage => stage !== 'game'), 'game'];
@@ -2708,9 +3704,9 @@
 
         function updateSetupHint() {
             if (state.nextNumber > totalCells()) {
-                setupHint.innerHTML = '<strong>Grid complete!</strong> Tap Done Setup — or tap any number to undo from there.';
+                setupHint.innerHTML = '<strong>Grid complete!</strong> Tap Done Setup - or tap any number to undo from there.';
             } else {
-                setupHint.innerHTML = `<strong>Next number: ${state.nextNumber}</strong> — tap a box to place it. Tap a placed number to undo from there.`;
+                setupHint.innerHTML = `<strong>Next number: ${state.nextNumber}</strong> - tap a box to place it. Tap a placed number to undo from there.`;
             }
         }
 
@@ -2758,6 +3754,10 @@
             playerHashDisplay.textContent = `Your Grid ID: ${state.playerHashes[state.currentSetupPlayer]}`;
 
             state.currentSetupPlayer++;
+            if (state.gameMode !== 'passplay') {
+                startGame();
+                return;
+            }
             renderPlayerIds();
             state.navigationStack = [...state.navigationStack.filter(stage => stage !== 'ids'), 'ids'];
             showSection(setupPlayerIdsSection);
@@ -2777,22 +3777,31 @@
             return id;
         }
 
-        function createGridId(grid) {
+        function getOrCreateAiUserId() {
+            const stored = localStorage.getItem('bingo-ai-user-id');
+            if (stored) return stored;
+            const id = 'AI-' + Array.from(crypto.getRandomValues(new Uint8Array(6)))
+                .map(value => (value % 36).toString(36)).join('').toUpperCase();
+            localStorage.setItem('bingo-ai-user-id', id);
+            return id;
+        }
+
+        function createGridId(grid, ownerUserId = state.userId) {
             const saved = JSON.parse(localStorage.getItem('bingo-grid-ids') || '{}');
             let id;
             do {
                 id = String(Math.floor(100000 + Math.random() * 900000));
             } while (saved[id]);
-            saved[id] = { u: state.userId, s: state.gridSize, g: grid };
+            saved[id] = { u: ownerUserId, s: state.gridSize, g: grid };
             localStorage.setItem('bingo-grid-ids', JSON.stringify(saved));
             return id;
         }
 
-        function decodeGridId(id) {
+        function decodeGridId(id, expectedUserId = state.userId) {
             const shortId = id.trim();
             const saved = JSON.parse(localStorage.getItem('bingo-grid-ids') || '{}');
             if (saved[shortId]) {
-                if (saved[shortId].u !== state.userId) {
+                if (saved[shortId].u !== expectedUserId) {
                     throw new Error('This grid ID belongs to a different user screen.');
                 }
                 setGridSize(saved[shortId].s || saved[shortId].g.length);
@@ -2803,7 +3812,7 @@
             const normalized = id.trim().replace(/-/g, '+').replace(/_/g, '/');
             const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
             const payload = JSON.parse(atob(padded));
-            if (payload.u !== state.userId) throw new Error('This grid ID belongs to a different user screen.');
+            if (payload.u !== expectedUserId) throw new Error('This grid ID belongs to a different user screen.');
             if (payload.s) setGridSize(payload.s);
             if (!Array.isArray(payload.g) || payload.g.length !== state.gridSize ||
                 payload.g.some(row => !Array.isArray(row) || row.length !== state.gridSize ||
@@ -2814,8 +3823,12 @@
         }
 
         function gridMatchesId(grid, id) {
+            return gridMatchesIdForUser(grid, id, state.userId);
+        }
+
+        function gridMatchesIdForUser(grid, id, userId) {
             try {
-                return JSON.stringify(decodeGridId(id)) === JSON.stringify(grid);
+                return JSON.stringify(decodeGridId(id, userId)) === JSON.stringify(grid);
             } catch (error) {
                 return false;
             }
@@ -2866,52 +3879,173 @@
         }
 
         // ============================ Game ============================
+        // ---- Pass-and-play turn sequence helpers ----
+        // The turn sequence is fixed during setup (either manually arranged or
+        // chosen by random toss). For network modes these details will be
+        // auto-shared between peers (P2P / WebRTC), so the same helpers apply.
+        function getTurnOrderPlayers() {
+            if (state.gameMode === 'passplay' && state.turnOrder.length) {
+                return state.turnOrder.map((playerIndex, orderIndex) => ({
+                    playerIndex,
+                    orderIndex,
+                    name: state.playerNames[playerIndex] || `Player ${playerIndex + 1}`,
+                    gridId: state.playerHashes[playerIndex] || '------'
+                }));
+            }
+            if (state.gameMode === 'versus-ai') {
+                return [
+                    { playerIndex: 0, orderIndex: 0, name: state.displayName || 'You', gridId: state.playerHashes[0] || '------' },
+                    { playerIndex: 1, orderIndex: 1, name: 'AI', gridId: state.playerHashes[1] || '------' }
+                ];
+            }
+            return [];
+        }
+
+        function getCurrentTurnPlayer() {
+            const players = getTurnOrderPlayers();
+            if (!players.length) return null;
+            return players[state.turnOrderPosition % players.length];
+        }
+
+        function advanceTurnSequence() {
+            if (!state.turnOrder.length) return;
+            state.turnOrderPosition = (state.turnOrderPosition + 1) % state.turnOrder.length;
+            logAction('turn_advanced', {
+                position: state.turnOrderPosition,
+                nextPlayer: getCurrentTurnPlayer()?.name
+            });
+        }
+
+        function renderCurrentTurn() {
+            if (!currentTurnDisplay) return;
+            const players = getTurnOrderPlayers();
+            // A playback replays a finished game (gameEnded is always true
+            // there), so don't clear the strip during replays - instead show
+            // whose call each replayed move was, synced to the replay index.
+            if (!players.length || (state.gameEnded && !state.isReplaying)) {
+                currentTurnDisplay.innerHTML = '';
+                return;
+            }
+            // The active player's chip is highlighted below the BINGO letters
+            // (`.turn-chip.active`) - no extra "your turn" text needed.
+            // Versus-AI tracks the turn via turnOwner, not the order sequence.
+            const aiActive = state.gameMode === 'versus-ai' &&
+                (state.isReplaying
+                    ? state.replayIndex % 2 === 1   // playback: human/AI calls alternate
+                    : state.turnOwner === 'other');
+            currentTurnDisplay.innerHTML = players.map((player, orderIndex) => {
+                const isCurrent = state.gameMode === 'versus-ai'
+                    ? (aiActive ? orderIndex === 1 : orderIndex === 0)
+                    : orderIndex === state.turnOrderPosition % players.length;
+                const chip = `<span class="turn-chip${isCurrent ? ' active' : ''}">${orderIndex + 1}. ${player.name}</span>`;
+                return orderIndex === 0 ? chip : `<span class="turn-arrow">→</span>` + chip;
+            }).join('');
+        }
+
         function initGame() {
+            if (state.aiTimer) clearTimeout(state.aiTimer);
+            state.aiTimer = null;
+            state.aiAssist = false;
+            state.turnOwner = null;
+            state.replayOpponentVisible = false;
             state.moveLog = [];
             state.gameEnded = false;
             state.replayIndex = 0;
             state.isReplaying = false;
             state.lastLoggedBingoLines = 0;
             state.bingoConfirmationShown = false;
-            for (let i = 0; i < 1; i++) {
+            for (let i = 0; i < state.playerGrids.length; i++) {
                 state.playerMarked[i] = makeFalseGrid();
             }
             renderPlayersGrids();
             updateBingoStatus();
             updateMoveLog();
+            renderCurrentTurn();
+            updateAiModeUI();
             endGameBtn.disabled = true;
+            if (state.gameMode === 'passplay') {
+                const first = getCurrentTurnPlayer();
+                if (first) {
+                    logAction('first_turn_selected', {
+                        turn: first.name,
+                        turnOrder: [...state.turnOrder]
+                    });
+                    showNotice(`${first.name} calls first. Pass the device after each call.`);
+                }
+            } else if (state.gameMode === 'versus-ai') {
+                setTimeout(() => chooseFirstTurn(() => {
+                    if (state.turnOwner === 'other') scheduleAiCall();
+                    else if (state.aiAssist) scheduleBotCall();
+                }), 0);
+            }
         }
 
         function renderPlayersGrids() {
             playersGridsContainer.innerHTML = '';
-            for (let p = 0; p < 1; p++) {
+            for (let p = 0; p < state.playerGrids.length; p++) {
+                if (p > 0 && ((!state.isReplaying && state.gameMode === 'versus-ai') ||
+                    (state.isReplaying && !state.replayOpponentVisible && state.replayFocusPlayer !== p))) continue;
+                // During a focused playback, show your board AND the chosen
+                // opponent's side by side. In network mode every shared board
+                // arrives from its owner, so this replays any player.
+                if (state.isReplaying && state.replayFocusPlayer !== null &&
+                    p !== 0 && p !== state.replayFocusPlayer) continue;
                 const card = document.createElement('div');
                 card.className = 'player-card';
+                if ((state.gameMode === 'versus-ai' || state.aiAssist) &&
+                    ((p === 0 && state.turnOwner === 'human') ||
+                    (p > 0 && state.turnOwner === 'other'))) {
+                    card.classList.add('active-turn');
+                }
 
+                // When only one board is on screen the label is obvious
+                // ("it's my board") - only show titles when two boards sit
+                // side by side and need telling apart.
                 const title = document.createElement('h3');
-                title.textContent = 'Your board';
-                card.appendChild(title);
+                const boardsOnScreen = state.isReplaying
+                    ? (state.replayFocusPlayer !== null ? 2 : state.playerGrids.length)
+                    : 1;
+                if (boardsOnScreen > 1) {
+                    title.textContent = (state.isReplaying && state.replayFocusPlayer !== null)
+                        ? (p === 0 ? `${state.playerNames[0] || 'You'} - playback`
+                                   : `${state.playerNames[p] || `Player ${p + 1}`} - playback`)
+                        : (p === 0 ? 'Your board' : 'AI board');
+                    card.appendChild(title);
+                }
+
+                // Per-board BINGO strip: each player's letters light from
+                // THEIR completed lines, not the human's.
+                const strip = document.createElement('div');
+                strip.className = 'bingo-status per-board-bingo';
+                strip.innerHTML = 'BINGO'.split('').map((letter, index) =>
+                    `<span class="bingo-letter ${index < getCompletedLines(p).length ? 'lit' : ''}">${letter}</span>`).join('');
+                card.appendChild(strip);
 
                 const chip = document.createElement('div');
                 chip.className = 'hash-chip';
-                chip.textContent = `Grid ID: ${state.playerHashes[p]} | User ID: ${state.userId}`;
+                chip.textContent = p === 0
+                    ? `Grid#${state.playerHashes[p]} (${state.displayName}/${state.userId})`
+                    : `Grid#${state.playerHashes[p]} (AI) · User ID: ${state.aiUserId}`;
                 card.appendChild(chip);
 
                 const grid = document.createElement('div');
                 grid.className = 'grid';
+                grid.style.gridTemplateColumns = `repeat(${state.gridSize}, 1fr)`;
 
                 for (let r = 0; r < state.gridSize; r++) {
                     for (let c = 0; c < state.gridSize; c++) {
                         const cell = document.createElement('div');
                         cell.className = 'cell ' + (state.playerMarked[p][r][c] ? 'marked' : 'filled');
                         cell.textContent = state.playerGrids[p][r][c]; // number stays visible; marked strikes it through
-                        cell.addEventListener('click', () => markNumber(state.playerGrids[p][r][c]));
+                        if (p === 0 && !state.isReplaying) {
+                            cell.addEventListener('click', () => markNumber(state.playerGrids[p][r][c]));
+                        }
                         grid.appendChild(cell);
                     }
                 }
 
                 card.appendChild(grid);
-                getCompletedLines().forEach(line => {
+                getCompletedLines(p).forEach(line => {
                     const lineElement = document.createElement('span');
                     if (line < state.gridSize) {
                         lineElement.className = 'win-line horizontal';
@@ -2929,31 +4063,404 @@
                 });
                 playersGridsContainer.appendChild(card);
             }
+            // Side-by-side boards must render at equal, on-screen sizes.
+            playersGridsContainer.classList.toggle(
+                'multi-board', playersGridsContainer.querySelectorAll('.player-card').length > 1);
         }
 
         function markNumber(number) {
             if (state.isReplaying || state.gameEnded ||
                 state.moveLog.slice(0, state.replayIndex).some(move => move.number === number)) return;
-            const grid = state.playerGrids[0];
-            const position = grid.flat().indexOf(number);
-            if (position === -1) return;
+            if (state.gameMode === 'versus-ai') {
+                if (state.turnOwner === null) {
+                    chooseFirstTurn(() => markNumber(number));
+                    return;
+                }
+                if (state.turnOwner !== 'human') {
+                    showNotice('Wait for the opponent AI to call a number.');
+                    return;
+                }
+                callNumber(number, 'player');
+                return;
+            }
+            if (state.aiAssist) {
+                if (state.turnOwner === null) {
+                    // Derive ownership from the preset pass-and-play sequence
+                    // instead of assuming the opponent called first.
+                    const first = getCurrentTurnPlayer();
+                    state.turnOwner = first && first.playerIndex === 0 ? 'human' : 'other';
+                    updateAiModeUI();
+                }
+                if (state.turnOwner !== 'other') {
+                    showNotice('It is your turn - the bot is calling for you.');
+                    return;
+                }
+                callNumber(number, 'opponent');
+                return;
+            }
             if (state.replayIndex < state.moveLog.length) {
                 state.moveLog = state.moveLog.slice(0, state.replayIndex);
                 logAction('move_history_rewritten', { retainedMoves: state.replayIndex });
             }
-            state.moveLog.push({ number, at: new Date().toISOString() });
+            const currentTurn = getCurrentTurnPlayer();
+            if (currentTurn && currentTurn.playerIndex !== 0) {
+                // Pass-and-play: the turn sequence was fixed during setup.
+                // Tapping a number means the current player called it - no dialog.
+                callNumber(number, 'player');
+                return;
+            }
+            callNumber(number, 'player');
+        }
+
+        function callNumber(number, source = 'player') {
+            if (!Number.isInteger(number) || state.gameEnded) return;
+            const callingPlayer = getCurrentTurnPlayer();
+            const callingPlayerName = state.gameMode === 'passplay'
+                ? (callingPlayer?.name || state.displayName)
+                : null;
+            state.moveLog.push({
+                number,
+                at: new Date().toISOString(),
+                source,
+                actor: getMoveActor(source),
+                ...(callingPlayerName ? { calledBy: callingPlayerName } : {})
+            });
             state.replayIndex = state.moveLog.length;
-            state.playerMarked[0][Math.floor(position / state.gridSize)][position % state.gridSize] = true;
-            logAction('number_marked', { number });
+            state.playerGrids.forEach((grid, playerIndex) => {
+                const position = grid.flat().indexOf(number);
+                if (position !== -1) {
+                    state.playerMarked[playerIndex][Math.floor(position / state.gridSize)][position % state.gridSize] = true;
+                }
+            });
+            logAction('number_marked', { number, source, actor: getMoveActor(source) });
+            // Advance the preset pass-and-play sequence once, then derive turn
+            // ownership from it: 'human' = the user's side (bot acts here when
+            // assist is on), 'other' = an opponent's side.
+            if (state.gameMode === 'passplay') {
+                advanceTurnSequence();
+                const next = getCurrentTurnPlayer();
+                state.turnOwner = next && next.playerIndex === 0 ? 'human' : 'other';
+                if (state.aiAssist) logAction('turn_changed', { turn: state.turnOwner });
+            } else if (state.gameMode === 'versus-ai' || state.aiAssist) {
+                // Opponent calls (recorded by the human, or the AI's own call)
+                // hand the turn back to the user. The user's calls - manual or
+                // via the bot - pass it to the other side.
+                const aiIsOpponent = source === 'ai' && state.gameMode === 'versus-ai';
+                state.turnOwner = (source === 'opponent' || aiIsOpponent) ? 'human' : 'other';
+                logAction('turn_changed', { turn: state.turnOwner });
+            }
+
             renderPlayersGrids();
             updateBingoStatus();
             updateMoveLog();
+            renderCurrentTurn();
             endGameBtn.disabled = false;
+            updateAiModeUI();
+            if (state.gameMode === 'versus-ai' && (source === 'player' || source === 'bot')) checkAiWin();
+            if (state.gameMode === 'versus-ai' && (source === 'player' || source === 'bot')) {
+                scheduleAiCall();
+            }
+            if (state.aiAssist && state.turnOwner === 'human' && !state.gameEnded) {
+                scheduleBotCall();
+            }
+        }
+
+        function getMoveActor(source) {
+            if (source === 'ai' && state.gameMode === 'versus-ai') {
+                return `Grid#${state.playerHashes[1]}(AI)`;
+            }
+            if (source === 'bot') {
+                // Bot assist acts on the user's behalf - attributed to them.
+                return `Grid#${state.playerHashes[0]}(${state.displayName}/${state.userId}) via Bot`;
+            }
+            if (source === 'opponent') {
+                return `Grid#${state.otherPlayerIds[0] || 'Other'}(Other player)`;
+            }
+            return `Grid#${state.playerHashes[0]}(${state.displayName}/${state.userId})`;
         }
 
         function markNumberOnAllGrids(number) {
-            const position = state.playerGrids[0].flat().indexOf(number);
-            if (position !== -1) state.playerMarked[0][Math.floor(position / state.gridSize)][position % state.gridSize] = true;
+            state.playerGrids.forEach((grid, playerIndex) => {
+                const position = grid.flat().indexOf(number);
+                if (position !== -1) state.playerMarked[playerIndex][Math.floor(position / state.gridSize)][position % state.gridSize] = true;
+            });
+        }
+
+        function scheduleAiCall() {
+            if (state.aiTimer || state.gameEnded || bingoAchieved() ||
+                state.moveLog.length >= totalCells()) return;
+            state.aiTimer = setTimeout(() => {
+                state.aiTimer = null;
+                // A BINGO (either side) ends the contest - never call again.
+                if (state.gameEnded || bingoAchieved()) return;
+                const called = new Set(state.moveLog.map(move => move.number));
+                const available = Array.from({ length: totalCells() }, (_, index) => index + 1)
+                    .filter(number => !called.has(number));
+                if (available.length && state.gameMode === 'versus-ai' && state.turnOwner === 'other') {
+                    callNumber(pickAiNumber(available), 'ai');
+                }
+            }, 700);
+        }
+
+        // AI opponent difficulty tiers. The AI scores numbers against its own
+        // board (playerGrids[1]) and, on the harder levels, also denies the
+        // human player's near-complete lines. Higher levels complete lines,
+        // build towards them, and block with increasing urgency.
+        function pickAiNumber(available) {
+            const size = state.gridSize;
+            const difficulty = state.aiDifficulty || 'medium';
+            const aiGrid = state.playerGrids[1];
+            const aiMarked = state.playerMarked[1];
+
+            // Easy: pure random - no strategy at all.
+            if (difficulty === 'easy' || !aiGrid || !aiMarked) {
+                return available[Math.floor(Math.random() * available.length)];
+            }
+
+            const lines = getAllLines(size);
+            const progressFor = (markedGrid) => lines.map(cells =>
+                cells.reduce((acc, [r, c]) => acc + (markedGrid[r][c] ? 1 : 0), 0));
+
+            const myProgress = progressFor(aiMarked);
+            // Extra Hard tracks the human board to block near-wins.
+            const blockHuman = difficulty === 'extrahard' && state.playerMarked[0];
+            const humanProgress = blockHuman ? progressFor(state.playerMarked[0]) : null;
+
+            // Weights per tier: Medium only takes wins, Hard builds + wins,
+            // Extra Hard builds, wins and blocks.
+            const winWeight = difficulty === 'medium' ? 1000 : 1000;
+            const progressWeight = difficulty === 'hard' ? 1 : difficulty === 'extrahard' ? 1.2 : 0;
+
+            const flat = aiGrid.flat();
+            let best = null;
+            let bestScore = -Infinity;
+            for (const number of available) {
+                const pos = flat.indexOf(number);
+                if (pos === -1) continue; // not on the AI's board - skip
+                const r = Math.floor(pos / size);
+                const c = pos % size;
+                let score = 0;
+                lines.forEach((cells, li) => {
+                    if (!cells.some(([cr, cc]) => cr === r && cc === c)) return;
+                    const p = myProgress[li];
+                    if (p === size - 1) score += winWeight;     // completes a line now
+                    else score += Math.pow(2, p) * progressWeight;
+                });
+                if (humanProgress) {
+                    lines.forEach((cells, li) => {
+                        if (!cells.some(([cr, cc]) => cr === r && cc === c)) return;
+                        const p = humanProgress[li];
+                        if (p === size - 1) score += 700;        // deny the human's win
+                        else score += Math.pow(2, p) * 0.4;
+                    });
+                }
+                // Slight center bias + variety so games don't repeat exactly.
+                const mid = (size - 1) / 2;
+                score -= (Math.abs(r - mid) + Math.abs(c - mid)) * 0.5;
+                score += Math.random() * (difficulty === 'extrahard' ? 1.5 : 4);
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = number;
+                }
+            }
+            return best ?? available[Math.floor(Math.random() * available.length)];
+        }
+
+        function scheduleBotCall() {
+            if (state.aiTimer || !state.aiAssist || state.gameEnded || bingoAchieved() ||
+                state.isReplaying || state.turnOwner !== 'human') return;
+            if (typeof isBotFeatureEnabled === 'function' && !isBotFeatureEnabled()) return;
+            state.aiTimer = setTimeout(() => {
+                state.aiTimer = null;
+                botCallOut();
+            }, 700);
+        }
+
+        function botCallOut() {
+            if (!state.aiAssist || state.gameEnded || bingoAchieved() || state.isReplaying ||
+                state.turnOwner !== 'human') return;
+            // Bot assist plays ON BEHALF OF THE USER: it picks the number that
+            // looks best for the user's own board, never for the opponents.
+            const number = pickBestNumber(0);
+            if (number === null) return;
+            callNumber(number, 'bot');
+        }
+
+        // All 5-in-a-row lines (rows, columns, both diagonals) as [r, c] pairs.
+        function getAllLines(size) {
+            const lines = [];
+            for (let i = 0; i < size; i++) {
+                lines.push(Array.from({ length: size }, (_, j) => [i, j]));
+                lines.push(Array.from({ length: size }, (_, j) => [j, i]));
+            }
+            lines.push(Array.from({ length: size }, (_, i) => [i, i]));
+            lines.push(Array.from({ length: size }, (_, i) => [i, size - 1 - i]));
+            return lines;
+        }
+
+        // Pick the available number that most helps the given player's board:
+        // completing a line dominates, then pushing the most-advanced lines
+        // forward, with a slight center bias and a pinch of variety. In
+        // versus-ai the AI's board is known, so near-complete AI lines are
+        // blocked by calling their missing number first.
+        function pickBestNumber(playerIndex = 0) {
+            const size = state.gridSize;
+            const grid = state.playerGrids[playerIndex];
+            const marked = state.playerMarked[playerIndex];
+            if (!grid || !marked) return null;
+            const called = new Set(state.moveLog.map(move => move.number));
+            const available = Array.from({ length: totalCells() }, (_, index) => index + 1)
+                .filter(number => !called.has(number));
+            if (!available.length) return null;
+
+            const lines = getAllLines(size);
+            const progressFor = (markedGrid) => lines.map(cells =>
+                cells.reduce((acc, [r, c]) => acc + (markedGrid[r][c] ? 1 : 0), 0));
+
+            const myProgress = progressFor(marked);
+            const blockAi = state.gameMode === 'versus-ai' && state.playerMarked[1];
+            const aiProgress = blockAi ? progressFor(state.playerMarked[1]) : null;
+
+            const flat = grid.flat();
+            let best = null;
+            let bestScore = -Infinity;
+            for (const number of available) {
+                const pos = flat.indexOf(number);
+                if (pos === -1) continue; // not on this board - skip
+                const r = Math.floor(pos / size);
+                const c = pos % size;
+                let score = 0;
+                lines.forEach((cells, li) => {
+                    if (!cells.some(([cr, cc]) => cr === r && cc === c)) return;
+                    const p = myProgress[li];
+                    if (p === size - 1) score += 1000; // completes a line right now
+                    else score += Math.pow(2, p);      // the closer, the better
+                });
+                if (aiProgress) {
+                    lines.forEach((cells, li) => {
+                        if (!cells.some(([cr, cc]) => cr === r && cc === c)) return;
+                        const p = aiProgress[li];
+                        if (p === size - 1) score += 500; // deny the AI's win
+                        else score += Math.pow(2, p) * 0.4;
+                    });
+                }
+                // Slight center bias + variety so games don't repeat exactly.
+                const mid = (size - 1) / 2;
+                score -= (Math.abs(r - mid) + Math.abs(c - mid)) * 0.5;
+                score += Math.random() * 2;
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = number;
+                }
+            }
+            return best ?? available[Math.floor(Math.random() * available.length)];
+        }
+
+        function chooseFirstTurn(continueAction) {
+            if (state.gameMode === 'passplay') {
+                // Turn sequence was already agreed during setup (manual order or
+                // random toss) - the first player in that sequence calls first.
+                const first = getCurrentTurnPlayer();
+                if (first) {
+                    logAction('first_turn_selected', { turn: first.name, fromPresetOrder: true });
+                    showNotice(`${first.name} calls first.`);
+                }
+                continueAction();
+                return;
+            }
+            if (state.gameMode !== 'passplay') {
+                const firstTurn = Math.random() < 0.5 ? 'human' : 'other';
+                state.turnOwner = firstTurn;
+                logAction('first_turn_toss', {
+                    winner: firstTurn,
+                    participants: ['human', state.gameMode === 'versus-ai' ? 'ai' : 'opponents']
+                });
+                updateAiModeUI();
+                showNotice(firstTurn === 'human'
+                    ? '🎲 Toss: you call first!'
+                    : '🎲 Toss: the AI calls first!', 6000);
+                continueAction();
+                return;
+            }
+        }
+
+        function toggleAiMode() {
+            if (state.isReplaying || state.gameEnded) return;
+            // The bot is a cheat-code feature: only usable once unlocked via
+            // the secret dev options and switched on there.
+            if (!isBotFeatureEnabled()) {
+                showNotice('Bot assist is a secret feature - it is not enabled.', 3200);
+                return;
+            }
+            state.aiAssist = !state.aiAssist;
+            if (state.aiAssist && state.turnOwner === null) {
+                // Toggling on before the first call: derive whose turn it is.
+                if (state.gameMode === 'versus-ai') {
+                    state.turnOwner = state.moveLog.length % 2 === 0 ? 'human' : 'other';
+                } else {
+                    const current = getCurrentTurnPlayer();
+                    state.turnOwner = current && current.playerIndex === 0 ? 'human' : 'other';
+                }
+            }
+            if (!state.aiAssist) {
+                const hadPending = !!state.aiTimer;
+                if (state.aiTimer) {
+                    clearTimeout(state.aiTimer);
+                    state.aiTimer = null;
+                }
+                // The same timer drives the bot AND the AI opponent. If the
+                // cancelled timer was the AI's pending move (versus-ai, AI's
+                // turn), restart it - only hand control back to the human
+                // when it was the bot's own pending call.
+                if (hadPending && state.gameMode === 'versus-ai' && state.turnOwner === 'other') {
+                    scheduleAiCall();
+                } else if (state.turnOwner === 'other' && state.gameMode === 'versus-ai') {
+                    state.turnOwner = 'human';
+                    logAction('turn_changed', { turn: 'human', reason: 'ai_assist_off' });
+                }
+            }
+            logAction('ai_assist_changed', { enabled: state.aiAssist });
+            updateAiModeUI();
+            if (state.aiAssist && state.turnOwner === 'human') scheduleBotCall();
+        }
+
+        function updateAiModeUI() {
+            if (!aiModeToggleBtn) return;
+            // The bot toggle only exists when the secret feature is unlocked
+            // AND switched on in the dev options; otherwise it stays hidden.
+            const featureOn = typeof isBotFeatureEnabled === 'function' && isBotFeatureEnabled();
+            const on = featureOn && state.aiAssist;
+            // The bot toggle is a live-game control: never show it while a
+            // playback is on screen.
+            const inPlayback = state.isReplaying ||
+                (gameScreenSection && gameScreenSection.classList.contains('replay-active'));
+            aiModeToggleBtn.hidden = !featureOn || inPlayback;
+            aiModeToggleBtn.disabled = false;
+            aiModeToggleBtn.setAttribute('aria-pressed', String(on));
+            aiModeToggleBtn.setAttribute('aria-label', on ? 'Turn off AI assist' : 'Turn on AI assist');
+            aiModeToggleBtn.title = on ? 'Turn off AI assist' : 'Turn on AI assist';
+            aiModeToggleBtn.classList.toggle('ai-assist-on', on);
+            // Turn ownership is shown by highlighting the active player's
+            // chip in the turn strip below the BINGO letters.
+            renderCurrentTurn();
+        }
+
+        // Any BINGO on the board (human or AI) means the game is decided -
+        // the AI opponent and the bot assist must stop calling from that
+        // point on, even while the end-game confirmation is still pending.
+        function bingoAchieved() {
+            return state.playerMarked.some((marked, playerIndex) =>
+                !!marked && getCompletedLines(playerIndex).length >= state.gridSize);
+        }
+
+        function checkAiWin() {
+            if (state.gameMode !== 'versus-ai') return;
+            if (getCompletedLines(1).length >= state.gridSize) {
+                showNotice('The AI got BINGO first.');
+                setTimeout(() => {
+                    if (!state.gameEnded) endGame();
+                }, 450);
+            }
         }
 
         function updateMoveLog(currentIndex = -1) {
@@ -2962,9 +4469,15 @@
             visibleMoves.forEach((move, index) => {
                 const entry = document.createElement('div');
                 entry.className = `move-log-entry${index === currentIndex ? ' current' : ''}`;
-                entry.innerHTML = `<span>Call ${index + 1}: <strong>${move.number}</strong>` +
-                    `${index === currentIndex ? ' — Marking now' : ''}</span>` +
-                    `<small>${new Date(move.at).toLocaleTimeString()}</small>`;
+                const actor = move.actor || getMoveActor(move.source);
+                const calledBy = move.calledBy ? ` (${move.calledBy})` : '';
+                const label = `${actor}${calledBy}: Called out ${move.number}` +
+                    (index === currentIndex ? ' - Marking now' : '');
+                const text = document.createElement('span');
+                text.textContent = label;
+                const time = document.createElement('small');
+                time.textContent = new Date(move.at).toLocaleTimeString();
+                entry.append(text, time);
                 moveLog.appendChild(entry);
             });
             moveLog.scrollTop = moveLog.scrollHeight;
@@ -2972,8 +4485,8 @@
             if (currentEntry) currentEntry.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }
 
-        function getCompletedLines() {
-            const marked = state.playerMarked[0];
+        function getCompletedLines(playerIndex = 0) {
+            const marked = state.playerMarked[playerIndex] || makeFalseGrid();
             const lines = [];
             for (let i = 0; i < state.gridSize; i++) {
                 if (marked[i].every(Boolean)) lines.push(i);
@@ -2988,12 +4501,12 @@
             const lines = getCompletedLines();
             if (!state.isReplaying && lines.length > state.lastLoggedBingoLines) {
                 for (let lineCount = state.lastLoggedBingoLines + 1; lineCount <= lines.length; lineCount++) {
-                    if (lineCount === 5) {
+                    if (lineCount === state.gridSize) {
                         logAction('bingo_achieved', { lines: lineCount });
-                    } else if (lineCount > 5) {
+                    } else if (lineCount > state.gridSize) {
                         logAction('bingo_plus_achieved', {
                             lines: lineCount,
-                            extraLines: lineCount - 5
+                            extraLines: lineCount - state.gridSize
                         });
                     }
                 }
@@ -3001,14 +4514,20 @@
             }
             bingoStatus.innerHTML = 'BINGO'.split('').map((letter, index) =>
                 `<span class="bingo-letter ${index < lines.length ? 'lit' : ''}">${letter}</span>`).join('');
-            if (!state.isReplaying && lines.length >= 5 && !state.bingoConfirmationShown) {
+            if (!state.isReplaying && lines.length >= state.gridSize && !state.bingoConfirmationShown) {
                 state.bingoConfirmationShown = true;
+                // The game is decided: kill any pending AI/bot call so nothing
+                // plays on while the end-game confirmation is on screen.
+                if (state.aiTimer) {
+                    clearTimeout(state.aiTimer);
+                    state.aiTimer = null;
+                }
                 requestConfirmation(
-                    `BINGO achieved: ${lines.length > 5
-                        ? `BINGO+ (N: ${lines.length - 5})`
+                    `BINGO achieved: ${lines.length > state.gridSize
+                        ? `BINGO+ (N: ${lines.length - state.gridSize})`
                         : 'BINGO!'}. End this game and review the results?`,
                     endGame,
-                    lines.length > 5 ? `BINGO+ (N: ${lines.length - 5})` : 'BINGO!',
+                    lines.length > state.gridSize ? `BINGO+ (N: ${lines.length - state.gridSize})` : 'BINGO!',
                     'OK',
                     () => {
                         state.bingoConfirmationShown = false;
@@ -3019,6 +4538,8 @@
         }
 
         function endGame() {
+            if (state.aiTimer) clearTimeout(state.aiTimer);
+            state.aiTimer = null;
             state.gameEnded = true;
             endGameBtn.disabled = true;
             replayBtn.disabled = false;
@@ -3031,30 +4552,156 @@
             displayHashResults();
         }
 
-        function displayHashResults() {
-            hashResults.innerHTML = '<h3>🔒 Grid ID Verification</h3>';
-            let allOK = true;
-            for (let p = 0; p < 1; p++) {
-                const isOK = gridMatchesId(state.playerGrids[p], state.playerHashes[p]);
-                if (!isOK) allOK = false;
-                const box = document.createElement('div');
-                box.className = `stat-box ${isOK ? 'ok' : 'error-box'}`;
-                box.innerHTML = `<div class="stat-value">${isOK ? '✔ OK' : '✘ ALTERED'}</div><div class="stat-label">Your grid — ${state.playerHashes[p]}</div>`;
-                hashResults.appendChild(box);
+        function getPlayerResultState(p) {
+            // Board state is only known when the grid lives on this device
+            // (vs-AI, future network mode). Pass-and-play keeps other boards
+            // on their own devices, so their state stays unknown here.
+            if (!state.playerGrids[p]) {
+                return { known: false, text: 'Board not on this device' };
             }
-            const overall = document.createElement('div');
-            overall.className = `stat-box ${allOK ? 'ok' : 'error-box'}`;
-            overall.innerHTML = `<div class="stat-value">${allOK ? '🏆 ALL GOOD' : '⚠ SOME ALTERED'}</div><div class="stat-label">Overall Verification</div>`;
-            hashResults.appendChild(overall);
+            const isAi = p > 0 && state.gameMode === 'versus-ai';
+            const lines = getCompletedLines(p).length;
+            const hasBingo = lines >= state.gridSize;
+            return {
+                known: true,
+                text: hasBingo
+                    ? `🏆 BINGO - ${lines} lines`
+                    : (isAi ? `AI - ${lines} line${lines === 1 ? '' : 's'} done` : `${lines} line${lines === 1 ? '' : 's'} done`)
+            };
+        }
+
+        function buildResultMiniGrid(p) {
+            const grid = state.playerGrids[p];
+            const marked = state.playerMarked[p];
+            if (!grid || !marked) return null;
+            const size = state.gridSize;
+            const element = document.createElement('div');
+            element.className = 'result-mini-grid';
+            element.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell ' + (marked[r][c] ? 'marked' : 'filled');
+                    cell.textContent = grid[r][c];
+                    element.appendChild(cell);
+                }
+            }
+            // Same line geometry as renderPlayersGrids, so completed BINGO
+            // lines are highlighted on the result screen exactly as on the board.
+            getCompletedLines(p).forEach(line => {
+                const lineElement = document.createElement('span');
+                if (line < size) {
+                    lineElement.className = 'win-line horizontal';
+                    lineElement.style.top = `${((line + 0.5) / size) * 100}%`;
+                } else if (line < size * 2) {
+                    lineElement.className = 'win-line vertical';
+                    lineElement.style.left = `${((line - size + 0.5) / size) * 100}%`;
+                } else if (line === size * 2) {
+                    lineElement.className = 'win-line diagonal';
+                } else {
+                    lineElement.className = 'win-line diagonal-reverse';
+                }
+                lineElement.setAttribute('aria-label', 'Completed bingo line');
+                element.appendChild(lineElement);
+            });
+            return element;
+        }
+
+        function displayHashResults() {
+            const winner = getWinner();
+            winnerResult.textContent = winner
+                ? `🏆 Winner: ${winner}`
+                : 'No winner recorded';
+            hashResults.innerHTML = '';
+            const total = Math.max(state.playerNames.length, state.playerHashes.length, state.playerGrids.length);
+            const list = document.createElement('div');
+            list.className = 'results-player-list';
+            for (let p = 0; p < total; p++) {
+                const isAi = p > 0 && state.gameMode === 'versus-ai';
+                const name = isAi
+                    ? 'AI'
+                    : (state.playerNames[p] || `Player ${p + 1}`);
+                const gridId = state.playerHashes[p] || '------';
+                const resultState = getPlayerResultState(p);
+                const row = document.createElement('div');
+                row.className = 'stat-box results-player-row';
+                // Rows after the first get a hairline separator above them
+                // via the CSS sibling rule (.results-player-row + ...).
+                const header = document.createElement('button');
+                header.type = 'button';
+                header.className = 'player-id-toggle results-player-header';
+                header.setAttribute('aria-checked', 'false');
+                header.title = 'Tap to switch between display name and Grid ID';
+                let showGridId = false;
+                const render = () => {
+                    header.setAttribute('aria-checked', String(showGridId));
+                    header.innerHTML =
+                        `<div class="stat-value">${showGridId ? gridId : name}</div>` +
+                        `<div class="stat-label">${isAi ? 'AI' : `Player ${p + 1}`}</div>`;
+                };
+                render();
+                header.addEventListener('click', () => {
+                    showGridId = !showGridId;
+                    render();
+                });
+                row.appendChild(header);
+                const stateLine = document.createElement('div');
+                stateLine.className = `stat-state ${resultState.known ? 'known' : ''}`;
+                stateLine.textContent = resultState.text;
+                row.appendChild(stateLine);
+                // Known board (AI here; any peer in the future network mode,
+                // where each player shares their grid + call log at game end):
+                // show their final board with BINGO lines highlighted and
+                // offer a playback of the shared move log on that board.
+                if (resultState.known && state.playerGrids[p] && state.playerMarked[p]) {
+                    const mini = buildResultMiniGrid(p);
+                    if (mini) row.appendChild(mini);
+                    if (state.moveLog.length > 0) {
+                        const playback = document.createElement('button');
+                        playback.type = 'button';
+                        playback.className = 'btn btn-secondary results-playback-btn';
+                        const playbackIcon = document.createElement('img');
+                        playbackIcon.className = 'icon-img icon-invert';
+                        playbackIcon.src = iconSrc('play');
+                        playbackIcon.alt = '';
+                        playbackIcon.setAttribute('aria-hidden', 'true');
+                        playback.appendChild(playbackIcon);
+                        playback.appendChild(document.createTextNode(
+                            ` Playback ${isAi ? 'AI' : (state.playerNames[p] || `Player ${p + 1}`)}'s board`));
+                        playback.addEventListener('click', () => startReplay(p));
+                        row.appendChild(playback);
+                    }
+                }
+                list.appendChild(row);
+            }
+            hashResults.appendChild(list);
+        }
+
+        function getWinner() {
+            const completedPlayers = state.playerGrids
+                .map((_, playerIndex) => getCompletedLines(playerIndex).length >= state.gridSize);
+            const winnerIndex = completedPlayers.findIndex(Boolean);
+            if (winnerIndex === -1) return null;
+            if (state.gameMode === 'versus-ai' && winnerIndex > 0) {
+                return 'AI';
+            }
+            return state.playerNames[winnerIndex] || `Player ${winnerIndex + 1}`;
         }
 
         // ============================ Replay ============================
         function renderReplayPosition() {
-            state.playerMarked[0] = makeFalseGrid();
+            // Rebuild EVERY board's marks from the move log up to replayIndex,
+            // otherwise stepping back never unmarks the opponent/AI boards and
+            // side-by-side playback desyncs from the log.
+            state.playerMarked = state.playerGrids.map(() => makeFalseGrid());
             state.moveLog.slice(0, state.replayIndex).forEach(move => markNumberOnAllGrids(move.number));
+            state.turnOrderPosition = state.turnOrder.length
+                ? state.replayIndex % state.turnOrder.length
+                : 0;
             renderPlayersGrids();
             updateBingoStatus();
             updateMoveLog();
+            renderCurrentTurn();
         }
 
         function stepReplay(direction) {
@@ -3075,7 +4722,6 @@
             state.replayIndex = Math.max(0, Math.min(state.moveLog.length, state.replayIndex + direction));
             renderReplayPosition();
             updateMoveLog(state.replayIndex > 0 ? state.replayIndex - 1 : -1);
-            state.isReplaying = false;
             logAction(direction < 0 ? 'move_stepped_back' : 'move_stepped_forward', {
                 from: previousIndex,
                 to: state.replayIndex,
@@ -3084,16 +4730,22 @@
             endGameBtn.disabled = state.replayIndex === 0;
         }
 
-        function startReplay() {
+        function startReplay(focusPlayer = null) {
             if (state.moveLog.length === 0) {
                 showNotice('No moves recorded in this game.');
                 return;
             }
+            // vs-AI today: both grids live on this device; in the future
+            // network mode each player's grid + call log is shared with all
+            // peers at game end, so the same playback works for any player.
+            state.replayFocusPlayer = (typeof focusPlayer === 'number' && state.playerGrids[focusPlayer])
+                ? focusPlayer
+                : null;
             if (state.replayReturn !== 'history') state.replayReturn = 'end';
             if (state.navigationStack[state.navigationStack.length - 1] === 'end') {
                 state.navigationStack.push('game');
             }
-            logAction('replay_started');
+            logAction('replay_started', { focusPlayer: state.replayFocusPlayer });
             state.isReplaying = true;
             state.replayPlaying = true;
             state.replayIndex = 0;
@@ -3114,7 +4766,14 @@
         function updateReplayButton() {
             if (!autoReplayBtn) return;
             const playing = state.replayPlaying;
-            autoReplayBtn.textContent = playing ? '⏸ Pause playback' : '▶ Auto playback';
+            const icon = document.getElementById('autoReplayIcon');
+            if (icon) {
+                icon.src = playing ? iconSrc('pause') : iconSrc('play');
+                // Let updateThemeIcons() keep this icon theme-synced too.
+                icon.dataset.themeIcon = playing ? 'pause' : 'play';
+            }
+            autoReplayBtn.title = playing ? 'Pause playback' : 'Auto playback';
+            autoReplayBtn.setAttribute('aria-label', autoReplayBtn.title);
             autoReplayBtn.setAttribute('aria-pressed', String(playing));
         }
 
@@ -3161,6 +4820,10 @@
             renderPlayersGrids();
             updateBingoStatus();
             state.replayIndex++;
+            state.turnOrderPosition = state.turnOrder.length
+                ? state.replayIndex % state.turnOrder.length
+                : 0;
+            renderCurrentTurn();
             updateMoveLog(state.replayIndex - 1);
             if (state.replayPlaying) {
                 state.replayTimeout = setTimeout(replayNextMove, getReplayDelay());
@@ -3180,8 +4843,11 @@
         // ============================ Reset / Nav ============================
         function resetGame(showHome = true) {
             if (state.replayTimeout) clearTimeout(state.replayTimeout);
+            if (state.aiTimer) clearTimeout(state.aiTimer);
             state.replayTimeout = null;
+            state.aiTimer = null;
             state.replayPlaying = false;
+            state.replayFocusPlayer = null;
             state.playerGrids = [];
             state.playerMarked = [];
             state.playerHashes = [];
@@ -3207,6 +4873,11 @@
             setReplayControlsVisible(false);
             if (showHome) showSection(homeScreen);
         }
+
+        // Home-icon tap counter (secret hard-reload gesture). Declared here
+        // because showSection() resets it and runs before its old declaration.
+        let homeIconTapCount = 0;
+        let homeIconTapTimeout;
 
         function showSection(sectionToShow) {
             if (sectionToShow !== homeScreen) {
@@ -3242,8 +4913,6 @@
             }
         }
 
-        let homeIconTapCount = 0;
-        let homeIconTapTimeout;
         document.getElementById('homeBingoIcon')?.addEventListener('click', () => {
             homeIconTapCount++;
             clearTimeout(homeIconTapTimeout);
@@ -3261,6 +4930,39 @@
                 homeIconTapCount = 0;
             }, 7000);
         });
+
+        // Secret dev options: tap the "Welcome to Bingo" banner 7 times.
+        const homeWelcomeBanner = homeScreen?.querySelector('h2');
+        const DEV_UNLOCK_TAPS = 7;
+        let welcomeTapCount = 0;
+        let welcomeTapTimeout;
+        function isDevOptionsUnlocked() {
+            return localStorage.getItem('bingo-dev-options-unlocked') === '1';
+        }
+        if (homeWelcomeBanner) {
+            homeWelcomeBanner.addEventListener('click', () => {
+                if (isDevOptionsUnlocked()) {
+                    openDevOptions();
+                    return;
+                }
+                welcomeTapCount++;
+                clearTimeout(welcomeTapTimeout);
+                if (welcomeTapCount >= DEV_UNLOCK_TAPS) {
+                    welcomeTapCount = 0;
+                    localStorage.setItem('bingo-dev-options-unlocked', '1');
+                    showNotice('🔓 Secret options unlocked!', 4000);
+                    setTimeout(openDevOptions, 900);
+                    return;
+                }
+                const tapsAway = DEV_UNLOCK_TAPS - welcomeTapCount;
+                if (welcomeTapCount >= DEV_UNLOCK_TAPS - 2) {
+                    showNotice(`${tapsAway} more tap${tapsAway === 1 ? '' : 's'}…`);
+                }
+                welcomeTapTimeout = setTimeout(() => {
+                    welcomeTapCount = 0;
+                }, 4000);
+            });
+        }
 
         if ('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')) {
             navigator.serviceWorker.register('./bingo-pwa-local-sw.js').catch(error => {

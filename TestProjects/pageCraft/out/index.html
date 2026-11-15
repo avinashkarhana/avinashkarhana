@@ -10,6 +10,14 @@
     <meta name="apple-mobile-web-app-title" content="PageCraft" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <script>
+      window.__deferredPwaPrompt = null;
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__deferredPwaPrompt = e;
+        window.dispatchEvent(new Event('pwa-prompt-captured'));
+      });
+    </script>
     <title>PageCraft - Offline PDF &amp; Image Studio</title>
     <meta
       name="description"
@@ -28,8 +36,8 @@
       media="print"
       onload="this.media='all'"
     />
-    <script type="module" crossorigin src="./assets/index-CgYLzcyZ.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-Bj5k9kLC.css">
+    <script type="module" crossorigin src="./assets/index-3Ll69Fye.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-D4B29UbR.css">
   <link rel="manifest" href="./manifest.webmanifest"></head>
   <body class="bg-[#F7F7F5] text-zinc-900 antialiased selection:bg-blue-100 selection:text-blue-900">
     <div id="root"></div>

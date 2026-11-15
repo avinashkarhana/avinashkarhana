@@ -56,7 +56,6 @@ define(['exports'], (function (exports) { 'use strict';
       return api;
     })();
 
-    
     const messages$1 = {
       'invalid-value': ({
         paramName,
@@ -323,7 +322,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     };
 
-    
     const generatorFunction = (code, details = {}) => {
       const message = messages$1[code];
       if (!message) {
@@ -333,7 +331,6 @@ define(['exports'], (function (exports) { 'use strict';
     };
     const messageGenerator = generatorFunction;
 
-    
     /**
      * Workbox errors should be thrown with this class.
      * This allows use to ensure the type easily in tests,
@@ -360,7 +357,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     }
 
-    
     /*
      * This method throws if the supplied value is not an array.
      * The destructed values are required to produce a meaningful error for users.
@@ -429,7 +425,6 @@ define(['exports'], (function (exports) { 'use strict';
       self['workbox:routing:7.4.0'] && _();
     } catch (e) {}
 
-    
     /**
      * The default HTTP method, 'GET', used when there's no specific method
      * configured for a route.
@@ -448,7 +443,6 @@ define(['exports'], (function (exports) { 'use strict';
      */
     const validMethods = ['DELETE', 'GET', 'HEAD', 'PATCH', 'POST', 'PUT'];
 
-    
     /**
      * @param {function()|Object} handler Either a function, or an object with a
      * 'handle' method.
@@ -482,7 +476,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     };
 
-    
     /**
      * A `Route` consists of a pair of callback functions, "match" and "handler".
      * The "match" callback determine if a route should be used to "handle" a
@@ -534,7 +527,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     }
 
-    
     /**
      * RegExpRoute makes it easy to create a regular expression based
      * {@link workbox-routing.Route}.
@@ -597,7 +589,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     }
 
-    
     const getFriendlyURL = url => {
       const urlObj = new URL(String(url), location.href);
       // See https://github.com/GoogleChrome/workbox/issues/2323
@@ -605,7 +596,6 @@ define(['exports'], (function (exports) { 'use strict';
       return urlObj.href.replace(new RegExp(`^${location.origin}`), '');
     };
 
-    
     /**
      * The Router can be used to process a `FetchEvent` using one or more
      * {@link workbox-routing.Route}, responding with a `Response` if
@@ -1014,7 +1004,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     }
 
-    
     let defaultRouter;
     /**
      * Creates a new, singleton Router instance if one does not exist. If one
@@ -1033,7 +1022,6 @@ define(['exports'], (function (exports) { 'use strict';
       return defaultRouter;
     };
 
-    
     /**
      * Easily register a RegExp, string, or function with a caching
      * strategy to a singleton Router instance.
@@ -1118,7 +1106,6 @@ define(['exports'], (function (exports) { 'use strict';
       return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    
     const _cacheNameDetails = {
       googleAnalytics: 'googleAnalytics',
       precache: 'precache-v2',
@@ -1159,7 +1146,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     };
 
-    
     function stripParams(fullURL, ignoreParams) {
       const strippedURL = new URL(fullURL);
       for (const param of ignoreParams) {
@@ -1199,7 +1185,6 @@ define(['exports'], (function (exports) { 'use strict';
       return;
     }
 
-    
     /**
      * The Deferred class composes Promises in a way that allows for them to be
      * resolved or rejected from outside the constructor. In most cases promises
@@ -1220,13 +1205,11 @@ define(['exports'], (function (exports) { 'use strict';
       }
     }
 
-    
     // Callbacks to be executed whenever there's a quota error.
     // Can't change Function type right now.
     // eslint-disable-next-line @typescript-eslint/ban-types
     const quotaErrorCallbacks = new Set();
 
-    
     /**
      * Runs all of the callback functions, one at a time sequentially, in the order
      * in which they were registered.
@@ -1971,7 +1954,6 @@ define(['exports'], (function (exports) { 'use strict';
      * @memberof workbox-strategies.Strategy
      */
 
-    
     const messages = {
       strategyStart: (strategyName, request) => `Using ${strategyName} to respond to '${getFriendlyURL(request.url)}'`,
       printFinalResponse: response => {
@@ -1983,7 +1965,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     };
 
-    
     /**
      * An implementation of a
      * [network-only](https://developer.chrome.com/docs/workbox/caching-strategies-overview/#network-only)
@@ -2077,7 +2058,6 @@ define(['exports'], (function (exports) { 'use strict';
       void promise.then(() => {});
     }
 
-    
     /**
      * Adds a function to the set of quotaErrorCallbacks that will be executed if
      * there's a quota error.
@@ -2359,7 +2339,6 @@ define(['exports'], (function (exports) { 'use strict';
       self['workbox:expiration:7.4.0'] && _();
     } catch (e) {}
 
-    
     const DB_NAME = 'workbox-expiration';
     const CACHE_OBJECT_STORE = 'cache-entries';
     const normalizeURL = unNormalizedUrl => {
@@ -2537,7 +2516,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     }
 
-    
     /**
      * The `CacheExpiration` class allows you define an expiration and / or
      * limit on the number of responses stored in a
@@ -2686,7 +2664,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     }
 
-    
     /**
      * This plugin can be used in a `workbox-strategy` to regularly enforce a
      * limit on the age and / or the number of cached requests.
@@ -2935,7 +2912,6 @@ define(['exports'], (function (exports) { 'use strict';
       self['workbox:cacheable-response:7.4.0'] && _();
     } catch (e) {}
 
-    
     /**
      * This class allows you to set up rules determining what
      * status codes and/or headers need to be present in order for a
@@ -3041,7 +3017,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     }
 
-    
     /**
      * A class implementing the `cacheWillUpdate` lifecycle callback. This makes it
      * easier to add in cacheability checks to requests made via Workbox's built-in
@@ -3083,7 +3058,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     }
 
-    
     /**
      * An implementation of a [cache-first](https://developer.chrome.com/docs/workbox/caching-strategies-overview/#cache-first-falling-back-to-network)
      * request strategy.
@@ -3159,7 +3133,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     }
 
-    
     /**
      * Claim any currently available clients once the service worker
      * becomes active. This is normally used in conjunction with `skipWaiting()`.
@@ -3170,7 +3143,6 @@ define(['exports'], (function (exports) { 'use strict';
       self.addEventListener('activate', () => self.clients.claim());
     }
 
-    
     /**
      * A utility method that makes it easier to use `event.waitUntil` with
      * async functions and return the result.
@@ -3191,7 +3163,6 @@ define(['exports'], (function (exports) { 'use strict';
       self['workbox:precaching:7.4.0'] && _();
     } catch (e) {}
 
-    
     // Name of the search parameter used to store revision info.
     const REVISION_SEARCH_PARAM = '__WB_REVISION__';
     /**
@@ -3313,7 +3284,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     }
 
-    
     /**
      * @param {string} groupTitle
      * @param {Array<string>} deletedURLs
@@ -3342,7 +3312,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     }
 
-    
     /**
      * @param {string} groupTitle
      * @param {Array<string>} urls
@@ -3381,7 +3350,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     }
 
-    
     let supportStatus;
     /**
      * A utility function that determines whether the current browser supports
@@ -3408,7 +3376,6 @@ define(['exports'], (function (exports) { 'use strict';
       return supportStatus;
     }
 
-    
     /**
      * Allows developers to copy a response and modify its `headers`, `status`,
      * or `statusText` values (the values settable via a
@@ -3659,7 +3626,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     };
 
-    
     /**
      * Performs efficient precaching of assets.
      *
@@ -3943,7 +3909,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     }
 
-    
     let precacheController;
     /**
      * @return {PrecacheController}
@@ -3956,7 +3921,6 @@ define(['exports'], (function (exports) { 'use strict';
       return precacheController;
     };
 
-    
     /**
      * Removes any URL search parameters that should be ignored.
      *
@@ -3980,7 +3944,6 @@ define(['exports'], (function (exports) { 'use strict';
       return urlObject;
     }
 
-    
     /**
      * Generator function that yields possible variations on the original URL to
      * check, one at a time.
@@ -4094,7 +4057,6 @@ define(['exports'], (function (exports) { 'use strict';
       registerRoute(precacheRoute);
     }
 
-    
     /**
      * Adds items to the precache list, removing any duplicates and
      * stores the files in the
@@ -4119,7 +4081,6 @@ define(['exports'], (function (exports) { 'use strict';
       precacheController.precache(entries);
     }
 
-    
     /**
      * This method will add entries to the precache list and add a route to
      * respond to fetch events.
@@ -4139,7 +4100,6 @@ define(['exports'], (function (exports) { 'use strict';
       addRoute(options);
     }
 
-    
     const SUBSTRING_TO_FIND = '-precache-';
     /**
      * Cleans up incompatible precaches that were created by older versions of
@@ -4168,7 +4128,6 @@ define(['exports'], (function (exports) { 'use strict';
       return cacheNamesToDelete;
     };
 
-    
     /**
      * Adds an `activate` event listener which will clean up incompatible
      * precaches that were created by older versions of Workbox.
@@ -4189,7 +4148,6 @@ define(['exports'], (function (exports) { 'use strict';
       });
     }
 
-    
     /**
      * NavigationRoute makes it easy to create a
      * {@link workbox-routing.Route} that matches for browser
@@ -4291,7 +4249,6 @@ define(['exports'], (function (exports) { 'use strict';
       }
     }
 
-    
     /**
      * Helper function that calls
      * {@link PrecacheController#createHandlerBoundToURL} on the default

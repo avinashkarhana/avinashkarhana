@@ -56,7 +56,7 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
+define(['./workbox-43e44e5a'], (function (workbox) { 'use strict';
 
   self.skipWaiting();
   workbox.clientsClaim();
@@ -75,8 +75,11 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "pwa-192x192.png",
     "revision": "c6e31e4ca035d380fc6f083b58570101"
   }, {
+    "url": "manifest.webmanifest",
+    "revision": "9d5ceb49de6d21bd946f47993e3fd88e"
+  }, {
     "url": "index.html",
-    "revision": "d27fa2acb048bdad27845167d8f6ef4b"
+    "revision": "18d6c07cb627b614f19be46d0669b9a1"
   }, {
     "url": "icon.svg",
     "revision": "cebab1bf871aa974d5d715573b6c8e37"
@@ -90,20 +93,14 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "assets/pdf.worker.min-CIqJB0yW.mjs",
     "revision": null
   }, {
-    "url": "assets/index-HYbIJdVx.css",
+    "url": "assets/index-CgYLzcyZ.js",
     "revision": null
   }, {
-    "url": "assets/index-DtqViysS.js",
+    "url": "assets/index-Bj5k9kLC.css",
     "revision": null
   }, {
-    "url": "assets/__vite-browser-external-BnxSbtrd.js",
+    "url": "assets/__vite-browser-external-BPxQIxCW.js",
     "revision": null
-  }, {
-    "url": "apple-touch-icon.png",
-    "revision": "6d48188dcc387c52a24b9824cc13c241"
-  }, {
-    "url": "icon.svg",
-    "revision": "cebab1bf871aa974d5d715573b6c8e37"
   }, {
     "url": "pwa-192x192.png",
     "revision": "c6e31e4ca035d380fc6f083b58570101"
@@ -115,10 +112,17 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "revision": "8c31b6eee18fd2e9f4c34bf60be7043d"
   }, {
     "url": "manifest.webmanifest",
-    "revision": "a3ccbdb8fb65ffa3f6d7561b3dbacb01"
-  }], {});
+    "revision": "9d5ceb49de6d21bd946f47993e3fd88e"
+  }], {
+    "ignoreURLParametersMatching": [/^utm_/, /^fbclid$/]
+  });
   workbox.cleanupOutdatedCaches();
-  workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html")));
+  workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
+    denylist: [/__pwa_ping=/]
+  }));
+  workbox.registerRoute(({
+    url
+  }) => url.searchParams.has("__pwa_ping"), new workbox.NetworkOnly(), 'GET');
   workbox.registerRoute(/^https:\/\/fonts\.googleapis\.com\/.*/i, new workbox.CacheFirst({
     "cacheName": "google-fonts-cache",
     plugins: [new workbox.ExpirationPlugin({

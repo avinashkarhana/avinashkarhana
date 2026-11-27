@@ -1,19 +1,19 @@
 {
-  "name": "Bingo",
+  "id": "/",
+  "name": "Bingo WebRTC & Local PWA",
   "short_name": "Bingo",
-  "description": "A pass-and-play Bingo board for people in the same room.",
-  "start_url": "./",
-  "scope": "./",
+  "description": "Pass-and-play, AI, and coTURN WebRTC multiplayer Bingo board with SHA-256 commit-reveal verification.",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#f8fafc",
-  "theme_color": "#1e293b",
+  "theme_color": "#4f46e5",
   "icons": [
     {
       "src": "./images/bingo-pwa-local-icon.svg",
-      "sizes": "any",
+      "sizes": "192x192 512x512",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }
